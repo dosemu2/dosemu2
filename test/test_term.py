@@ -15,25 +15,24 @@ What it does not cover is the rendering of a host terminal program run from
 DOS, which needs comcom64 and so a dj64 build.
 """
 
-import fcntl
-import os
-import pty
 import re
-import signal
-import struct
-import termios
 import unittest
 
-from os import environ
 from pathlib import Path
-from select import select
 from shutil import which, rmtree
 from subprocess import check_call, CalledProcessError, DEVNULL
+from sys import argv
 from tempfile import mkdtemp
-from time import sleep, monotonic
+
+from common_framework import (BaseTestCase, DOSEMU_CONF_DEFAULT,
+                              main, main_setup, mark)
 
 ROWS, COLS = 25, 80
 RUN_TIMEOUT = 60
+
+# The framework's own drive, plus the colour the rendering checks want.
+CONF = DOSEMU_CONF_DEFAULT + '$_term_color = (1)\n'
+TERM = "xterm-256color"
 
 # Where the probe paints, so the test and the DOS program agree.
 ROW_TEXT = 1
@@ -282,50 +281,58 @@ class Screen:
                     self.cbg = 40
 
 
-class TerminalRenderTestCase(unittest.TestCase):
+class TerminalRenderTestCase(BaseTestCase, unittest.TestCase):
+
+    attrs = {'terminal'}
 
     @classmethod
     def setUpClass(cls):
-        cls.topdir = Path('.').resolve()
-        cls.dosemu = Path(environ.get("TEST_DOSEMU",
-                                      cls.topdir / "bin" / "dosemu"))
+        super().setUpClass()
+        cls.prettyname = "Terminal"
+        # There is no DOS distribution to unpack: the probe assembled
+        # below is handed to dosemu2 as its command interpreter, so
+        # setUpClassPost() has nothing to do and is not called.
+        cls.tarfile = ""
+        # setUp() still lays out an imagedir, and the names it copies
+        # from src/bindist are the ones a distribution class would have
+        # set; the probe does not read either file.
+        cls.autoexec = "dautoemu.bat"
+        cls.confsys = "dconfig.sys"
         if not cls.dosemu.is_file():
             raise unittest.SkipTest("dosemu2 not built at %s" % cls.dosemu)
         if which("nasm") is None:
             raise unittest.SkipTest("nasm not installed")
 
-        cls.workdir = Path(mkdtemp(prefix="termrender."))
-        src = cls.workdir / "probe.asm"
+        cls.probedir = Path(mkdtemp(prefix="termrender."))
+        src = cls.probedir / "probe.asm"
         src.write_text(PROBE)
         # dosemu2 takes its command interpreter from DOSEMU2_COMCOM_DIR
         try:
             check_call(["nasm", "-f", "bin", "-o",
-                        str(cls.workdir / "command.com"), str(src)],
+                        str(cls.probedir / "command.com"), str(src)],
                        stdout=DEVNULL, stderr=DEVNULL)
         except CalledProcessError as e:
             raise unittest.SkipTest("nasm failed: %s" % e)
-        cls.conf = cls.workdir / "dosemu.conf"
+        cls.conf = cls.probedir / "dosemu.conf"
         cls.conf.write_text('$_term_color = (1)\n')
         cls.screen = None
         cls.raw = None
 
     @classmethod
     def tearDownClass(cls):
-        rmtree(str(cls.workdir), ignore_errors=True)
+        rmtree(str(cls.probedir), ignore_errors=True)
 
-    def keepLog(self, text):
-        """Leave the bytes where ci_test.sh collects them."""
-        p = self.topdir / ("%s.%s.%s.log" % (Path(__file__).stem,
-                                             type(self).__name__,
-                                             self._testMethodName))
-        p.write_text(text)
-        return p
+    def test_0_basic_boot(self):
+        """no DOS here: the probe is the command interpreter"""
+        self.skipTest("this case installs no DOS distribution")
 
+    @mark('terminal')
     def test_text_lands_where_dos_put_it(self):
         """a word written into the text screen comes out on the right row"""
         s = self.render()
         self.assertEqual(s.text(ROW_TEXT), "TERMPROBE", self.dump(s))
 
+    @mark('terminal')
     def test_attributes_become_terminal_colours(self):
         """each of the fifteen visible attributes picks its own colour"""
         s = self.render()
@@ -334,22 +341,26 @@ class TerminalRenderTestCase(unittest.TestCase):
         self.assertEqual(s.fg[ROW_GLYPH][0], FG[15], self.dump(s))
         self.assertEqual(s.bg[ROW_GLYPH][0], BG[1], self.dump(s))
 
+    @mark('terminal')
     def test_a_character_set_glyph_is_translated(self):
         """a CP437 byte reaches the terminal as the character it means"""
         s = self.render()
         self.assertEqual(s.ch[ROW_GLYPH][1], "╔", self.dump(s))
 
+    @mark('terminal')
     def test_a_bios_scroll_moves_only_its_own_window(self):
         """int 10h ah=06 scrolls the columns it was given and no others"""
         s = self.render()
         rows = [s.text(ROW_SCROLL + i) for i in range(3)]
         self.assertEqual(rows, ["BBBBBBBB", "CCCCCCCC", ""], self.dump(s))
 
+    @mark('terminal')
     def test_the_cursor_ends_where_the_bios_put_it(self):
         """int 10h ah=02 moves the terminal's own cursor too"""
         s = self.render()
         self.assertEqual((s.y, s.x), (CURSOR_Y, CURSOR_X), self.dump(s))
 
+    @mark('terminal')
     def test_the_window_title_names_dosemu(self):
         """the backend tells the terminal what it is running"""
         s = self.render()
@@ -366,78 +377,30 @@ class TerminalRenderTestCase(unittest.TestCase):
         if self.__class__.screen is not None:
             return self.__class__.screen
 
-        logfile = self.workdir / "dosemu.log"
-        home = self.workdir / "home"
+        home = self.probedir / "home"
         rmtree(str(home), ignore_errors=True)
         home.mkdir()
 
-        pid, fd = pty.fork()
-        if pid == 0:
-            env = dict(environ)
-            env.update({
+        out = self.runDosemuRaw(
+            ("-t", "-ks"), config=CONF, rows=ROWS, cols=COLS,
+            until=b"READY", timeout=RUN_TIMEOUT,
+            env={
                 "HOME": str(home),
-                "DOSEMU2_COMCOM_DIR": str(self.workdir),
-                "TERM": "xterm-256color",
+                "DOSEMU2_COMCOM_DIR": str(self.probedir),
+                "TERM": TERM,
                 # the character set the backend translates CP437 into
                 "LC_ALL": "C.UTF-8",
             })
-            env.pop("LANG", None)
-            env.pop("LC_CTYPE", None)
-            try:
-                os.execve("/bin/sh", ["sh", "-c", "%s -t -ks -q -f %s -o %s"
-                                      % (self.dosemu, self.conf, logfile)],
-                          env)
-            finally:
-                os._exit(127)
 
-        # DOS wants 25 lines, and a terminal that has fewer makes the
-        # backend say so and render something else
-        fcntl.ioctl(fd, termios.TIOCSWINSZ,
-                    struct.pack("HHHH", ROWS, COLS, 0, 0))
-
-        out = b""
-        deadline = monotonic() + RUN_TIMEOUT
-        try:
-            while monotonic() < deadline:
-                r, _, _ = select([fd], [], [], 0.5)
-                if r:
-                    try:
-                        d = os.read(fd, 65536)
-                    except OSError:
-                        break
-                    if not d:
-                        break
-                    out += d
-                if b"READY" in out:
-                    sleep(1)            # let the last update arrive
-                    try:
-                        while select([fd], [], [], 0.2)[0]:
-                            d = os.read(fd, 65536)
-                            if not d:
-                                break
-                            out += d
-                    except OSError:
-                        pass
-                    break
-        finally:
-            try:
-                os.kill(pid, signal.SIGTERM)
-                os.waitpid(pid, 0)
-            except OSError:
-                pass
-            os.close(fd)
-
-        log = logfile.read_text(errors="replace") if logfile.exists() else ""
-        if "VID: Video set to Video_term" not in log and \
-                b"\x1b[" not in out:
+        log = self.boot_log()
+        if "VID: Video set to Video_term" not in log and b"\x1b[" not in out:
             self.skipTest("this build has no terminal plugin")
 
         screen = Screen()
         screen.feed(out)
         if screen.text(ROW_READY) != "READY":
-            where = self.keepLog(out.decode("utf-8", "replace") + "\n" + log)
-            self.fail("the probe never finished painting; bytes kept at %s"
-                      % where)
+            self.fail("the probe never finished painting; the bytes are in "
+                      "the output log")
 
         self.__class__.raw = out
         self.__class__.screen = screen
@@ -445,4 +408,7 @@ class TerminalRenderTestCase(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    unittest.main(verbosity=2)
+    cases = [
+        TerminalRenderTestCase,
+    ]
+    main(main_setup(cases))
