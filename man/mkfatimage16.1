@@ -35,11 +35,12 @@ The output is either written to
 (hence do not forget to append\ "\ >\ hdimagefile", else you will see
 garbage on the screen) or to the file specified by the
 .B \-f
-option. For the latter you may also use option
-.B \-p
-in order to force padding up to the given size. This padding will result
-in so-called holes on an ext2-FS, hence the actual disk usage will not be
-greater.
+option. In the latter case the image file is given the size the disk's
+geometry calls for, so that it matches
+.BR \-t / \-h " or " \-k .
+Only the sectors that carry something are written, so on a file system
+that has holes - which is every one dosemu2 is likely to be run on - the
+image is sparse and the actual disk usage is that of its contents.
 The file created by mkfatimage16 then can be used as a virtual drive, when defined in
 .I /etc/dosemu.conf.
 As long as
@@ -89,11 +90,12 @@ heads. Using tracks and heads is one way to define the size of the disk.
 .I \-k Kbytes
 Make the virtual disk be
 .I Kbytes
-in size. Using
+in size. The geometry is chosen to hold that much, so the disk, and the
+image file with it, is rounded up to a whole number of cylinders. Using
 .I \-t|\-h
 and
 .I \-k
-are mutual exclusive.
+are mutual exclusive, and giving both is an error.
 .TP
 .I \-l label
 insert
@@ -107,12 +109,8 @@ instead of
 .I stdout
 .TP
 .I \-p
-Pad the hdimage with zero up to the total size given by
-.I \-t|\-h
-or
-.I \-k
-(only in conjunction with
-.IR \-f ).
+Accepted and ignored. It used to be what made the image file as large as
+the disk it describes, which is now what always happens.
 
 
 

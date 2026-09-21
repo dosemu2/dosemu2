@@ -241,7 +241,9 @@ static void usage(void)
   fprintf(stderr,
     "Usage:\n"
     "  mkfatimage [-b bsectfile] [{[-t tracks] [-h heads] | -k Kbytes}]\n"
-    "             [-l volume-label] [-f outfile] [-p ] [ -r ] [file...]\n");
+    "             [-l volume-label] [-f outfile] [-p] [-r] [file...]\n"
+    "  -p is accepted and does nothing: the image always gets the size\n"
+    "  its geometry says, as a sparse file where the file system has holes.\n");
 }
 
 
@@ -253,7 +255,7 @@ int main(int argc, char *argv[])
   struct on_disk_bpb *bpb;
   int kbytes = -1;
   int raw = 0;
-  long total_file_size = 0;
+  long total_file_size = 1;  /* the image gets the size of its geometry */
   char *volume_label = NULL;
 
   outfile = stdout;
@@ -346,7 +348,7 @@ int main(int argc, char *argv[])
       }
       break;
     case 'p':
-      total_file_size = 1;  /* padding to exact file size */
+      /* this is what happens anyway; taken for the sake of old scripts */
       break;
     case 'r':
       raw = 1;
