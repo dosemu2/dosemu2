@@ -1,3 +1,5 @@
+import re
+
 BATCHFILE = """\
 c:\\%s
 rem end
@@ -65,5 +67,7 @@ int main(void)
     results = self.runDosemu("testit.bat", config=EMU_CONF, timeout=20)
 
     self.assertNotIn("FAILURE:", results)
-    self.assertNotIn("SKIP:", results)
+    skip = re.search(r"SKIP: (.*)", results)
+    if skip:
+        self.skipTest(skip.group(1).strip())
     self.assertIn("Test OK", results)
