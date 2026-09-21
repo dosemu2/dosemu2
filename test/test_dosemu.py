@@ -47,6 +47,7 @@ from func_lredir import mfs_lredir_auto_hdc, mfs_lredir_command, mfs_lredir_comm
 from func_memory_dpmi_dpmi10_ldt import memory_dpmi_dpmi10_ldt
 from func_memory_dpmi_pharlap import memory_dpmi_pharlap, memory_dpmi_pharlap16
 from func_memory_dpmi_nullseg import memory_dpmi_nullseg
+from func_memory_dpmi_popf_if import memory_dpmi_popf_if
 from func_memory_dpmi_ecm import (memory_dpmi_ecm_alloc, memory_dpmi_ecm_mini,
                                   memory_dpmi_ecm_modeswitch, memory_dpmi_ecm_psp)
 from func_memory_dpmi_japheth import memory_dpmi_japheth
@@ -1037,6 +1038,11 @@ class OurTestCase(BaseTestCase):
     def test_memory_dpmi_nullseg(self):
         """Memory DPMI null selector access"""
         memory_dpmi_nullseg(self)
+
+    @mark(['memtest', 'dpmitest'])
+    def test_memory_dpmi_popf_if(self):
+        """Memory DPMI popf does not re-enable interrupts"""
+        memory_dpmi_popf_if(self)
 
     @mark(['memtest', 'dpmitest'])
     def test_memory_dpmi_leak_check_nofree(self):
