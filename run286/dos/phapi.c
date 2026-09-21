@@ -194,6 +194,14 @@ static uint16_t dos_alloc_real_seg(struct call *c)
     para = __dpmi_allocate_dos_memory((size + 15) >> 4, &sel);
     if (para == -1)
 	return ERROR_NOT_ENOUGH_MEMORY;
+    /* The host builds that descriptor for its client, and its client is
+     * us, so it comes out 32bit. The program is 16bit and puts such a
+     * segment in SS: with B set the machine would then push at ESP, whose
+     * high half a 16bit program never writes. */
+    if (__dpmi_set_descriptor_access_rights(sel, AR_DATA16) == -1) {
+	__dpmi_free_dos_memory(sel);
+	return ERROR_INVALID_PARAMETER;
+    }
     call_setw(parap, para);
     call_setw(selp, sel);
     return 0;
