@@ -6015,12 +6015,23 @@ static int dpmi_fault1(cpuctx_t *scp)
                * silence where it asked a question. Write the same zero
                * the register case writes: six bytes for sgdt and sidt,
                * two for sldt, str and smsw. */
-              int len, ss_rel;
-              unsigned int ofs = decode_ea(&csp[1], reg32, ASIZE_IS_32,
-                  &len, &ss_rel);
+              int len = 0, ss_rel = 0;
+              int ext = (csp[1] >> 3) & 7;
+              /* Only the five that store. The rest of both groups load
+               * from this operand - lgdt, lidt, lldt, ltr, lmsw - or
+               * only read it, and they reach us too, since the loads
+               * are privileged and fault out of a client at cpl 3.
+               * Writing to their operand would corrupt the very bytes
+               * they came to read. */
+              int is_store = (csp[0] == 0 ? ext < 2 :
+                              (ext < 2 || ext == 4));
               /* 0f 01 /0 and /1 are sgdt and sidt, the six byte pair */
-              int is_dt = (csp[0] == 1 && ((csp[1] >> 3) & 7) < 2);
+              int is_dt = (csp[0] == 1 && ext < 2);
+              unsigned int ofs = 0;
               unsigned short sel;
+
+              if (is_store)
+                ofs = decode_ea(&csp[1], reg32, ASIZE_IS_32, &len, &ss_rel);
 
               if (!len) {
                 error_once("DPMI: unsupported SLDT/SIDT dest %x\n%s", csp[1],
