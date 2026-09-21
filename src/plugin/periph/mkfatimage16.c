@@ -241,7 +241,9 @@ static void usage(void)
   fprintf(stderr,
     "Usage:\n"
     "  mkfatimage [-b bsectfile] [{[-t tracks] [-h heads] | -k Kbytes}]\n"
-    "             [-l volume-label] [-f outfile] [-p ] [ -r ] [file...]\n");
+    "             [-l volume-label] [-f outfile] [-p] [-r] [file...]\n"
+    "  -p is accepted and does nothing: the image always gets the size\n"
+    "  its geometry says, as a sparse file where the file system has holes.\n");
 }
 
 
@@ -251,9 +253,9 @@ int main(int argc, char *argv[])
   struct image_header *header;
   struct on_disk_partition *part;
   struct on_disk_bpb *bpb;
-  int kbytes = -1;
+  long kbytes = -1;
   int raw = 0;
-  long total_file_size = 0;
+  long total_file_size;
   char *volume_label = NULL;
 
   outfile = stdout;
@@ -311,26 +313,29 @@ int main(int argc, char *argv[])
       }
       p_ending_head = heads - 1;
       break;
-    case 'k':
+    case 'k': {
+      long nsectors;
+
       if (kbytes != -1) {
         usage();
         return 1;
       }
-      kbytes = strtol(optarg, 0,0) *2;  /* needed total number of sectors */
-      if (kbytes < (SECTORS_PER_TRACK * HEADS *2)) {
-        fprintf(stderr, "Error: %d Kbyte specified, must be a reasonable size\n", kbytes);
+      kbytes = strtol(optarg, 0,0);
+      if (kbytes < (SECTORS_PER_TRACK * HEADS)) {
+        fprintf(stderr, "Error: %ld Kbyte specified, must be a reasonable size\n", kbytes);
         return 1;
       }
-      tracks = (kbytes + (sectors_per_track * heads) -1) / (sectors_per_track * heads);
+      nsectors = kbytes * 2;  /* needed total number of sectors */
+      tracks = (nsectors + (sectors_per_track * heads) -1) / (sectors_per_track * heads);
       if (tracks > 1024) {
         heads *= 2;
         tracks /= 2;
         if (tracks > 1024) {
           sectors_per_track = 63;
           heads = 15;
-          tracks = (kbytes + (sectors_per_track * heads) -1) / (sectors_per_track * heads);
+          tracks = (nsectors + (sectors_per_track * heads) -1) / (sectors_per_track * heads);
           if (tracks > 1024) {
-            fprintf(stderr, "Error: %d Kbyte specified, to big\n", kbytes);
+            fprintf(stderr, "Error: %ld Kbyte specified, too big\n", kbytes);
             return 1;
           }
         }
@@ -339,6 +344,7 @@ int main(int argc, char *argv[])
       p_starting_absolute_sector = sectors_per_track;
       p_ending_sector = sectors_per_track;
       break;
+    }
     case 'f':
       if ((outfile=fopen(optarg, "w")) == 0) {
         fprintf(stderr, "Error: cannot open file %s: %s\n", optarg, strerror(errno));
@@ -346,7 +352,9 @@ int main(int argc, char *argv[])
       }
       break;
     case 'p':
-      total_file_size = 1;  /* padding to exact file size */
+      /* The image is sized to its geometry in any case now, so there is
+       * nothing left for this to ask for.  Still accepted, so that the
+       * command lines that carry it keep working. */
       break;
     case 'r':
       raw = 1;
@@ -356,7 +364,7 @@ int main(int argc, char *argv[])
       return 1;
     }
   }
-  if (total_file_size) total_file_size = heads*tracks*sectors_per_track*512;
+  total_file_size = heads*tracks*sectors_per_track*512;
   p_sectors = ((heads*tracks-1)*sectors_per_track);
 /*  p_type = ((p_sectors <= 8*0xff7) ? P_TYPE_12BIT : P_TYPE_16BIT); */
   if (p_sectors <= 8 * 0xff7) {
@@ -562,20 +570,35 @@ int main(int argc, char *argv[])
   }
 
   /* Size the image and close */
-  if (outfile != stdout) {
-    if (total_file_size) {
-      /* we need padding,
-       * but doing it this way it will make holes on an ext2-fs,
-       * hence the _actual_ disk usage will not be greater.
-       */
-      if (!raw)
-        total_file_size += sizeof(*header);
+  {
+    struct stat st;
+    int fd = fileno(outfile);
 
-      fseek(outfile, total_file_size - 1, SEEK_SET);
-      fwrite("", 1, 1, outfile);
+    /* The image has to be as long as the geometry it carries says, or
+     * the partition its own MBR describes does not fit into it.  Only
+     * the sectors that carry something are written, so on a file system
+     * that has holes the length is free and the disk usage stays that of
+     * the contents.  ftruncate() is what says exactly that: seeking past
+     * the end and writing a byte allocates the block that byte lands in.
+     * A pipe or a terminal has no length to set, which is why this asks
+     * what the stream is rather than whether it is stdout -- the manual
+     * opens by telling the user to redirect it, and a redirect to a file
+     * has a size to give just as -f does. */
+    if (!raw)
+      total_file_size += sizeof(*header);
+    if (fflush(outfile) != 0) {
+      fprintf(stderr, "Error: cannot write the image: %s\n", strerror(errno));
+      return 1;
     }
-    fclose(outfile);
+    if (fstat(fd, &st) == 0 && S_ISREG(st.st_mode) &&
+        ftruncate(fd, total_file_size) != 0) {
+      fprintf(stderr, "Error: cannot size the image to %ld bytes: %s\n",
+              total_file_size, strerror(errno));
+      return 1;
+    }
   }
+  if (outfile != stdout)
+    fclose(outfile);
 
   return 0;
 }
