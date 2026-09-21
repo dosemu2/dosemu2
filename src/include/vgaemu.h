@@ -508,6 +508,7 @@ void dirty_all_video_pages(void);
 void vgaemu_dirty_page(int page, int dirty);
 int vgaemu_is_dirty(void);
 void vga_mark_dirty(dosaddr_t addr, int len);
+int vgaemu_vesa_mode(void);
 void dirty_all_vga_colors(void);
 int changed_vga_colors(void (*upd_func)(DAC_entry *, int, void *), void *arg);
 void vgaemu_adj_cfg(unsigned, unsigned);

@@ -863,6 +863,13 @@ void vga_mark_dirty(dosaddr_t vga_addr, int len)
     vgaemu_dirty_page(vga_page, 1);
 }
 
+/* The mode vgaemu really has up, for the host side of the BIOS: the BDA
+ * cannot name a VESA mode in its seven bits. */
+int vgaemu_vesa_mode(void)
+{
+  return vga.VESA_mode;
+}
+
 void vga_write(dosaddr_t addr, unsigned char val)
 {
   if (!vga.inst_emu || !vga_bank_access(addr)) {
