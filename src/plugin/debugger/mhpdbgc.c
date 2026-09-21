@@ -985,10 +985,13 @@ static void mhp_dump(int argc, char *argv[])
   unsigned int limit;
   int data32 = 0;
   int unixaddr;
+  int segmented;
   unsigned char c;
   int in_dpmi = addr_in_dpmi();
 
   if (argc > 1) {
+    /* before the parse, which splits the string at the colon */
+    segmented = strchr(argv[1], ':') != NULL;
     if (!mhp_getadr(argv[1], &seekval, &seg, &off, &limit, in_dpmi)) {
       mhp_printf("Invalid ADDR\n");
       return;
@@ -999,6 +1002,7 @@ static void mhp_dump(int argc, char *argv[])
       mhp_printf("No previous \'d\' command\n");
       return;
     }
+    segmented = strchr(lastd, ':') != NULL;
     if (!mhp_getadr(lastd, &seekval, &seg, &off, &limit, in_dpmi)) {
       mhp_printf("Invalid ADDR\n");
       return;
@@ -1023,9 +1027,13 @@ static void mhp_dump(int argc, char *argv[])
   if (in_dpmi && seg)
     data32 = dpmi_segment_is32(seg);
   unixaddr = linmode == 2 && seg == 0 && limit == 0xFFFFFFFF;
+  /* show the address back the way it was given: a plain number in lin32 is
+   * a linear address, and splitting it into a segment and an offset that
+   * were never typed only makes it hard to read, the way 'u' already knows */
+  segmented = segmented || linmode == 0 || in_dpmi;
   for (i = 0; i < nbytes; i++) {
     if ((i & 0x0f) == 0x00) {
-      if (seg != 0 || limit != 0xFFFFFFFF) {
+      if (segmented) {
         if (data32)
           mhp_printf("%s%04x:%08x ", in_dpmi ? "#" : "", seg, off + i);
         else
@@ -1058,7 +1066,7 @@ static void mhp_dump(int argc, char *argv[])
     }
   }
 
-  if (seg != 0 || limit != 0xFFFFFFFF) {
+  if (segmented) {
     if ((lastd[0] == '#') || (in_dpmi)) {
       snprintf(lastd, sizeof(lastd), "#%x:%x", seg, off + i);
     } else {
