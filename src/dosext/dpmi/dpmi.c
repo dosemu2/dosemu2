@@ -1294,8 +1294,21 @@ static void *enter_lpms(cpuctx_t *scp)
 
   if (_ss == DPMI_CLIENT.PMSTACK_SEL || DPMI_CLIENT.in_dpmi_pm_stack) {
     pmstack_esp = client_esp(scp);
-    if (pmstack_esp < 256) {
-      error("PM stack invalid, in_dpmi_pm_stack=%i\n", DPMI_CLIENT.in_dpmi_pm_stack);
+    /* ESP comes from the client, so it can be anything. Besides leaving
+     * room for the frame we are about to push, it has to be within the
+     * limit of its own stack segment: on real hardware a push past the
+     * limit raises #SS, whereas here it is written through
+     * SEL_ADR_CLNT(), which does no limit check at all, so it lands
+     * wherever base+esp happens to point - possibly outside our memory,
+     * taking down the host rather than the client.
+     * Expand-down segments are left alone: there the limit is the lower
+     * bound, not the upper one, and GetSegmentLimit() does not say so. */
+    if (pmstack_esp < 256 ||
+        (GetSegmentType(pmstack_sel) != MODIFY_LDT_CONTENTS_STACK &&
+         pmstack_esp - 1 > GetSegmentLimit(pmstack_sel))) {
+      error("PM stack invalid, in_dpmi_pm_stack=%i sel=%#x esp=%#x lim=%#x\n",
+            DPMI_CLIENT.in_dpmi_pm_stack, pmstack_sel, pmstack_esp,
+            GetSegmentLimit(pmstack_sel));
       if (_ss != DPMI_CLIENT.PMSTACK_SEL) {
         /* win31 sets ESP to 0 to re-enter lpms */
         DPMI_CLIENT.in_dpmi_pm_stack = 0;
