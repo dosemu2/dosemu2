@@ -5587,12 +5587,14 @@ static int dpmi_gpf_simple(cpuctx_t *scp, uint8_t *lina, void *sp, int *rv)
        * "pusha; pushfd; cli" (drally),
        * "pushfw; cli" (PoliceQuest4)
        * "pushfw; pop ax; cli" (PoliceQuest4)
+       * "pushf; cli" in 16-bit code (Ultima VIII)
        *  patterns */
       if (!in_dpmi_irq && _eip >= 2 &&
           ((lina[-2] == 0x9c && lina[-1] == 0x58) ||
           (lina[-2] == 0xc3 && lina[-1] == 0x9c) ||
           (lina[-2] == 0x60 && lina[-1] == 0x9c) ||
           (lina[-2] == 0x66 && lina[-1] == 0x9c) ||
+          (lina[-1] == 0x9c && !Segments(_cs >> 3).is_32) ||
           (_eip >= 4 && lina[-4] == 0x66 && lina[-3] == 0x9c &&
                   lina[-2] == 0x66 && lina[-1] == 0x58)
       )) {
