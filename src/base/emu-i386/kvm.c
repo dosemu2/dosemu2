@@ -533,12 +533,16 @@ void kvm_reset_to_vm86(void)
     dbug_printf("Using V86 mode inside KVM\n");
 }
 
-/* A VCPI client runs in PM with our v86 stack pointer still in the TSS,
-   which is what tells it apart from a DPMI client. */
+/* VCPI_ACTIVE in kvmmon.S: nonzero while a VCPI client owns the CPU.
+   kvm_vcpi_pm_switch() raises it, pm_to_v86 clears it on the way back. */
+#define VCPI_ACTIVE 0x90
+
+/* A VCPI client owns the CPU.  This cannot be read off monitor->regs: a
+   client returns to v86 through pm_to_v86, which never touches them, and a
+   fault taken at ring 0 inside the monitor does not update them either. */
 static inline int kvm_in_vcpi(void)
 {
-  return !(monitor->regs.eflags & X86_EFLAGS_VM) &&
-    monitor->tss.esp0 == offsetof(struct monitor, regs) + sizeof(monitor->regs);
+  return monitor->vcpi_data[VCPI_ACTIVE];
 }
 
 /* True while a VCPI client owns the CPU.  dosemu2's own scheduling has to
@@ -1654,14 +1658,21 @@ static unsigned int kvm_run(void)
           }
           break;
         }
-        /* Any other hlt belongs to the monitor: the client has already
-           dropped back to v86 through pm_to_v86, and monitor->regs, which
-           is all kvm_in_vcpi() has to go by, has not caught up with it yet.
-           Swallowing the trap here left us re-entering the same hlt for as
-           long as it took a stray interrupt to be injected through the
-           client's IDT, which is not mapped any more -> triple fault.
-           Fall through instead: handling the trap is what refreshes
-           monitor->regs and ends the client's turn. */
+        /* The client still owns the CPU, so this hlt is one the monitor
+           reached by faulting inside the mode-switch stub, at ring 0.
+           Such a fault does not switch stacks, so its frame went wherever
+           the stub's esp pointed and not into monitor->regs, and there is
+           nothing here to hand to vm86_fault().  Resuming just stops at
+           the same hlt again until a pending interrupt is injected into a
+           CPU that is half way between the two worlds, and the guest
+           triple faults; say what happened instead. */
+        ioctl(vcpufd, KVM_GET_SREGS, &sregs);
+        error("KVM: VCPI: monitor faulted at ring 0, rip=%04x:%08llx "
+              "cr2=%08llx cr3=%08llx\n", sregs.cs.selector,
+              (unsigned long long)kregs.rip, (unsigned long long)sregs.cr2,
+              (unsigned long long)sregs.cr3);
+        leavedos_main(99);
+        break;
       }
       if (fixup_hlt_exit(regs))
         break;
@@ -2022,6 +2033,7 @@ void kvm_vcpi_pm_switch(dosaddr_t addr)
   monitor->regs.eip = (VCPI_CODE_PAGE << PAGE_SHIFT) +
     (kvm_mon_vcpi_pm_jmp - (kvm_mon_start + 2 * PAGE_SIZE));
   monitor->regs.eflags &= ~(X86_EFLAGS_VM | X86_EFLAGS_IF);
+  monitor->vcpi_data[VCPI_ACTIVE] = 1;
 
   /* The client owns the page tables from here on, so the PROT_NONE entries
      we use to trap VGA accesses are gone: the aperture has to be real MMIO

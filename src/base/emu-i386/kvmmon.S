@@ -100,6 +100,10 @@ skip_cr3:
         SAVED_GDTR = 0x80
         SAVED_IDTR = 0x86
         SAVED_CR3 = 0x8c
+        /* nonzero while a client owns the CPU; kvm_vcpi_pm_switch() sets
+           it, the way back clears it.  Inferring this from monitor->regs
+           does not work: the way back does not go through them. */
+        VCPI_ACTIVE = 0x90
         MON_TSS_SEL = 0x18
         MON_LDT_SEL = 0x20
         VCPI_DS_SEL = 0x28
@@ -153,6 +157,7 @@ pm_to_v86:
         mov %cs,%eax
         addl $8,%eax                    # our 0-based DS follows our CS
         mov %eax,%ds
+        movb $0,(VCPI_DATA+VCPI_ACTIVE) # the client is done with the CPU
         mov (VCPI_DATA+SAVED_CR3),%eax
         addl $5*4,%esp
         pushl $0x20202                  # VM=1, NT=0, IOPL=0, IF=1, TF=0, VIF=0
