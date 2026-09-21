@@ -152,11 +152,11 @@ static COMMAND cmds[] = {
   {"stop", NULL,
    "                  stop (if running)\n"},
   {"kvm", NULL,
-   "                  dump the vCPU as KVM has it: registers, control\n"
-   "                  registers and descriptor table registers. Unlike r,\n"
-   "                  this is the state the CPU is really in, which differs\n"
-   "                  while a client runs with page and descriptor tables of\n"
-   "                  its own\n"},
+   "                  dump the vCPU as KVM has it at the last exit from it:\n"
+   "                  registers, control registers and descriptor table\n"
+   "                  registers. Unlike r, this is the state the CPU is\n"
+   "                  really in, which differs while a client runs with page\n"
+   "                  and descriptor tables of its own. TR says which it is\n"},
   {"mode", NULL,
    "0|1|2|d|+d|-d     set mode (0=SEG16, 1=LIN32, 2=UNIX32) for u and d commands\n"},
   {"t", NULL,

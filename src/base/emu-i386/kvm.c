@@ -1394,6 +1394,7 @@ int kvm_get_vcpu_state(struct kvm_vcpu_state *st)
   st->ldt.sel = sr.ldt.selector;
   st->ldt.base = sr.ldt.base;
   st->ldt.limit = sr.ldt.limit;
+  st->monitor_base = MONITOR_DOSADDR;
   return 0;
 }
 

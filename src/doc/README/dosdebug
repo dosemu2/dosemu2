@@ -383,9 +383,10 @@ wether a DPMI-client is active (in_dpmi).
 <term>kvm</term>
 <listitem>
 <para>
-		  dump the vCPU as KVM itself has it: the general registers,
-		  each segment with its base, limit and size, CR0/CR2/CR3/CR4,
-		  and GDTR, IDTR, TR and LDTR.
+		  dump the vCPU as KVM itself has it at the last exit from
+		  it: the general registers, each segment with its base,
+		  limit and size, CR0/CR2/CR3/CR4, and GDTR, IDTR, TR and
+		  LDTR.
 </para>
 <para>
 		  This is not the same thing as <emphasis>r</emphasis>. The
@@ -396,6 +397,16 @@ wether a DPMI-client is active (in_dpmi).
 		  handed it the CPU, not the context the CPU is really in.
 		  The control and descriptor table registers are not reachable
 		  any other way.
+</para>
+<para>
+		  The last line says where DOSEMU's monitor is and whether TR
+		  points at it. DOSEMU always loads TR with its monitor's
+		  task, so a TR that holds something else is a client that
+		  went to ring 0 with descriptor and page tables of its own,
+		  and CR3, GDTR and IDTR are then that client's too. Which
+		  of the two you get depends on where the CPU was when it
+		  last left KVM, so it is not always the one you want; stop
+		  closer to the client and look again.
 </para>
 <para>
 		  Only useful when DOSEMU runs on KVM; it says so otherwise.

@@ -37,6 +37,7 @@ struct kvm_vcpu_state {
     unsigned short sel;
     unsigned int base, limit;
   } tr, ldt;
+  unsigned int monitor_base;   /* where dosemu's own monitor sits */
 };
 
 #ifdef USE_KVM

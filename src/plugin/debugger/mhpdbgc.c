@@ -2409,6 +2409,12 @@ static void mhp_kvm(int argc, char *argv[])
   mhp_printf("TR: %04x base %08x limit %08x   LDTR: %04x base %08x limit %08x\n",
              st.tr.sel, st.tr.base, st.tr.limit,
              st.ldt.sel, st.ldt.base, st.ldt.limit);
+  /* dosemu always points TR at its monitor, so anything else means the CPU
+   * was not running dosemu's own task when it last left KVM */
+  mhp_printf("monitor at %08x, %s\n", st.monitor_base,
+             st.tr.base == st.monitor_base ?
+             "which is what TR holds: this is dosemu's own context" :
+             "which is not what TR holds: a client ran with tables of its own");
 }
 
 static void mhp_regs32(int argc, char *argv[])
