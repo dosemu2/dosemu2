@@ -16,6 +16,9 @@ from common_framework import (BaseTestCase, main, main_setup, IPROMPT,
 # A watchpoint is the CPU emulator's jit taking a fault, so the test has to
 # ask for the emulator rather than take whatever the machine offers.
 CPUEMU_CONF = DOSEMU_CONF_DEFAULT + '$_cpu_vm = "emulated"\n'
+# The other half of the same command is the CPU's own debug registers, and
+# those need the CPU, so that variant asks for KVM just as plainly.
+KVM_CONF = DOSEMU_CONF_DEFAULT + '$_cpu_vm = "kvm"\n'
 from common_os import frdos130, ppdosgit
 
 # Something for DOS to run while the debugger looks at it.
@@ -455,6 +458,54 @@ class OurTestCase(BaseTestCase):
         mem = results.split("mem=")[-1].split(" | ")[0]
         self.assertRegex(mem, r"0500\s+00 A5", mem)
         # clearing has to leave the list empty
+        empty = results.split("empty=")[-1]
+        self.assertNotRegex(empty, r"\n\s*\d+: [0-9a-f]+",
+                            "a watchpoint was left behind: " + results)
+
+    def test_dosdebug_watchpoint_kvm(self):
+        """Dosdebug watchpoint on a client write under KVM"""
+
+        if not self.have_kvm:
+            self.skipTest("requires KVM")
+
+        self.mkfile("testit.bat", "c:\\watch\nrem end\n", newline="\r\n")
+        self.mkcom_with_nasm("watch", WATCH_ASM)
+
+        def body(args):
+            self.dbgCmd("bpint 3")
+            self.dbgchild.sendline("g")
+            self.dbgWaitStop(pm=False, limit=40)
+            self.dbgCmd("bcint 3")
+
+            out = ["set=" + self.dbgCmd("bpw 0:500 1")]
+            out.append("list=" + self.dbgCmd("bpw"))
+            self.dbgchild.sendline("g")
+            _, _, stop = self.dbgWaitStop(pm=False, limit=40)
+            out.append("stop=" + stop)
+            out.append("mem=" + self.dbgCmd("d 0:500 2"))
+            out.append("clr=" + self.dbgCmd("bcw"))
+            out.append("empty=" + self.dbgCmd("bpw"))
+            return " | ".join(out)
+
+        results = self.runWithDosdebug("testit.bat", body, config=KVM_CONF)
+
+        self.assertNotIn('Timeout', results)
+        # the same command, armed the other way: a debug register rather than
+        # the page protection the emulator's jit takes a fault on
+        self.assertRegex(results,
+                         r"Watchpoint 0 set at 00000500, 1 byte,"
+                         r" in a debug register", results)
+        # a data breakpoint is a trap, so the client stops on the instruction
+        # after the write and the byte already holds what was written
+        self.assertRegex(results,
+                         r"watchpoint 0: 00000500 has been written"
+                         r" \(stopped at [0-9a-f]{8}, just past it\),"
+                         r" it now holds 5a", results)
+        # 0x501 is written first and has to go by unnoticed: the watch is on
+        # the byte here, not on the page it is in
+        mem = results.split("mem=")[-1].split(" | ")[0]
+        self.assertRegex(mem, r"0500\s+5A A5", mem)
+        # and the registers have to be given up again
         empty = results.split("empty=")[-1]
         self.assertNotRegex(empty, r"\n\s*\d+: [0-9a-f]+",
                             "a watchpoint was left behind: " + results)
