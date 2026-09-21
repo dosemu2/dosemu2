@@ -90,14 +90,6 @@ static void xms_ret(cpuctx_t *scp, const __dpmi_regs *rmreg)
     D_printf("MSDOS: XMS call return\n");
 }
 
-struct __attribute__ ((__packed__)) EMM {
-   unsigned int Length;
-   unsigned short SourceHandle;
-   unsigned int SourceOffset;
-   unsigned short DestHandle;
-   unsigned int DestOffset;
-};
-
 static void do_xms_call(cpuctx_t *scp)
 {
     cpuctx_t sa = *scp;
@@ -110,94 +102,9 @@ static void do_xms_call(cpuctx_t *scp)
     xms_ret(scp, &rmreg);
 }
 
-static dosaddr_t xms_map(cpuctx_t *scp, unsigned handle, unsigned len)
-{
-    cpuctx_t sa = *scp;
-    dosaddr_t ret = -1;
-    unsigned pa, sz;
-
-    _LWORD(eax) = 0x0e00;  // get emb info
-    _LWORD(edx) = handle;
-    do_xms_call(scp);
-    if (_LWORD(eax) != 1)
-        goto out;
-    sz = _LWORD(edx) * 1024;
-    if (len > sz)
-        goto out;
-    _LWORD(eax) = 0x0c00;  // lock
-    _LWORD(edx) = handle;
-    do_xms_call(scp);
-    if (_LWORD(eax) != 1)
-        goto out;
-    pa = (_LWORD(edx) << 16) | _LWORD(ebx);
-    ret = DPMIMapHWRam(pa & _PAGE_MASK, PAGE_ALIGN(sz));
-    if (ret == (dosaddr_t)-1 || (ret & (PAGE_SIZE - 1)))
-        goto out;
-    ret += pa & (PAGE_SIZE - 1);
-out:
-    *scp = sa;
-    return ret;
-}
-
-static void xms_unmap(cpuctx_t *scp, unsigned handle, dosaddr_t va)
-{
-    int err;
-    cpuctx_t sa = *scp;
-    err = DPMIUnmapHWRam(va & _PAGE_MASK);
-    if (err)
-        error("error unmapping hwram\n");
-    _LWORD(eax) = 0x0d00;  // unlock
-    _LWORD(edx) = handle;
-    do_xms_call(scp);
-    if (_LWORD(eax) != 1)
-        error("error unlocking emb\n");
-    *scp = sa;
-}
-
 static void xmshlp_thr(void *arg)
 {
     cpuctx_t *scp = arg;
-    int is_32 = msdos_is_32();
-
-    if (_HI_(ax) == 0x0b) {
-        struct EMM *e = SEL_ADR_CLNT(_ds_, _esi_, is_32);
-        if (e->SourceHandle == 0 || e->DestHandle == 0) {
-            dosaddr_t src = -1, dst = -1;
-            unsigned char *s = NULL, *d = NULL;
-            if (e->SourceHandle != 0) {
-                src = xms_map(scp, e->SourceHandle,
-                              e->SourceOffset + e->Length);
-                if (src != (dosaddr_t)-1)
-                    s = LINEAR2UNIX(src + e->SourceOffset);
-            } else {
-                s = SEL_ADR_CLNT(_ds_, e->SourceOffset, is_32);
-            }
-            if (!s) {
-                _LWORD(eax) = 0;
-                _LWORD(ebx) = 0xa7;
-                return;
-            }
-            if (e->DestHandle != 0) {
-                dst = xms_map(scp, e->DestHandle, e->DestOffset + e->Length);
-                if (dst != (dosaddr_t)-1)
-                    d = LINEAR2UNIX(dst + e->DestOffset);
-            } else {
-                d = SEL_ADR_CLNT(_ds_, e->DestOffset, is_32);
-            }
-            if (!d) {
-                _LWORD(eax) = 0;
-                _LWORD(ebx) = 0xa7;
-                return;
-            }
-            memcpy(d, s, e->Length);
-            if (e->SourceHandle != 0)
-                xms_unmap(scp, e->SourceHandle, src);
-            if (e->DestHandle != 0)
-                xms_unmap(scp, e->DestHandle, dst);
-            _LWORD(eax) = 1;
-            return;
-        }
-    }
 
     do_xms_call(scp);
 }

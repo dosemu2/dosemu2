@@ -11,16 +11,26 @@ def memory_xms(self):
 
     self.mkfile("testit.bat", BATCHFILE % 'xmstest', newline="\r\n")
 
+    aliased = 1 if 'FDPP' in self.version else 0
+
     self.mkexe_with_djgpp("xmstest", r"""
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
 #include <dpmi.h>
+#include <sys/movedata.h>
 #include <sys/nearptr.h>
 
 #ifndef PAGE_SIZE
 #define PAGE_SIZE 4096
+#endif
+
+/* An EMB can be reached through a DPMI physical address mapping only while
+ * dosemu2's own XMS driver owns it: the window it publishes the pages into
+ * is not aliased to the memory an external XMS driver hands out. */
+#ifndef XMS_ALIASED
+#define XMS_ALIASED 1
 #endif
 
 struct __attribute__ ((__packed__)) EMM {
@@ -92,6 +102,7 @@ int main()
     unsigned addr;
     char *ptr;
     char buf[PAGE_SIZE];
+    int dseg, dsel;
     int err;
     __dpmi_meminfo dm = {};
     __dpmi_regs r = {};
@@ -109,6 +120,15 @@ int main()
     }
     printf("XMS present\n");
 
+    /* The handle-0 side of a block move names conventional memory by a
+     * real-mode segment:offset pair, on the protected-mode entry point as
+     * much as on the real-mode one.  Get a DOS block to play that part. */
+    dseg = __dpmi_allocate_dos_memory(PAGE_SIZE / 16, &dsel);
+    if (dseg == -1) {
+        printf("FAILURE: no DOS memory\n");
+        exit(1);
+    }
+
     /* get entry */
     asm volatile(
         "int $0x2f\n"
@@ -124,9 +144,10 @@ int main()
     printf("XMS alloc ok\n");
 
     /* put test string there - length must be even */
+    dosmemput(str1, strlen(str1) + 1, dseg * 16);
     e.Length = (strlen(str1) + 1 + 1) & ~1;
     e.SourceHandle = 0;
-    e.SourceOffset = (uintptr_t)str1;
+    e.SourceOffset = (unsigned)dseg << 16;
     e.DestHandle = handle;
     e.DestOffset = offs1;
     if (!call_xms_dssi(0xb, &e)) {
@@ -135,6 +156,26 @@ int main()
     }
     printf("XMS move ok\n");
 
+    /* ask the driver itself what landed in the EMB */
+    memset(buf, 0, sizeof buf);
+    dosmemput(buf, e.Length, dseg * 16);
+    e.SourceHandle = handle;
+    e.SourceOffset = offs1;
+    e.DestHandle = 0;
+    e.DestOffset = (unsigned)dseg << 16;
+    if (!call_xms_dssi(0xb, &e)) {
+        printf("FAILURE: XMS move back failed\n");
+        exit(1);
+    }
+    dosmemget(dseg * 16, e.Length, buf);
+    printf("Moved back this string: %s\n", buf);
+    if (strcmp(str1, buf) != 0) {
+        printf("FAILURE: Test 0 FAILURE\n");
+        exit(1);
+    }
+    printf("Test 0 OK\n");
+
+#if XMS_ALIASED
     /* map EMB */
     if (!call_xms_dxbx(0xc, handle, &addr)) {
         printf("FAILURE: XMS map failed\n");
@@ -183,7 +224,7 @@ int main()
     e.SourceHandle = handle;
     e.SourceOffset = offs2;
     e.DestHandle = 0;
-    e.DestOffset = (uintptr_t)buf;
+    e.DestOffset = (unsigned)dseg << 16;
     if (!call_xms_dssi(0xb, &e)) {
         printf("XMS bad move2 failed, OK\n");
 //        exit(1);
@@ -194,17 +235,21 @@ int main()
         exit(1);
     }
     printf("XMS move2 ok\n");
+    dosmemget(dseg * 16, sizeof buf, buf);
     printf("Got back this string: %s\n", buf);
     if (strcmp(str2, buf) != 0)
         printf("FAILURE: Test 2 FAILURE\n");
     else
         printf("Test 2 OK\n");
+#endif
     return 0;
 }
-""")
+""", extraargs=["-DXMS_ALIASED=%d" % aliased])
 
     results = self.runDosemu("testit.bat")
 
-    self.assertIn("Test 1 OK", results)
-    self.assertIn("Test 2 OK", results)
+    self.assertIn("Test 0 OK", results)
+    if aliased:
+        self.assertIn("Test 1 OK", results)
+        self.assertIn("Test 2 OK", results)
     self.assertNotIn("FAILURE:", results)
