@@ -244,7 +244,7 @@ void cpu_reset(void)
   REG(edi) = 0;
   REG(ebp) = 0;
   REG(eip) = 0;
-  SREG(cs) = 0xffff;
+  SREG(cs) = BIOSSEG + 0xfff;	/* the reset vector, wherever our BIOS is */
   REG(esp) = 0xfffe;
   SREG(ss) = 0;		/* This is the standard pc bios stack */
   SREG(es) = 0;			/* standard pc es */

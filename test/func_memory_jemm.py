@@ -412,8 +412,10 @@ $_jemm = (on)
     # 24 windows from 0xa0000, where the real JEMM puts them
     self.assertIn("FRAME=a000", results)
 
-    # and DOS keeps all of its 640k, the array starting right above it
-    self.assertIn("DOSMEM=0280", results)
+    # and DOS keeps everything below our own BIOS, which moved down out of
+    # the array's way: 612k here, the low memory heap and the BIOS image
+    # taking the 28k between that and 0xa0000
+    self.assertIn("DOSMEM=0264", results)
     self.assertIn("PAGES=0018", results)
 
     # the window is EMS memory, not the video memory it sits over

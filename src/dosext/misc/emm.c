@@ -2599,34 +2599,18 @@ static int jemm_shared(int physical_page)
   return base >= JEMM_HW_BASE && base < JEMM_HW_TOP;
 }
 
-/* The array reaches to the end of the first megabyte, and its last two windows
- * land on what is ours for good: the ROM BIOS stubs, the low memory heap and
- * the block of halts every interrupt is dispatched through.  Those windows
- * exist for the client to count and to address, but they never carry an alias,
- * the way a window over the video aperture carries none while the card owns
- * it.  Aliasing them instead takes the halt block out from under the
- * interrupts and trips the JIT on its own protected pages. */
-static int jemm_ours(int physical_page)
-{
-  return PHYS_PAGE_ADDR(physical_page) >= JEMM_TOP;
-}
-
 /* a window whose address is on loan to its original owner right now */
 static int jemm_hidden(int physical_page)
 {
-  if (!config.jemm)
-    return 0;
-  if (jemm_ours(physical_page))
-    return 1;
-  return jemm_dos_view && jemm_shared(physical_page);
+  return config.jemm && jemm_dos_view && jemm_shared(physical_page);
 }
 
 /* The first window that is nobody else's.  dosemu borrows four windows as the
  * buffer it bounces DOS calls of a protected-mode client through, see
  * prepare_ems_frame() in msdos.c.  Normally the whole frame is ours and the
- * first window will do, but under JEMM the array starts on the video aperture
- * and ends on our own ROM area, and mapping over either behind its owner's
- * back corrupts it.  Returns -1 when there is no such window. */
+ * first window will do, but under JEMM the array starts on the video aperture,
+ * and mapping over that behind the card's back corrupts it.  Returns -1 when
+ * there is no such window. */
 int emm_first_own_page(void)
 {
   int i;
@@ -2634,7 +2618,7 @@ int emm_first_own_page(void)
   if (!config.jemm)
     return 0;
   for (i = 0; i < phys_pages; i++) {
-    if (!jemm_shared(i) && !jemm_ours(i))
+    if (!jemm_shared(i))
       return i;
   }
   return -1;
@@ -2767,10 +2751,15 @@ void jemm_config(void)
   config.ems_uma_pages = EMM_UMA_MAX_PHYS;
   config.ems_cnv_pages = 0;
   config.ems_frame = JEMM_HW_BASE >> 4;
-  if (config.mem_size > config.ems_frame >> 6)
-    config.mem_size = config.ems_frame >> 6;
-  c_printf("CONF: JEMM: %i EMS windows from 0x%04x, DOS memory %iK\n",
-	   config.ems_uma_pages, config.ems_frame, config.mem_size);
+  /* The array wants the whole of 0xa0000-0xfffff, and our own BIOS and low
+   * memory heap live in the top 32k of it.  They are addressed relative to
+   * BIOSSEG throughout, so move that instead: DOS gives up its last 32k and
+   * we take it, right below the array where no window can reach. */
+  dosemu_bios_seg = (JEMM_HW_BASE >> 4) - 0x1000;
+  config.mem_size = SEGOFF2LINEAR(dosemu_bios_seg, DOSEMU_LMHEAP_OFF) / 1024;
+  c_printf("CONF: JEMM: %i EMS windows from 0x%04x, BIOS at 0x%04x, "
+	   "DOS memory %iK\n", config.ems_uma_pages, config.ems_frame,
+	   dosemu_bios_seg, config.mem_size);
 }
 
 void ems_init(void)
