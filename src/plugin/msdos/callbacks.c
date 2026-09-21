@@ -49,13 +49,18 @@ static void rmcb_ret_handler(cpuctx_t *scp,
     do_retf(rmreg, (1 << ss_INDEX) | (1 << esp_INDEX));
 }
 
+/* what ps2_mouse_callback() pushed, so that the return takes the same
+ * amount back off. A callback has to return before the next one is
+ * delivered, so one pair of values is enough. */
+static int ps2_frame_32, ps2_stack_32;
+
 static void rmcb_ret_from_ps2(cpuctx_t *scp,
 		       struct RealModeCallStructure *rmreg, int is_32)
 {
-    if (is_32)
-	_esp += 16;
+    if (ps2_stack_32)
+	_esp += ps2_frame_32 ? 16 : 8;
     else
-	_LWORD(esp) += 8;
+	_LWORD(esp) += ps2_frame_32 ? 16 : 8;
     do_retf(rmreg, (1 << ss_INDEX) | (1 << esp_INDEX));
 }
 
@@ -184,6 +189,8 @@ static void ps2_mouse_callback(cpuctx_t *scp,
     }
     D_printf("MSDOS: starting %i bit PS2 mouse callback on a %i bit stack\n",
 	    cb32 ? 32 : 16, ss32 ? 32 : 16);
+    ps2_frame_32 = cb32;
+    ps2_stack_32 = ss32;
     sp = SEL_ADR_CLNT(_ss, _esp, ss32);
 
     rm_ssp = MK_FP32(RMREG(ss), RMREG(sp) + 4 + 8);
