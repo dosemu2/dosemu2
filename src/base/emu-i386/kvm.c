@@ -542,6 +542,10 @@ void kvm_reset_to_vm86(void)
 /* A VCPI client owns the CPU.  This cannot be read off monitor->regs: a
    client returns to v86 through pm_to_v86, which never touches them, and a
    fault taken at ring 0 inside the monitor does not update them either. */
+/* set while kvm_vcpi_pm_switch() has forced the VGA aperture to real MMIO */
+static int vcpi_mmio_forced;
+static void kvm_vcpi_returned(void);
+
 static inline int kvm_in_vcpi(void)
 {
   return monitor->vcpi_data[VCPI_ACTIVE];
@@ -1821,6 +1825,7 @@ int true_kvm_vm86(struct vm86_struct *info)
   monitor->int_revectored = info->int_revectored;
 
   if (!kvm_in_vcpi()) {
+    kvm_vcpi_returned();
     monitor->tss.esp0 = offsetof(struct monitor, regs) + sizeof(monitor->regs);
     *regs = info->regs;
     regs->eflags &= (SAFE_MASK | X86_EFLAGS_VIF | X86_EFLAGS_VIP);
@@ -2067,8 +2072,23 @@ void kvm_vcpi_pm_switch(dosaddr_t addr)
   /* The client owns the page tables from here on, so the PROT_NONE entries
      we use to trap VGA accesses are gone: the aperture has to be real MMIO
      while it runs. */
-  if (vga.inst_emu)
+  if (vga.inst_emu) {
     kvm_set_mmio(vga.mem.graph_base, vga.mem.graph_size, 1);
+    vcpi_mmio_forced = 1;
+  }
+}
+
+/* Undo of the above.  The client gives the CPU back from its own stub,
+   which drops VCPI_ACTIVE without leaving KVM, so there is no exit to hang
+   this on and it has to be noticed the next time we look.  Without it the
+   first switch leaves the aperture real MMIO for the rest of the session
+   and instruction emulation never runs again. */
+static void kvm_vcpi_returned(void)
+{
+  if (!vcpi_mmio_forced)
+    return;
+  kvm_set_mmio(vga.mem.graph_base, vga.mem.graph_size, 0);
+  vcpi_mmio_forced = 0;
 }
 
 /* VCPI DE08/DE09 */
