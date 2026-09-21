@@ -33,3 +33,19 @@ hdinfo
 bios_symbols.c
 keysym_attributes.c
 make_attributes
+
+# Generated in the tree by the build and by the test suite.  None of these
+# is tracked, but the patterns above do not name them, so git offers them
+# on every status and they have twice been committed by accident.
+*.o.bin
+*.o.elf
+*_offsets.c
+configure
+config.status
+/config.guess
+/config.sub
+/install-sh
+__pycache__/
+/test-binaries/
+/test-imagedir/
+test/test-imagedir/
