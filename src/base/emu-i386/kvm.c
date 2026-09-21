@@ -1553,7 +1553,14 @@ static unsigned int kvm_run(void)
   static struct vm86_regs saved_regs;
   struct vm86_regs *regs = &monitor->regs;
 
-  if (run->exit_reason != KVM_EXIT_HLT &&
+  /* Never push registers while a VCPI client has the CPU, or while a
+     switch to one is pending.  Both states have VM clear and a GDT
+     selector in cs, which the code below would run through set_ldt_seg()
+     and turn into a descriptor out of the LDT; the guest answers that
+     with a triple fault.  It is the monitor that restores these registers
+     anyway, with its own iret after the hlt.  The case only comes up when
+     the previous exit was not the hlt -- a signal, say. */
+  if (run->exit_reason != KVM_EXIT_HLT && !kvm_in_vcpi() &&
       memcmp(regs, &saved_regs, sizeof(*regs))) {
     /* Only set registers if changes happened, usually
        this means a hardware interrupt or sometimes
