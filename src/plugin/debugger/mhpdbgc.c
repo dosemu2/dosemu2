@@ -2315,6 +2315,12 @@ static void mhp_bpw(int argc, char *argv[])
       wptab[i].is_valid = 1;
       mhp_printf("Watchpoint %d set at %08x, %u byte%s\n", i, seekval, len,
                  len == 1 ? "" : "s");
+      /* Said here rather than only in the README because the failure these
+       * warn about is silence, and silence reads as "nothing wrote". */
+      mhp_printf("not seen: the client's stack writes, and what the jit hands"
+                 " to a helper\n");
+      mhp_printf("not seen: what dosemu writes into this memory for the"
+                 " client\n");
       return;
     }
   }

@@ -424,6 +424,30 @@ emulation's aperture or ROM, which are protected already and for other
 reasons.
 </para>
 <para>
+<emphasis>What it does not see.</emphasis> This works by taking write
+permission away from the mapping the client runs on, and dosemu reaches the
+same memory through a mirror of its own, which memory.h keeps unprotected on
+purpose so that its writes are not trapped. Anything written through that
+mirror is therefore missed, and two kinds of write go through it.
+</para>
+<para>
+     The first is dosemu writing on the client's behalf: what a DOS call, the
+     BIOS or a driver puts there. The second is the client's own writes that
+     the jit does not perform itself but hands to a helper in
+     <emphasis>cpatch.c</emphasis>: every stack write goes through
+     <emphasis>stk_16</emphasis> or <emphasis>stk_32</emphasis>, and an
+     ordinary write goes through <emphasis>wri8_slow</emphasis> and its
+     siblings whenever the target lies in a range the CPU emulator protects
+     for itself. All of them end in <emphasis>WRITE_WORD()</emphasis> and its
+     siblings, which is the mirror. So a watch on the client's stack never
+     fires at all, and a watch elsewhere can be stepped over by the client
+     without a word.
+</para>
+<para>
+     That matters because the way this fails is silence: a watchpoint that
+     says nothing means nothing was caught, not that nothing wrote.
+</para>
+<para>
      The protection is by page while the watch is by byte, so a write to a
      neighbour in the same page faults too. Such a write is let through,
      but the page stays unprotected until the next poll, which is driven by
