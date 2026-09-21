@@ -111,6 +111,94 @@ static void add_cli_to_blacklist(unsigned char *addr);
 #ifdef USE_MHPDBG
 static int dpmi_mhp_intxx_check(cpuctx_t *scp, int intno);
 #endif
+
+/* Work out the offset a modrm byte with a memory destination addresses,
+ * for the handful of instructions emulated below. reg[] is the eight
+ * general registers in encoding order. Returns the offset and puts the
+ * length of the modrm byte together with its sib and displacement into
+ * *len, or leaves *len at zero for a form not decoded here. *ss_rel is
+ * set when the default segment for the form is SS rather than DS. */
+static unsigned int decode_ea(const unsigned char *modrm, uint32_t *reg[8],
+    int a32, int *len, int *ss_rel)
+{
+  unsigned char m = modrm[0];
+  int mod = m >> 6, rm = m & 7;
+  unsigned int ofs = 0;
+  int n = 1;			/* the modrm byte itself */
+
+  *len = 0;
+  *ss_rel = 0;
+  if (mod == 3)			/* register destination, not ours */
+    return 0;
+
+  if (a32) {
+    if (rm == 4) {		/* sib follows */
+      unsigned char sib = modrm[1];
+      int base = sib & 7, index = (sib >> 3) & 7;
+
+      n++;
+      if (index != 4)		/* 4 encodes no index */
+	ofs += *reg[index] << (sib >> 6);
+      if (base == 5 && mod == 0) {
+	ofs += *(const uint32_t *)(modrm + n);
+	n += 4;
+      } else {
+	ofs += *reg[base];
+	if (base == 4 || base == 5)
+	  *ss_rel = 1;		/* esp or ebp based */
+      }
+    } else if (rm == 5 && mod == 0) {
+      ofs = *(const uint32_t *)(modrm + n);
+      n += 4;
+    } else {
+      ofs = *reg[rm];
+      if (rm == 5)
+	*ss_rel = 1;		/* ebp based */
+    }
+
+    if (mod == 1) {
+      ofs += (int8_t)modrm[n];
+      n += 1;
+    } else if (mod == 2) {
+      ofs += *(const int32_t *)(modrm + n);
+      n += 4;
+    }
+  } else {
+    unsigned short bx = *reg[3], bp = *reg[5], si = *reg[6], di = *reg[7];
+
+    switch (rm) {
+      case 0: ofs = bx + si; break;
+      case 1: ofs = bx + di; break;
+      case 2: ofs = bp + si; *ss_rel = 1; break;
+      case 3: ofs = bp + di; *ss_rel = 1; break;
+      case 4: ofs = si; break;
+      case 5: ofs = di; break;
+      case 6:
+	if (mod == 0) {
+	  ofs = *(const uint16_t *)(modrm + n);
+	  n += 2;
+	} else {
+	  ofs = bp;
+	  *ss_rel = 1;
+	}
+	break;
+      case 7: ofs = bx; break;
+    }
+
+    if (mod == 1) {
+      ofs += (int8_t)modrm[n];
+      n += 1;
+    } else if (mod == 2) {
+      ofs += *(const int16_t *)(modrm + n);
+      n += 2;
+    }
+    ofs &= 0xffff;
+  }
+
+  *len = n;
+  return ofs;
+}
+
 static int dpmi_fault1(cpuctx_t *scp);
 static void do_dpmi_retf(cpuctx_t *scp, void * const sp);
 static int prn_tid;
@@ -6017,14 +6105,67 @@ static int dpmi_fault1(cpuctx_t *scp)
               }
               LWORD32(eip, += 3);
               break;
-            default:
-              /* A memory operand needs the effective address worked out,
-               * which we cannot do here yet, so the store instructions
-               * lose their result. Say which one it was. */
-              error_once("DPMI: unsupported %s with a memory operand, "
-                  "modrm %#x\n%s", nm, csp[1], DPMI_show_state(scp));
-              LWORD32(eip, = org_eip + instr_len(lina, Segments(_cs>>3).is_32));
-              break;
+            default: { // memory operand
+              /* Storing to memory is as ordinary for these as storing to
+               * a register, and skipping the instruction leaves the
+               * client reading back whatever its buffer held before -
+               * silence where it asked a question. Work the effective
+               * address out and lay the answer down: six bytes for sgdt
+               * and sidt, two for sldt, str and smsw.
+               *
+               * Only for the five that store. The seven that read from
+               * this operand - lgdt, lidt, lldt, ltr, lmsw - or only set
+               * ZF reach us too, since they are privileged and fault out
+               * of a client at cpl 3, and writing to their operand would
+               * corrupt the very bytes they came to read. */
+              int len = 0, ss_rel = 0;
+              unsigned int ofs;
+              unsigned short sel;
+              unsigned char *p;
+
+              if (!stores) {
+                error_once("DPMI: unsupported %s with a memory operand, "
+                    "modrm %#x\n%s", nm, csp[1], DPMI_show_state(scp));
+                LWORD32(eip, = org_eip + instr_len(lina,
+                    Segments(_cs>>3).is_32));
+                break;
+              }
+
+              ofs = decode_ea(&csp[1], reg32, ASIZE_IS_32, &len, &ss_rel);
+              if (!len) {
+                error_once("DPMI: unsupported %s memory operand, "
+                    "modrm %#x\n%s", nm, csp[1], DPMI_show_state(scp));
+                LWORD32(eip, = org_eip + instr_len(lina,
+                    Segments(_cs>>3).is_32));
+                break;
+              }
+              sel = pref_seg != -1 ? pref_seg : (ss_rel ? _ss : _ds);
+              p = (unsigned char *)SEL_ADR(sel, ofs);
+              if (csp[0] && reg <= 1) {
+                /* sgdt and sidt always lay down the full six bytes,
+                 * whatever the operand size, and the base is little
+                 * endian like everything else the client reads. */
+                unsigned int base = reg ? EMU_IDT_BASE : EMU_GDT_BASE;
+                unsigned int limit = reg ? EMU_IDT_LIMIT : EMU_GDT_LIMIT;
+
+                p[0] = limit;
+                p[1] = limit >> 8;
+                p[2] = base;
+                p[3] = base >> 8;
+                p[4] = base >> 16;
+                p[5] = base >> 24;
+              } else {
+                /* the memory form of smsw stores the low word of cr0 and
+                 * nothing else, so PG never reaches it; sldt and str name
+                 * descriptors the client has no business following and
+                 * stay zero, as in the register case above. */
+                unsigned int val = (csp[0] && reg == 4) ? CR0_PE : 0;
+
+                p[0] = val;
+                p[1] = val >> 8;
+              }
+              LWORD32(eip, += 2 + len);
+              break; }
           }
           break;
         }
