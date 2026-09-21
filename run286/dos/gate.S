@@ -167,6 +167,10 @@ _exc_stubs:
 
 _exc_common:
     pushal
+    pushl %gs
+    pushl %fs
+    pushl %es
+    pushl %ds
     movl %cs:_gate_ds32, %edx
     movl %edx, %ds
     movl %edx, %es

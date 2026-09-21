@@ -235,13 +235,15 @@ void ASMCFUNC run286_exception(void)
 {
     unsigned ss = gate_exc_ss;
     unsigned sp = gate_exc_esp;
-    unsigned n = _farpeekl(ss, sp + 32);
-    unsigned err = _farpeekl(ss, sp + 44);
-    unsigned eip = _farpeekl(ss, sp + 48);
-    unsigned cs = _farpeekl(ss, sp + 52);
-    unsigned fl = _farpeekl(ss, sp + 56);
-    unsigned esp = _farpeekl(ss, sp + 60);
-    unsigned fss = _farpeekl(ss, sp + 64);
+    unsigned ds = _farpeekl(ss, sp);
+    unsigned es = _farpeekl(ss, sp + 4);
+    unsigned n = _farpeekl(ss, sp + 48);
+    unsigned err = _farpeekl(ss, sp + 60);
+    unsigned eip = _farpeekl(ss, sp + 64);
+    unsigned cs = _farpeekl(ss, sp + 68);
+    unsigned fl = _farpeekl(ss, sp + 72);
+    unsigned esp = _farpeekl(ss, sp + 76);
+    unsigned fss = _farpeekl(ss, sp + 80);
     char code[48];
     char *p = code;
     unsigned i;
@@ -252,10 +254,11 @@ void ASMCFUNC run286_exception(void)
 	    (uint16_t)fss, esp, (uint16_t)ss, sp, ldr.ncall);
     /* pushal order, from the lowest address up */
     trc("run286:   edi %08x esi %08x ebp %08x ebx %08x\n",
-	    _farpeekl(ss, sp), _farpeekl(ss, sp + 4), _farpeekl(ss, sp + 8),
-	    _farpeekl(ss, sp + 16));
-    trc("run286:   edx %08x ecx %08x eax %08x\n", _farpeekl(ss, sp + 20),
-	    _farpeekl(ss, sp + 24), _farpeekl(ss, sp + 28));
+	    _farpeekl(ss, sp + 16), _farpeekl(ss, sp + 20),
+	    _farpeekl(ss, sp + 24), _farpeekl(ss, sp + 32));
+    trc("run286:   edx %08x ecx %08x eax %08x\n", _farpeekl(ss, sp + 36),
+	    _farpeekl(ss, sp + 40), _farpeekl(ss, sp + 44));
+    trc("run286:   ds %04x es %04x\n", (uint16_t)ds, (uint16_t)es);
     for (i = 0; i < 12; i++)
 	p += sprintf(p, "%02x ", _farpeekb(cs, eip + i));
     trc("run286:   code at the fault: %s\n", code);
