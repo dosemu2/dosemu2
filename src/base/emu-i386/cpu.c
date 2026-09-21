@@ -288,42 +288,54 @@ int cpu_trap_0f (unsigned char *csp, cpuctx_t *scp,
 		  else cdt[idx] = *srg;
 		}
 		increment_ip = 3;
-	} else if (csp[1] == 0) {  // SLDT, STR, ...
+	} else if (csp[1] == 0 || csp[1] == 1) {
+		/*
+		 * Twelve instructions share these two opcodes and the reg
+		 * field of the modrm byte is what tells them apart. They do
+		 * not all want the same thing done to their operand: only
+		 * sldt, str, sgdt, sidt and smsw store into it; lldt, ltr,
+		 * lgdt, lidt and lmsw read it, and verr and verw only set
+		 * ZF. Writing zero into the operand of every one of them
+		 * destroyed a register the program still needed.
+		 *
+		 * The mask that used to pick smsw out could not: reg 4
+		 * (smsw) and reg 6 (lmsw) both have 0x20 in csp[2] & 0x28,
+		 * so "lmsw ax" came back with ax = MSW_VAL.
+		 */
+		static const char *const insn0[8] = { "SLDT", "STR", "LLDT",
+			"LTR", "VERR", "VERW", "0f 00 /6", "0f 00 /7" };
+		static const char *const insn1[8] = { "SGDT", "SIDT", "LGDT",
+			"LIDT", "SMSW", "0f 01 /5", "LMSW", "INVLPG" };
+		int grp = csp[1];		/* 0 or 1 */
 		int op = (csp[2] >> 3) & 7;
+		const char *nm = grp ? insn1[op] : insn0[op];
+		/* the ones that store into their operand */
+		int stores = grp ? (op <= 1 || op == 4) : (op <= 1);
 		dosaddr_t addr;
 
 		if ((csp[2] & 0xc0) == 0xc0) {  // register dest
-			*reg16[csp[2] & 7] = 0;
+			if (stores)
+				/* some meaningful value for smsw, 0 for rest */
+				*reg16[csp[2] & 7] = (grp && op == 4) ?
+					MSW_VAL : 0;
 			increment_ip = 3;
-		} else if (op <= 1 &&  // SLDT m16, STR m16
-			   (increment_ip = vm86_modrm_mem(csp, pref_seg,
-					prefix67, &addr))) {
-			WRITE_WORD(addr, 0);
-		} else {
-			error("unsupported SLDT dest %x\n", csp[2]);
-			increment_ip = instr_len(csp, 0);
-		}
-	} else if (csp[1] == 1) {  // SGDT, SIDT, SMSW ...
-		int op = (csp[2] >> 3) & 7;
-		dosaddr_t addr;
-
-		if ((csp[2] & 0xc0) == 0xc0) {  // register dest
-			/* some meaningful value for smsw, 0 for rest */
-			*reg16[csp[2] & 7] = (op == 4) ? MSW_VAL : 0;
-			increment_ip = 3;
-		} else if (op == 4 &&  // SMSW m16
+		} else if (grp && op == 4 &&  // SMSW m16
 			   (increment_ip = vm86_modrm_mem(csp, pref_seg,
 					prefix67, &addr))) {
 			WRITE_WORD(addr, MSW_VAL);
-		} else if (op <= 1 &&  // SGDT m, SIDT m
+		} else if (grp && op <= 1 &&  // SGDT m, SIDT m
 			   (increment_ip = vm86_modrm_mem(csp, pref_seg,
 					prefix67, &addr))) {
 			/* the tables are not visible to DOS, report them
 			 * as empty rather than leaving garbage behind */
 			WRITE_WORD(addr, 0);
 			WRITE_DWORD(addr + 2, 0);
+		} else if (!grp && op <= 1 &&  // SLDT m16, STR m16
+			   (increment_ip = vm86_modrm_mem(csp, pref_seg,
+					prefix67, &addr))) {
+			WRITE_WORD(addr, 0);
 		} else {
-			error("unsupported SMSW dest %x\n", csp[2]);
+			error("unsupported %s dest %x\n", nm, csp[2]);
 			increment_ip = instr_len(csp, 0);
 		}
 	}
