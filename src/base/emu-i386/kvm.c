@@ -1343,6 +1343,13 @@ static int kvm_post_run(struct vm86_regs *regs, struct kvm_regs *kregs)
     leavedos_main(99);
   }
   if (sregs.tr.base != MONITOR_DOSADDR) {
+    if (sregs.cr3 == MONITOR_DOSADDR + offsetof(struct monitor, pde)) {
+      /* The monitor is halfway through taking the CPU back from a VCPI
+	 client: its own page tables and IDT are in, its task register is
+	 not.  A signal can land here although the code runs with
+	 interrupts off, and there is nothing to report: let it finish. */
+      return 0;
+    }
     g_printf("KVM: interrupt in VCPI code\n");
     /* the client owns the registers and they stay in the VM; cs=0 says
        that this is where we were */
