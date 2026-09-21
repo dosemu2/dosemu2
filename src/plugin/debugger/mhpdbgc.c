@@ -901,11 +901,15 @@ static void mhp_tracec(int argc, char *argv[])
   loopbuf[idx++] = '\0';
 }
 
+#define MAX_INSN_LEN 15	/* as long as an x86 instruction can be */
+
 /* A host address is read through a bare pointer, so an unmapped one faults
  * inside dosemu and its own handler takes the whole process down.  Let the
  * kernel do the read instead - it answers EFAULT rather than raising a
  * signal - and report how much of the range is there.  One probe per page
  * is enough to find where the mapping ends. */
+static int no_peek;
+
 static unsigned int unix_readable_len(uintptr_t addr, unsigned int len)
 {
   unsigned char c;
@@ -917,12 +921,24 @@ static unsigned int unix_readable_len(uintptr_t addr, unsigned int len)
 
   if (!len || addr + len < addr)
     return 0;
+  if (no_peek)
+    return len;
   end = addr + len;
   for (a = addr; a < end; a = next) {
     next = (a + pgsz) & ~(pgsz - 1);
     riov.iov_base = (void *)a;
-    if (process_vm_readv(getpid(), &liov, 1, &riov, 1, 0) != 1)
+    if (process_vm_readv(getpid(), &liov, 1, &riov, 1, 0) != 1) {
+      if (errno != EFAULT) {
+        /* seccomp can take the call away from us - docker's default profile
+         * does, without CAP_SYS_PTRACE - and then it says nothing about any
+         * address.  Say so once and go back to trusting the caller. */
+        no_peek = 1;
+        mhp_printf("cannot check addresses: process_vm_readv: %s\n",
+                   strerror(errno));
+        return len;
+      }
       break;
+    }
     done = (next < end ? next : end) - addr;
   }
   return done;
@@ -1676,6 +1692,7 @@ static void mhp_disasm(int argc, char *argv[])
   unsigned int buf = 0;
   uintptr_t ubuf = 0;
   uintptr_t uorg;
+  unsigned int avail = 0;
   char bytebuf[IBUFS];
   char frmtbuf[IBUFS];
   unsigned int seg;
@@ -1743,13 +1760,17 @@ static void mhp_disasm(int argc, char *argv[])
     def_size |= 4;
   }
   if (def_size & 4) {
-    unsigned int len = unix_readable_len(ubuf, nbytes);
+    /* dis8086 is given no length: it reads as far as the instruction it
+     * decodes goes, which is up to 15 bytes.  So ask for that much beyond
+     * the range, and stop short of an instruction that has not got it. */
+    avail = unix_readable_len(ubuf, nbytes + MAX_INSN_LEN);
 
-    if (!len) {
+    if (!avail) {
       mhp_printf("%#lx is not mapped in dosemu\n", (unsigned long)ubuf);
       return;
     }
-    nbytes = len;		/* show what there is of it */
+    if (avail < nbytes)
+      nbytes = avail;		/* show what there is of it */
   }
   rc = 0;
   buf = seekval;
@@ -1765,6 +1786,11 @@ static void mhp_disasm(int argc, char *argv[])
     if (IN_DPMI && base_addr + off + bytesdone > LOWMEM_SIZE + HMASIZE && !dpmi_is_valid_range(base_addr + off + bytesdone, 10))
       break;
     refseg = seg;
+    if ((def_size & 4) && bytesdone + MAX_INSN_LEN > avail) {
+      mhp_printf("%#014lx: <too close to the end of the mapping to decode>\n",
+                 (unsigned long)(uorg + bytesdone));
+      break;
+    }
     rc = dis_8086((def_size & 4) ? ubuf + bytesdone : buf + bytesdone, frmtbuf,
                   def_size, &ref, (IN_DPMI ? base_addr : refseg * 16));
     if (bytesdone + rc > 256)
