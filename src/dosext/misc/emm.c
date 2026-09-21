@@ -2717,11 +2717,21 @@ void jemm_config(void)
   config.ems_frame = JEMM_HW_BASE >> 4;
   /* The array wants the whole of 0xa0000-0xfffff, and our own BIOS and low
    * memory heap live in the top 32k of it, ROMBIOSSEG with them.  They are
-   * addressed relative to BIOSSEG throughout, so move that instead: DOS
-   * gives up its last 32k and we take it, right below the array where no
-   * window can reach. */
-  dosemu_bios_seg = (JEMM_HW_BASE >> 4) - 0x1000;
-  config.mem_size = SEGOFF2LINEAR(dosemu_bios_seg, DOSEMU_LMHEAP_OFF) / 1024;
+   * addressed relative to BIOSSEG throughout, so move that instead - but
+   * not by shortening DOS memory, because that is what the client counts
+   * on.  Privateer's allocator takes conventional memory and the window
+   * array for one space that ends at 0xa0000: it links the block it gets
+   * from DOS to the blocks it keeps in the windows, and walks the chain
+   * across the join.  A gap below the array breaks the walk.  So put our
+   * 28k low, just under 64k, where no window can reach it and DOS memory
+   * still ends at 0xa0000, and hand DOS a block of it once it is up.
+   *
+   * The base has to be a multiple of 0x1000, because INT_OFF() takes the
+   * offset of the halt block as the low word of its linear address, so 0
+   * is the only value that is both low and legal.  The reset stack moves
+   * with it, see cpu_reset(). */
+  dosemu_bios_seg = 0x0000;
+  config.mem_size = 640;
   c_printf("CONF: JEMM: %i EMS windows from 0x%04x, BIOS at 0x%04x, "
 	   "DOS memory %iK\n", config.ems_uma_pages, config.ems_frame,
 	   dosemu_bios_seg, config.mem_size);
