@@ -2190,9 +2190,15 @@ int mhp_watch_fault(uintptr_t cr2, unsigned int err, unsigned int pc,
   dosaddr_t addr = 0;
   int i, num = -1, page = -1;
 
-  /* before mem_base and jit_base, which assert when there is no mapping */
-  if (!wp_armed || !(err & 2))		/* not ours, or not a write */
-    return 0;
+  /* Armed in a debug register, nothing here is ours: we took no page's
+   * permission away, so a write fault in a watched range belongs to
+   * whoever did - the jit protecting its translated code, say - and
+   * claiming it would both un-arm the registers and report a write the
+   * client never made.
+   * Asked before mem_base and jit_base, which assert when there is no
+   * mapping. */
+  if (!wp_armed || wp_by_dr || !(err & 2))
+    return 0;				/* not ours, or not a write */
   bases[0] = mem_base;
   bases[1] = jit_base;
   for (i = 0; i < 2; i++) {
@@ -2254,7 +2260,9 @@ void mhp_watch_write(dosaddr_t addr, unsigned int len)
   unsigned int i;
   int num = -1;
 
-  if (!wp_armed || wp_last.num != -1)
+  /* wp_by_dr: the hardware reports this write itself, and a client can be
+   * on KVM for v86 while the jit runs its DPMI, so both would report it. */
+  if (!wp_armed || wp_by_dr || wp_last.num != -1)
     return;
   for (i = 0; i < len; i++) {
     if ((num = wp_find(addr + i)) != -1)
