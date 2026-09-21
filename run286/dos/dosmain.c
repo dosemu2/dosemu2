@@ -179,7 +179,7 @@ static void report_trap(struct call *c, int exception)
     char buf[0x108];
     unsigned i, run = 0, lines = 0;
 
-    printf("run286: the program trapped at %04x:%08x\n",
+    trc("run286: the program trapped at %04x:%08x\n",
 	    (uint16_t)_farpeekl(c->ss, st + 4), _farpeekl(c->ss, st));
     if (bp < sizeof(buf))
 	return;
@@ -194,7 +194,7 @@ static void report_trap(struct call *c, int exception)
 	}
 	buf[i] = 0;
 	if (run >= 6 && lines < 8) {
-	    printf("run286:   %s\n", buf + i - run);
+	    trc("run286:   %s\n", buf + i - run);
 	    lines++;
 	}
 	run = 0;
@@ -220,7 +220,7 @@ int ASMCFUNC run286_import(void)
 	return 1;
     }
     if (n >= ldr.nstub) {
-	printf("run286: bogus import index %u\n", n);
+	trc("run286: bogus import index %u\n", n);
 	gate_exit_code = 1;
 	return 1;
     }
@@ -232,10 +232,10 @@ int ASMCFUNC run286_import(void)
 	    snprintf(nm, sizeof(nm), "%s", im->name);
 	else
 	    snprintf(nm, sizeof(nm), "#%u", im->ord);
-	printf("run286: unimplemented %s.%s, called from %04x:%04x\n",
+	trc("run286: unimplemented %s.%s, called from %04x:%04x\n",
 		im->mod, nm, _farpeekw(c.ss, c.sp + CALL_ARGS - 2),
 		_farpeekw(c.ss, c.sp + CALL_ARGS - 4));
-	printf("run286:   stack %04x %04x %04x %04x %04x %04x %04x %04x\n",
+	trc("run286:   stack %04x %04x %04x %04x %04x %04x %04x %04x\n",
 		call_argw(&c, 0), call_argw(&c, 2), call_argw(&c, 4),
 		call_argw(&c, 6), call_argw(&c, 8), call_argw(&c, 10),
 		call_argw(&c, 12), call_argw(&c, 14));
@@ -299,12 +299,12 @@ static int stub_seg_init(struct dos_ldr *l, unsigned nimp)
     /* two slots past the imports for the int 3 stubs below */
     l->stub_mem.size = (nimp + 2) * STUB_SIZE;
     if (__dpmi_allocate_memory(&l->stub_mem) == -1) {
-	printf("run286: cannot allocate the stub segment\n");
+	trc("run286: cannot allocate the stub segment\n");
 	return -1;
     }
     l->stub_code_sel = __dpmi_allocate_ldt_descriptors(2);
     if (l->stub_code_sel == (uint16_t)-1) {
-	printf("run286: cannot allocate the stub descriptors\n");
+	trc("run286: cannot allocate the stub descriptors\n");
 	return -1;
     }
     l->stub_data_sel = l->stub_code_sel + 8;
@@ -320,7 +320,7 @@ static int stub_seg_init(struct dos_ldr *l, unsigned nimp)
 		l->stub_mem.size - 1) == -1 ||
 	    __dpmi_set_descriptor_access_rights(l->stub_data_sel,
 		AR_DATA16) == -1) {
-	printf("run286: cannot set up the stub descriptors\n");
+	trc("run286: cannot set up the stub descriptors\n");
 	return -1;
     }
 
@@ -330,7 +330,7 @@ static int stub_seg_init(struct dos_ldr *l, unsigned nimp)
     h.selector = _my_cs();
     h.offset32 = gate_entry;
     if (__dpmi_set_protected_mode_interrupt_vector(GATE_INT, &h) == -1) {
-	printf("run286: cannot hook int %#x\n", GATE_INT);
+	trc("run286: cannot hook int %#x\n", GATE_INT);
 	return -1;
     }
 
@@ -348,7 +348,7 @@ static int stub_seg_init(struct dos_ldr *l, unsigned nimp)
     h.selector = l->stub_code_sel;
     h.offset32 = trap;
     if (__dpmi_set_protected_mode_interrupt_vector(3, &h) == -1) {
-	printf("run286: cannot hook int 3\n");
+	trc("run286: cannot hook int 3\n");
 	return -1;
     }
     /* a host may deliver it as an exception instead, on its own frame */
@@ -360,7 +360,7 @@ static int stub_seg_init(struct dos_ldr *l, unsigned nimp)
     _farpokeb(l->stub_data_sel, trap + 5, 0xcb);	/* never reached */
     h.offset32 = trap;
     if (__dpmi_set_processor_exception_handler_vector(3, &h) == -1)
-	printf("run286: cannot hook exception 3\n");
+	trc("run286: cannot hook exception 3\n");
     return 0;
 }
 
@@ -449,15 +449,15 @@ static int load_segments(struct dos_ldr *l, const uint8_t *file)
 
     l->mem.size = total;
     if (__dpmi_allocate_memory(&l->mem) == -1) {
-	printf("run286: cannot allocate %lu bytes of DPMI memory\n", total);
+	trc("run286: cannot allocate %lu bytes of DPMI memory\n", total);
 	return -1;
     }
     l->base_sel = __dpmi_allocate_ldt_descriptors(ne->cseg);
     if (l->base_sel == (uint16_t)-1) {
-	printf("run286: cannot allocate %u descriptors\n", ne->cseg);
+	trc("run286: cannot allocate %u descriptors\n", ne->cseg);
 	return -1;
     }
-    printf("run286: %lu bytes at linear %#lx, %u selectors from %#x\n",
+    trc("run286: %lu bytes at linear %#lx, %u selectors from %#x\n",
 	    total, (unsigned long)l->mem.address, ne->cseg, l->base_sel);
 
     off = 0;
@@ -475,13 +475,13 @@ static int load_segments(struct dos_ldr *l, const uint8_t *file)
 	if (__dpmi_set_segment_base_address(si->sel, si->lin) == -1 ||
 		__dpmi_set_segment_limit(si->sel, si->size - 1) == -1 ||
 		__dpmi_set_descriptor_access_rights(si->sel, AR_DATA16) == -1) {
-	    printf("run286: cannot set up descriptor %#x for segment %d\n",
+	    trc("run286: cannot set up descriptor %#x for segment %d\n",
 		    si->sel, i + 1);
 	    return -1;
 	}
 	si->shadow = calloc(1, si->size);
 	if (!si->shadow) {
-	    printf("run286: out of memory for segment %d\n", i + 1);
+	    trc("run286: out of memory for segment %d\n", i + 1);
 	    return -1;
 	}
 	if (sg->file_off)
@@ -506,7 +506,7 @@ static int commit_segments(struct dos_ldr *l)
 	si->shadow = NULL;
 	if (!(ne->seg[i].flags & NE_SEG_DATA) &&
 		__dpmi_set_descriptor_access_rights(si->sel, AR_CODE16) == -1) {
-	    printf("run286: cannot make segment %d executable\n", i + 1);
+	    trc("run286: cannot make segment %d executable\n", i + 1);
 	    return -1;
 	}
     }
@@ -538,7 +538,7 @@ int main(int argc, char **argv)
     if (!path)
 	path = read_cfg(cfg);
     if (!path) {
-	printf("run286: no image given; set RUN286_IMAGE or write RUN286.CFG\n");
+	trc("run286: no image given; set RUN286_IMAGE or write RUN286.CFG\n");
 	return 2;
     }
 
@@ -553,21 +553,21 @@ int main(int argc, char **argv)
 	if (log)
 	    trace_fp = fopen(log, "w");
     }
-    printf("run286: loading %s\n", path);
+    trc("run286: loading %s\n", path);
     file = slurp(path, &size);
     if (!file) {
-	printf("run286: cannot read %s\n", path);
+	trc("run286: cannot read %s\n", path);
 	return 2;
     }
     if (pl_bound_parse(&b, file, size, &err) != 0) {
-	printf("run286: %s\n", err);
+	trc("run286: %s\n", err);
 	return 1;
     }
     if (ne_parse(&ne, file, size, b.app_off, &err) != 0) {
-	printf("run286: %s\n", err);
+	trc("run286: %s\n", err);
 	return 1;
     }
-    printf("run286: NE at %#x, %u segments, entry %04x:%04x\n", b.app_off,
+    trc("run286: NE at %#x, %u segments, entry %04x:%04x\n", b.app_off,
 	    ne.cseg, (unsigned)(ne.csip >> 16), (unsigned)(ne.csip & 0xffff));
 
     l->ne = &ne;
@@ -584,11 +584,11 @@ int main(int argc, char **argv)
     ops.resolve_name = dos_resolve_name;
     for (i = 1; i <= ne.cseg; i++) {
 	if (ne_relocate(&ne, i, &ops, &st, &err) != 0) {
-	    printf("run286: segment %d: %s\n", i, err);
+	    trc("run286: segment %d: %s\n", i, err);
 	    return 1;
 	}
     }
-    printf("run286: %u fixups, %u locations, %u unresolved, %u import stubs\n",
+    trc("run286: %u fixups, %u locations, %u unresolved, %u import stubs\n",
 	    st.applied, st.patched, st.unresolved, l->nstub);
     if (commit_segments(l) != 0)
 	return 1;
@@ -600,14 +600,14 @@ int main(int argc, char **argv)
 	ss_seg = ne.autodata;
     if (!entry_seg || entry_seg > ne.cseg || !ss_seg || ss_seg > ne.cseg ||
 	    !ne.autodata || ne.autodata > ne.cseg) {
-	printf("run286: bad entry %08x, stack %08x or autodata %u\n",
+	trc("run286: bad entry %08x, stack %08x or autodata %u\n",
 		ne.csip, ne.sssp, ne.autodata);
 	return 1;
     }
     if (!sp)				/* top of the stack segment */
 	sp = l->seg[ss_seg - 1].size;
     desc_probe();
-    printf("run286: gdt %04x:%04x%04x, idt %04x:%04x%04x\n",
+    trc("run286: gdt %04x:%04x%04x, idt %04x:%04x%04x\n",
 	    gate_gdt[0], gate_gdt[2], gate_gdt[1],
 	    gate_idt[0], gate_idt[2], gate_idt[1]);
     {
@@ -619,14 +619,14 @@ int main(int argc, char **argv)
 	ldt_lin = ldt_base;
 	ldt_sel_reg = gate_ldt_sel & 0xffff;
 	ldt_size = alias ? __dpmi_get_segment_limit(alias) + 1 : 0;
-	printf("run286: ldtr %04x, ldt alias %04x at %#x limit %#x\n",
+	trc("run286: ldtr %04x, ldt alias %04x at %#x limit %#x\n",
 		gate_ldt_sel & 0xffff, alias, ldt_base,
 		ldt_size ? ldt_size - 1 : 0);
     }
     if (gate_thunk_err)
-	printf("run286: no THUNK_16_32x, DOS calls from the program may "
+	trc("run286: no THUNK_16_32x, DOS calls from the program may "
 		"get a stray high half of edx\n");
-    printf("run286: entering %04x:%04x, stack %04x:%04x, ds %04x\n",
+    trc("run286: entering %04x:%04x, stack %04x:%04x, ds %04x\n",
 	    l->seg[entry_seg - 1].sel, (unsigned)(ne.csip & 0xffff),
 	    l->seg[ss_seg - 1].sel, sp, l->seg[ne.autodata - 1].sel);
     fflush(stdout);
@@ -634,7 +634,7 @@ int main(int argc, char **argv)
 	    l->seg[ss_seg - 1].sel, sp,
 	    l->seg[ne.autodata - 1].sel, l->seg[ne.autodata - 1].sel,
 	    env_init(path), l->seg[ne.autodata - 1].size);
-    printf("run286: back from the program after %u API calls, rc %d\n",
+    trc("run286: back from the program after %u API calls, rc %d\n",
 	    l->ncall, rc);
     ne_free(&ne);
     return 0;

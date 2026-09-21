@@ -144,7 +144,7 @@ static int fake_gdt_init(void)
     _farpokeb(fake_gdt_sel, off + 5, 0x82);	/* present, LDT */
     _farpokeb(fake_gdt_sel, off + 6, ((ldt_size - 1) >> 16) & 0x0f);
     _farpokeb(fake_gdt_sel, off + 7, (ldt_lin >> 24) & 0xff);
-    printf("run286: descriptor table at %#lx, ldt entry %#x -> %#x/%#x\n",
+    trc("run286: descriptor table at %#lx, ldt entry %#x -> %#x/%#x\n",
 	    (unsigned long)fake_gdt.address, off, ldt_lin, ldt_size);
     return 0;
 }
