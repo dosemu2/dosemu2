@@ -60,6 +60,7 @@ from func_memory_hma import (memory_hma_freespace, memory_hma_alloc, memory_hma_
 from func_memory_uma import memory_uma_strategy
 from func_memory_xms import memory_xms
 from func_memory_xms_pages import memory_xms_pages
+from func_memory_xms_pm_move import memory_xms_pm_move
 from func_misc import (create_new_psp, passing_dos_errorlevel_back, passing_environment_variable,
                        systype)
 from func_mfs_directory import mfs_directory_common, mfs_get_current_directory
@@ -1022,6 +1023,11 @@ class OurTestCase(BaseTestCase):
     def test_memory_xms(self):
         """Memory XMS"""
         memory_xms(self)
+
+    @mark(['memtest', 'xmstest', 'dpmitest'])
+    def test_memory_xms_pm_move(self):
+        """Memory XMS block move via the PM entry"""
+        memory_xms_pm_move(self)
 
     @mark(['memtest', 'dpmitest'])
     def test_memory_dpmi10_ldt(self):
