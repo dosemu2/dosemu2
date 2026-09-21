@@ -289,7 +289,7 @@ static int mhp_input(void)
   if (nbytes == 0 && !wait_for_debug_terminal) {
     mhp_clear_all_bp();
     if (mhpdbgc.stopped)
-      mhp_cmd("g");
+      mhp_cmd("go");
     mhpdbg.active = 0;
     reopen_fdin();
     return 0;
@@ -349,7 +349,7 @@ static void mhp_poll_loop(void)
     }
     if ((recvbuf[0] == 'q') && (recvbuf[1] <= ' ')) {
       if (mhpdbgc.stopped) {
-        mhp_cmd("g");
+        mhp_cmd("go");
         mhp_send();
       }
       mhpdbg.active = 0;
