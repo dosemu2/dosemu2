@@ -78,7 +78,12 @@
 #define	EMM_PAGE_SIZE	(16*1024)
 #define EMM_UMA_MAX_PHYS 24
 #define EMM_CNV_MAX_PHYS 24
-#define EMM_MAX_PHYS	(EMM_UMA_MAX_PHYS + EMM_CNV_MAX_PHYS)
+#define EMM_LOW_MAX_PHYS 24
+#define EMM_MAX_PHYS	(EMM_UMA_MAX_PHYS + EMM_CNV_MAX_PHYS + EMM_LOW_MAX_PHYS)
+/* JEMM extends function 50h with a third set of physical pages, laid out
+ * over low memory from the second 4k page upwards, 16k apart.  Privateer
+ * puts its far heap there. */
+#define EMM_LOW_SEGMENT 0x100
 /* Save Page Map has to cover the whole frame, not just the four windows a
  * standard one has: with $_jemm the client's frame is all 24 of them */
 #define EMM_MAX_SAVED_PHYS EMM_UMA_MAX_PHYS
@@ -115,6 +120,7 @@
 #define MAP_UNMAP_MULTIPLE	0x50	/* V4.0 */
 #define MULT_LOGPHYS		0
 #define MULT_LOGSEG		1
+#define MULT_LOGLOW		2	/* JEMM extension */
 #define REALLOCATE_PAGES	0x51	/* V4.0 */
 #define HANDLE_ATTRIBUTE	0x52	/* V4.0 */
 #define ALTERNATE_MAP_REGISTER  0x5B	/* V4.0 */
@@ -186,6 +192,9 @@ static int handle_total, emm_allocated;
 static Bit32u EMSAPMAP_ret_OFF;
 #define saved_phys_pages _min(config.ems_uma_pages, EMM_MAX_SAVED_PHYS)
 static Bit32u phys_pages;
+static Bit32u low_pages;
+#define low_pages_start (config.ems_uma_pages + config.ems_cnv_pages)
+#define all_phys_pages (phys_pages + low_pages)
 #define cnv_start_seg (0xa000 - 0x400 * config.ems_cnv_pages)
 #define cnv_pages_start config.ems_uma_pages
 
@@ -524,7 +533,7 @@ static int emm_deallocate_handle(int handle)
   int numpages, i;
   void *object;
 
-  for (i = 0; i < phys_pages; i++) {
+  for (i = 0; i < all_phys_pages; i++) {
     if (emm_map[i].handle == handle) {
       unmap_page(i);
       emm_map[i].handle = NULL_HANDLE;
@@ -573,7 +582,7 @@ __map_page(int physical_page)
   caddr_t logical;
   unsigned int base;
 
-  if ((physical_page < 0) || (physical_page >= phys_pages))
+  if ((physical_page < 0) || (physical_page >= all_phys_pages))
     return (FALSE);
   handle=emm_map[physical_page].handle;
   if (handle == NULL_HANDLE)
@@ -595,7 +604,7 @@ __unmap_page(int physical_page)
   int handle;
   unsigned int base;
 
-  if ((physical_page < 0) || (physical_page >= phys_pages))
+  if ((physical_page < 0) || (physical_page >= all_phys_pages))
     return (FALSE);
   handle=emm_map[physical_page].handle;
   if (handle == NULL_HANDLE)
@@ -641,7 +650,7 @@ map_page(int handle, int physical_page, int logical_page)
   E_printf("EMS: map_page(handle=%d, phy_page=%d, log_page=%d), prev handle=%d\n",
            handle, physical_page, logical_page, emm_map[physical_page].handle);
 
-  if ((physical_page < 0) || (physical_page >= phys_pages))
+  if ((physical_page < 0) || (physical_page >= all_phys_pages))
     return (FALSE);
 
   if (handle == NULL_HANDLE)
@@ -723,7 +732,7 @@ static int emm_restore_handle_state(int handle)
 static int
 do_map_unmap(int handle, int physical_page, int logical_page)
 {
-  if ((physical_page < 0) || (physical_page >= phys_pages)) {
+  if ((physical_page < 0) || (physical_page >= all_phys_pages)) {
     E_printf("Invalid Physical Page physical_page=%x\n",
 	     physical_page);
     return EMM_ILL_PHYS;
@@ -873,7 +882,8 @@ partial_map_registers(struct vm86_regs * state)
   }
 }
 
-static int emm_map_unmap_multi(const u_short *array, int handle, int map_len)
+static int emm_map_unmap_multi(const u_short *array, int handle, int map_len,
+	int base, int npages)
 {
   int ret = EMM_NO_ERR;
   int i, phys, log;
@@ -881,7 +891,11 @@ static int emm_map_unmap_multi(const u_short *array, int handle, int map_len)
     log = array[i * 2];
     phys = array[i * 2 + 1];
     Kdebug0(("loop: 0x%x 0x%x \n", log, phys));
-    ret = do_map_unmap(handle, phys, log);
+    if (phys >= npages) {
+      ret = EMM_ILL_PHYS;
+      break;
+    }
+    ret = do_map_unmap(handle, base + phys, log);
     if (ret != EMM_NO_ERR)
       break;
   }
@@ -889,7 +903,8 @@ static int emm_map_unmap_multi(const u_short *array, int handle, int map_len)
 }
 
 static int
-do_map_unmap_multi(int method, unsigned array, int handle, int map_len)
+do_map_unmap_multi(int method, unsigned array, int handle, int map_len,
+	int base, int npages)
 {
   int ret;
   u_short *array2 = malloc(PAGE_MAP_SIZE(map_len));
@@ -924,7 +939,7 @@ do_map_unmap_multi(int method, unsigned array, int handle, int map_len)
     }
   }
 
-  ret = emm_map_unmap_multi(array2, handle, map_len);
+  ret = emm_map_unmap_multi(array2, handle, map_len, base, npages);
   free(array2);
   return ret;
 }
@@ -950,7 +965,22 @@ map_unmap_multiple(struct vm86_regs * state)
 	     "handle %d, map_len %d, array @ %#x\n",
 	     method == MULT_LOGPHYS ? "phys" : "seg",
 	     handle, map_len, array));
-    ret = do_map_unmap_multi(method, array, handle, map_len);
+    ret = do_map_unmap_multi(method, array, handle, map_len, 0, phys_pages);
+    break;
+
+  case MULT_LOGLOW:
+    /* JEMM's own: the pages go to low memory rather than to the frame */
+    if (!low_pages) {
+      Kdebug0(("ERROR: no low pages for mult_loglow\n"));
+      ret = EMM_INVALID_SUB;
+      break;
+    }
+    map_len = LO_WORD(state->ecx);
+    array = SEGOFF2LINEAR(state->ds, LO_WORD(state->esi));
+    Kdebug0(("...using mult_loglow method, "
+	     "handle %d, map_len %d, array @ %#x\n", handle, map_len, array));
+    ret = do_map_unmap_multi(MULT_LOGPHYS, array, handle, map_len,
+			     low_pages_start, low_pages);
     break;
 
   default:
@@ -1004,7 +1034,7 @@ reallocate_pages(struct vm86_regs * state)
 
   /* Make sure extended pages have correct data */
 
-  for (i = 0; i < phys_pages; i++)
+  for (i = 0; i < all_phys_pages; i++)
      if (emm_map[i].handle == handle)
         reunmap_page(i);
 
@@ -1066,7 +1096,7 @@ reallocate_pages(struct vm86_regs * state)
 
   /* remove pages no longer in range, remap others */
 
-  for (i = 0; i < phys_pages; i++) {
+  for (i = 0; i < all_phys_pages; i++) {
     if (emm_map[i].handle == handle) {
        /*
         * NOTE: In case of the above critical case (newcount==0)
@@ -1257,7 +1287,7 @@ alter_map(int method, int handle, const struct alter_map_struct *alter_map)
 	   handle, map_len, array));
 
   /* change mapping context */
-  return do_map_unmap_multi(method, array, handle, map_len);
+  return do_map_unmap_multi(method, array, handle, map_len, 0, phys_pages);
 }
 
 struct __attribute__ ((__packed__)) alter_map_jmp_struct {
@@ -2774,7 +2804,19 @@ void ems_init(void)
        config.ems_cnv_pages, cnv_start_seg);
   for (i = 0; i < config.ems_cnv_pages; i++)
     emm_map[i + cnv_pages_start].phys_seg = cnv_start_seg + 0x400 * i;
-  E_printf("EMS: initialized %i pages\n", phys_pages);
+  /* and the JEMM set over low memory.  It is only there when our own low
+   * memory block sits at the bottom of the first 64k, below DOS, which is
+   * how jemm_config() lays things out: the room between the BIOS data area
+   * and that block is free then, and nothing else can be given away. */
+  if (config.jemm && !BIOSSEG) {
+    low_pages = _min((SEGOFF2LINEAR(BIOSSEG, DOSEMU_LMHEAP_OFF) -
+		      (EMM_LOW_SEGMENT << 4)) / EMM_PAGE_SIZE,
+		     EMM_LOW_MAX_PHYS);
+    for (i = 0; i < low_pages; i++)
+      emm_map[i + low_pages_start].phys_seg = EMM_LOW_SEGMENT + 0x400 * i;
+  }
+  E_printf("EMS: initialized %i pages, %i of them in low memory\n",
+	   phys_pages, low_pages);
 
   ems_reset2();
 
