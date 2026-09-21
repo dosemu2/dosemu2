@@ -306,6 +306,9 @@ WANT_SIZES = 3
 CLIENT_TIMEOUT = 30
 # long enough for several of the guest's mode changes to go by
 TAKEOVER_SECONDS = 4
+SPICE_PASSWORD = "not-the-default"
+# long enough that a client that was going to get in would have
+REFUSAL_SECONDS = 8
 
 CRASH_MARKERS = (
     "Sync signal",            # dosemu2's own report of a fatal signal
@@ -328,7 +331,7 @@ def freePort():
 class Client:
     """A SPICE client, pumped by hand so a test can wait on what it sees."""
 
-    def __init__(self, port):
+    def __init__(self, port, password=None):
         self.sizes = []
         self.channels = set()
         self.inputs = None
@@ -337,6 +340,8 @@ class Client:
         self.session = SpiceClientGLib.Session()
         self.session.set_property("host", "127.0.0.1")
         self.session.set_property("port", str(port))
+        if password is not None:
+            self.session.set_property("password", password)
         # Session.connect() is spice_session_connect(), so the GObject one
         # has to be reached through the class
         GObject.Object.connect(self.session, "channel-new", self.newChannel)
@@ -531,6 +536,24 @@ class SpiceTestCase(unittest.TestCase):
                                 % (i, sorted(c.channels)))
                 c.close()
                 self.checkAlive(run, "while client %d was leaving" % i)
+
+    def test_a_password_is_required_when_set(self):
+        """$_spice_password keeps a client without it off the screen"""
+        with self.dosemuRunning(extra_conf='$_spice_password = "%s"\n'
+                                % SPICE_PASSWORD) as run:
+            wrong = Client(run["port"])
+            wrong.open()
+            self.assertFalse(
+                wrong.pump(REFUSAL_SECONDS, lambda: bool(wrong.sizes)),
+                "a client with no password was shown the screen")
+            wrong.close()
+
+            right = Client(run["port"], SPICE_PASSWORD)
+            self.assertTrue(right.open(), "the client could not connect")
+            self.assertTrue(right.pump(CLIENT_TIMEOUT, lambda: bool(right.sizes)),
+                            "the client with the password was kept out")
+            right.close()
+            self.checkAlive(run, "after a client was turned away")
 
     def test_a_second_client_takes_over(self):
         """a viewer arriving replaces the one already there, cleanly"""
