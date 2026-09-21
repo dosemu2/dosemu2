@@ -7,6 +7,7 @@ from common_os import ppdosgit
 from func_build_freecom import build_freecom
 from func_build_freedos import build_freedos
 from func_build_pcmos import build_pcmos
+from func_cpu_fpu_undef import cpu_fpu_undef
 from func_cpu_trap_flag import cpu_trap_flag
 from func_cpu_methods import cpu_create_items
 from func_fpu_bart_exceptions import fpu_bart_exceptions_fpex, fpu_bart_exceptions_fpexes
@@ -56,6 +57,16 @@ class EMUTestCase(ppdosgit(OurTestCase, {
     def test_cpu_trap_flag(self):
         """CPU Trap Flag"""
         cpu_trap_flag(self)
+
+    @mark('cputest')
+    def test_cpu_fpu_undef_jit(self):
+        """CPU undefined FPU opcodes (JIT)"""
+        cpu_fpu_undef(self, 0)
+
+    @mark('cputest')
+    def test_cpu_fpu_undef_sim(self):
+        """CPU undefined FPU opcodes (simulated)"""
+        cpu_fpu_undef(self, 1)
 
 
 class KVMTestCase(ppdosgit(OurTestCase, {
