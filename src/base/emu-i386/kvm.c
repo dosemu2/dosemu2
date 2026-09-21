@@ -1331,6 +1331,82 @@ static int kvm_post_run(struct vm86_regs *regs, struct kvm_regs *kregs)
   return 1;
 }
 
+/* Data watchpoints, for the debugger's bpw.
+ *
+ * Where the CPU emulator runs the client, a watch is armed by taking write
+ * permission off dosemu's mapping of the memory and catching the fault.
+ * That does not work here: the guest's own page tables decide what it may
+ * write, and a fault inside the VM is the VM's, not ours.  What does work is
+ * the hardware the debug registers are: the CPU carries them across every
+ * mode and task switch the client makes, so a watch stays armed while a
+ * VCPI client runs in ring 0 with tables of its own - which is the case the
+ * emulator cannot reach at all.
+ *
+ * The cost is the hardware's own limits: four watches, each of one, two or
+ * four bytes, aligned on its own size.  A match is reported after the write
+ * has gone in, as a trap, not before it like a fault.
+ *
+ * The address a debug register matches is a linear one.  Below the HMA that
+ * is the same number as the dosaddr_t the debugger works with: mmap_kvm()
+ * fills monitor->pte[] so that guest linear equals guest physical there, and
+ * a VCPI client's own page directory maps that range identically too.
+ */
+int kvm_set_watchpoints(const struct kvm_watchpoint *wp, int n)
+{
+  struct kvm_debugregs dr = {};
+  int i;
+
+  if (vcpufd <= 0)
+    return -1;
+  for (i = 0; i < n && i < KVM_MAX_WATCHPOINTS; i++) {
+    unsigned int lenbits;
+
+    if (!wp[i].len)
+      continue;
+    switch (wp[i].len) {		/* 10b is 8 bytes, 64bit only */
+      case 1: lenbits = 0; break;
+      case 2: lenbits = 1; break;
+      case 4: lenbits = 3; break;
+      default: return -1;
+    }
+    if (wp[i].addr & (wp[i].len - 1))	/* the CPU ignores a misaligned one */
+      return -1;
+    dr.db[i] = wp[i].addr;
+    /* L and G alike: G survives a task switch, and a client that goes to
+     * ring 0 through VCPI makes one */
+    dr.dr7 |= 3ULL << (i * 2);
+    /* R/W = 01, break on writes only; LEN above it */
+    dr.dr7 |= (uint64_t)(1 | (lenbits << 2)) << (16 + i * 4);
+  }
+  if (dr.dr7)
+    dr.dr7 |= 0x700;			/* bit 10 reads as one; LE and GE */
+  if (ioctl(vcpufd, KVM_SET_DEBUGREGS, &dr) == -1)
+    return -1;
+  return 0;
+}
+
+/* Which watches the trap that just came out of the VM belongs to, as a mask
+ * of B0..B3, clearing them so that the next one is seen as new.  The CPU
+ * only ever sets these bits; leaving them behind would report the same watch
+ * again on the next single step. */
+int kvm_get_watchpoint_hits(void)
+{
+  struct kvm_debugregs dr;
+  int hits;
+
+  if (vcpufd <= 0)
+    return 0;
+  if (ioctl(vcpufd, KVM_GET_DEBUGREGS, &dr) == -1)
+    return 0;
+  hits = dr.dr6 & 0xf;
+  if (hits) {
+    dr.dr6 &= ~0xfULL;
+    dr.flags = 0;
+    ioctl(vcpufd, KVM_SET_DEBUGREGS, &dr);
+  }
+  return hits;
+}
+
 static void process_pending_mmio(void)
 {
   struct kvm_coalesced_mmio_ring *mr = MMIO_RING(run);
