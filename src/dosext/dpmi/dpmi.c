@@ -171,6 +171,38 @@ static struct DPMIclient_struct DPMIclient[DPMI_MAX_CLIENTS];
 
 static dpmi_pm_block_root host_pm_block_root;
 
+/* Last CPU exception reflected to the client, remembered for diagnostics.
+ * A client that installed an exception handler usually reports the fault
+ * itself and then exits, and at the default debug level we printed nothing
+ * at all, so such a death looked like dosemu just quitting. */
+static struct {
+  int valid;
+  int trapno;
+  unsigned int cs, eip, err, cr2;
+  unsigned short ds, es, fs, gs, ss;
+} last_client_fault;
+
+/* Print where the client faulted when it dies with an error code. Without
+ * this the whole event is visible only with -D+M, and a client that handles
+ * the exception itself dies without dosemu saying anything at all. */
+static void report_client_fault(unsigned short errcode)
+{
+  if (!last_client_fault.valid)
+    return;
+  error("DPMI: client exited with code 0x%02x; its last CPU exception was "
+	"0x%02x at %#x:%#x, err=%#x, cr2=%#x\n"
+	"      ds=%#x es=%#x fs=%#x gs=%#x ss=%#x\n",
+	errcode, last_client_fault.trapno, last_client_fault.cs,
+	last_client_fault.eip, last_client_fault.err, last_client_fault.cr2,
+	last_client_fault.ds, last_client_fault.es, last_client_fault.fs,
+	last_client_fault.gs, last_client_fault.ss);
+  if (last_client_fault.trapno == 0x0d && last_client_fault.err == 0)
+    error("@DPMI: a general protection fault with a zero error code is not "
+	  "tied to a descriptor: the client addressed memory through a null "
+	  "selector, or past a segment limit\n");
+  last_client_fault.valid = 0;
+}
+
 static uint8_t _ldt_buffer[LDT_ENTRIES * LDT_ENTRY_SIZE];
 uint8_t *ldt_buffer = _ldt_buffer;
 static unsigned short _dpmi_sel16, _dpmi_sel32;
@@ -3895,6 +3927,11 @@ static void quit_dpmi(cpuctx_t *scp, unsigned short errcode,
 {
   int have_tsr = tsr && DPMI_CLIENT.RSP_installed;
 
+  if (errcode)
+    report_client_fault(errcode);
+  else
+    last_client_fault.valid = 0;
+
   /* this is checked in dpmi_cleanup */
   DPMI_CLIENT.RSP_installed = have_tsr;
 
@@ -4973,6 +5010,19 @@ static void do_cpu_exception(cpuctx_t *scp)
 {
   D_printf("DPMI: do_cpu_exception(0x%02x) at %#x:%#x, ss:esp=%x:%x, cr2=%#x, err=%#x\n",
 	_trapno, _cs, _eip, _ss, _esp, _cr2, _err);
+  if (_trapno != 1 && _trapno != 3) {
+    last_client_fault.valid = 1;
+    last_client_fault.trapno = _trapno;
+    last_client_fault.cs = _cs;
+    last_client_fault.eip = _eip;
+    last_client_fault.err = _err;
+    last_client_fault.cr2 = _cr2;
+    last_client_fault.ds = _ds;
+    last_client_fault.es = _es;
+    last_client_fault.fs = _fs;
+    last_client_fault.gs = _gs;
+    last_client_fault.ss = _ss;
+  }
   if (debug_level('M') > 5)
     D_printf("DPMI: %s\n", DPMI_show_state(scp));
 

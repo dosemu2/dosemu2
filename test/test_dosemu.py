@@ -45,6 +45,7 @@ from func_lfs_file_seek_tell import lfs_file_seek_tell
 from func_libi86_testsuite import libi86_create_items
 from func_lredir import mfs_lredir_auto_hdc, mfs_lredir_command, mfs_lredir_command_no_perm
 from func_memory_dpmi_dpmi10_ldt import memory_dpmi_dpmi10_ldt
+from func_memory_dpmi_fault_diag import memory_dpmi_fault_diag
 from func_memory_dpmi_int_stack import (memory_dpmi_int_stack,
                                         memory_dpmi_iret_stack)
 from func_memory_dpmi_nullseg import memory_dpmi_nullseg
@@ -1047,6 +1048,11 @@ class OurTestCase(BaseTestCase):
     def test_memory_dpmi_pm_stack(self):
         """Memory DPMI PM interrupt stack limit"""
         memory_dpmi_pm_stack(self)
+
+    @mark(['memtest', 'dpmitest'])
+    def test_memory_dpmi_fault_diag(self):
+        """Memory DPMI client fault diagnostics"""
+        memory_dpmi_fault_diag(self)
 
     @mark(['memtest', 'dpmitest'])
     def test_memory_dpmi_leak_check_nofree(self):
