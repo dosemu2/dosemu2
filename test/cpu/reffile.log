@@ -4654,6 +4654,14 @@ fisubs   a=-1.500000 i=-3 -> 1.500000 fpus=4000
 fisubrs  a=-1.500000 i=-3 -> -1.500000 fpus=4000
 fidivs   a=-1.500000 i=-3 -> 0.500000 fpus=4000
 fidivrs  a=-1.500000 i=-3 -> 2.000000 fpus=4000
+sgdtl    mem=wwwwww..
+sidtl    mem=wwwwww..
+sldtw    mem=ww..
+strw     mem=ww..
+smsww    mem=ww..
+smsw     reg high16=written low16=written
+sldt     reg high16=written low16=written
+str      reg high16=written low16=written
 daa        A=12340503 R=12340509 CCIN=0010 CC=0014
 daa        A=12340506 R=1234050c CCIN=0010 CC=0014
 daa        A=12340507 R=1234050d CCIN=0010 CC=0010

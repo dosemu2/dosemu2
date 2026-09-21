@@ -213,6 +213,65 @@ static void test_farith_int(double a)
     TEST_FIARITH("fidivr", "s", short, a, -3);
 }
 
+/* 0f 00 and 0f 01, the descriptor table group. The values these store are
+ * host state - gdt base, ldt selector, task register, cr0 - so printing
+ * them would differ between a native run and a run under dosemu for
+ * legitimate reasons. What the emulator kept getting wrong is not the
+ * value but the store itself: #3022 was the memory form of smsw being
+ * skipped outright, and #3066/#3067 were forms that reached the handler
+ * but never wrote their operand. So these two macros print the shape of
+ * the write and nothing else, which is the same everywhere the
+ * instruction is implemented correctly.
+ *
+ * The memory form runs twice, into a buffer of 0x00 and a buffer of 0xff.
+ * A byte the instruction wrote holds the same value in both, a byte it
+ * left alone still holds the fill, so 'w' marks written and '.' marks
+ * untouched with no dependence on what was stored. Two bytes past the
+ * expected end are printed too, so a store of the wrong length shows up
+ * as a trailing 'w' rather than as silence. */
+#define TEST_DT_MEM(mn, nb)\
+{\
+    static unsigned char b0[16], b1[16];\
+    char mask[16];\
+    int i;\
+    memset(b0, 0x00, sizeof(b0));\
+    memset(b1, 0xff, sizeof(b1));\
+    asm volatile(mn " (%0)" : : "r" (b0) : "memory");\
+    asm volatile(mn " (%0)" : : "r" (b1) : "memory");\
+    for (i = 0; i < (nb) + 2; i++)\
+        mask[i] = (b0[i] == b1[i]) ? 'w' : '.';\
+    mask[i] = '\0';\
+    printf("%-8s mem=%s\n", mn, mask);\
+}
+
+/* The register form with a 32 bit operand. smsw copies the whole of cr0
+ * into a 32 bit destination, and sldt and str zero extend their selector,
+ * so on a correct implementation the top half is written in every case.
+ * Running it from two different starting values tells written from
+ * preserved without printing the value itself. */
+#define TEST_DT_REG(mn)\
+{\
+    unsigned int r0 = 0x00000000, r1 = 0xffff0000;\
+    asm volatile(mn " %0" : "+r" (r0));\
+    asm volatile(mn " %0" : "+r" (r1));\
+    printf("%-8s reg high16=%s low16=%s\n", mn,\
+           ((r0 >> 16) == (r1 >> 16)) ? "written" : "kept",\
+           ((r0 & 0xffff) == (r1 & 0xffff)) ? "written" : "kept");\
+}
+
+static void test_dtables(void)
+{
+    TEST_DT_MEM("sgdtl", 6);
+    TEST_DT_MEM("sidtl", 6);
+    TEST_DT_MEM("sldtw", 2);
+    TEST_DT_MEM("strw", 2);
+    TEST_DT_MEM("smsww", 2);
+
+    TEST_DT_REG("smsw");
+    TEST_DT_REG("sldt");
+    TEST_DT_REG("str");
+}
+
 static void test_optable(void)
 {
     test_bitops_imm();
@@ -224,4 +283,5 @@ static void test_optable(void)
     test_farith_regs(-1.5, 0.25);
     test_farith_int(3.0);
     test_farith_int(-1.5);
+    test_dtables();
 }
