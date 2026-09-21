@@ -281,6 +281,9 @@ static uint16_t dos_alloc_lin_mem(struct call *c)
 	lin_avail_known = 0;
 	linmem[i] = m;
 	call_setd(linp, m.address);
+	if (run286_trace)
+	    trc("run286:   linmem[%d] %u bytes at %#lx, low pool\n", i, size,
+		    (unsigned long)m.address);
 	return 0;
     }
     /* Nothing left down there. The programs measure memory by asking for
@@ -296,6 +299,9 @@ static uint16_t dos_alloc_lin_mem(struct call *c)
 	return ERROR_NOT_ENOUGH_MEMORY;
     linmem[i] = m;
     call_setd(linp, m.address);
+    if (run286_trace)
+	trc("run286:   linmem[%d] %u bytes at %#lx, dpmi pool\n", i, size,
+		(unsigned long)m.address);
     return 0;
 }
 
@@ -309,8 +315,13 @@ static uint16_t dos_free_lin_mem(struct call *c)
 	if (linmem[i].size && linmem[i].address == lin)
 	    break;
     }
-    if (i == MAX_LINMEM || __dpmi_free_memory(linmem[i].handle) == -1)
+    if (i == MAX_LINMEM || __dpmi_free_memory(linmem[i].handle) == -1) {
+	if (run286_trace)
+	    trc("run286:   linmem free %#lx: not ours\n", (unsigned long)lin);
 	return ERROR_INVALID_PARAMETER;
+    }
+    if (run286_trace)
+	trc("run286:   linmem[%d] freed %#lx\n", i, (unsigned long)lin);
     linmem[i].size = 0;
     lin_avail_known = 0;
     return 0;

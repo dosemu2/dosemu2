@@ -8,6 +8,7 @@
  * Free software, GPL v2 or later.
  */
 #include <stdio.h>
+#include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
 #include <dpmi.h>
@@ -17,6 +18,28 @@
 #include "neload.h"
 #include "asm.h"
 #include "run286.h"
+
+/*
+ * The trace is long and the programs that need it run in a graphics mode,
+ * where DOS stdout is not readable. Put it in a file next to the image when
+ * RUN286_LOG names one.
+ */
+static FILE *trace_fp;
+int run286_trace;
+
+void trc(const char *fmt, ...)
+{
+    va_list ap;
+
+    va_start(ap, fmt);
+    if (trace_fp) {
+	vfprintf(trace_fp, fmt, ap);
+	fflush(trace_fp);
+    } else {
+	vprintf(fmt, ap);
+    }
+    va_end(ap);
+}
 
 /* access rights for a 16bit, DPL 3, present segment */
 #define AR_CODE16	0x00fa		/* code, readable */
@@ -221,18 +244,18 @@ int ASMCFUNC run286_import(void)
     }
 
     if (ldr.trace)
-	printf("run286: -> %s.%s%u\n", im->mod,
+	trc("run286: -> %s.%s%u\n", im->mod,
 		im->name[0] ? im->name : "#", im->ord);
     rc = im->fn->fn(&c);
     ldr.ncall++;
     if (ldr.trace)
-	printf("run286: %s.%s%u(%04x %04x %04x %04x %04x %04x %04x) = %u\n",
+	trc("run286: %s.%s%u(%04x %04x %04x %04x %04x %04x %04x) = %u\n",
 		im->mod, im->name[0] ? im->name : "#", im->ord,
 		call_argw(&c, 0), call_argw(&c, 2), call_argw(&c, 4),
 		call_argw(&c, 6), call_argw(&c, 8), call_argw(&c, 10),
 		call_argw(&c, 12), rc);
     if (ldr.trace)
-	printf("run286:   called from %04x:%04x\n",
+	trc("run286:   called from %04x:%04x\n",
 		_farpeekw(c.ss, c.sp + CALL_ARGS - 2),
 		_farpeekw(c.ss, c.sp + CALL_ARGS - 4));
     /* the result goes back in AX, which gate_entry pops off the program's
@@ -383,8 +406,13 @@ static char *read_cfg(char *buf)
     return buf[0] ? buf : NULL;
 }
 
-/* second line of RUN286.CFG, if any, turns tracing on */
-static int read_cfg_trace(void)
+/*
+ * Second line of RUN286.CFG, if any, turns tracing on; a third line names
+ * the file the trace goes to, which is the only way to read it when the
+ * program has taken the screen into a graphics mode. Returns the name in
+ * *logp, or leaves it alone.
+ */
+static int read_cfg_trace(char *logp, size_t logsz)
 {
     FILE *f = fopen("RUN286.CFG", "r");
     char buf[128];
@@ -392,8 +420,18 @@ static int read_cfg_trace(void)
 
     if (!f)
 	return 0;
-    while (fgets(buf, sizeof(buf), f))
+    while (fgets(buf, sizeof(buf), f)) {
+	char *p;
+
 	n++;
+	if (n != 3)
+	    continue;
+	p = strpbrk(buf, "\r\n");
+	if (p)
+	    *p = 0;
+	if (buf[0])
+	    snprintf(logp, logsz, "%s", buf);
+    }
     fclose(f);
     return n > 1;
 }
@@ -488,6 +526,7 @@ int main(int argc, char **argv)
     struct ne_reloc_stats st = {};
     const char *err = "";
     char cfg[128];
+    char logf[128] = "";
     uint8_t *file;
     size_t size;
     unsigned entry_seg, ss_seg, sp;
@@ -503,7 +542,17 @@ int main(int argc, char **argv)
 	return 2;
     }
 
-    l->trace = getenv("RUN286_TRACE") != NULL || read_cfg_trace();
+    l->trace = getenv("RUN286_TRACE") != NULL || read_cfg_trace(logf,
+	    sizeof(logf));
+    run286_trace = l->trace;
+    if (l->trace) {
+	const char *log = getenv("RUN286_LOG");
+
+	if (!log && logf[0])
+	    log = logf;
+	if (log)
+	    trace_fp = fopen(log, "w");
+    }
     printf("run286: loading %s\n", path);
     file = slurp(path, &size);
     if (!file) {
