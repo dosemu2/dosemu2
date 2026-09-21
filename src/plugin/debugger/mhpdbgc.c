@@ -901,11 +901,11 @@ static void mhp_tracec(int argc, char *argv[])
   loopbuf[idx++] = '\0';
 }
 
-/* Only the memory dosemu mapped for DOS can be read at all, and main_pool
+/* Only the memory dosemu mapped for DOS can be touched at all, and main_pool
  * spans exactly that: conventional, the HMA, extended memory, XMS and DPMI
- * alike.  Reading past it faults, and dosemu's fault handler takes the
- * whole process down with it. */
-static int addr_is_readable(dosaddr_t addr, unsigned int len)
+ * alike.  Going past it faults, and dosemu's fault handler takes the whole
+ * process down with it. */
+static int addr_is_mapped(dosaddr_t addr, unsigned int len)
 {
   if (addr + len < addr)
     return 0;
@@ -963,8 +963,8 @@ static void mhp_dump(int argc, char *argv[])
     data32 = dpmi_segment_is32(seg);
   unixaddr = linmode == 2 && seg == 0 && limit == 0xFFFFFFFF;
   if (!unixaddr) {
-    if (!addr_is_readable(buf, 1)) {
-      mhp_printf("%08x is outside the %08x bytes of memory dosemu has\n",
+    if (!addr_is_mapped(buf, 1)) {
+      mhp_printf("%08x is outside the %08zx bytes of memory dosemu has\n",
                  buf, main_pool.size);
       return;
     }
@@ -1697,8 +1697,8 @@ static void mhp_disasm(int argc, char *argv[])
   org = codeorg ? codeorg : seekval;
 
   if (!(def_size & 4)) {
-    if (!addr_is_readable(buf, 1)) {
-      mhp_printf("%08x is outside the %08x bytes of memory dosemu has\n",
+    if (!addr_is_mapped(buf, 1)) {
+      mhp_printf("%08x is outside the %08zx bytes of memory dosemu has\n",
                  buf, main_pool.size);
       return;
     }
@@ -1862,6 +1862,11 @@ static void mhp_memset(int argc, char *argv[])
           mhp_printf("Value too large for data type\n");
           return;
         }
+        if (!addr_is_mapped(zapaddr, size)) {
+          mhp_printf("%08x is outside the %08zx bytes of memory dosemu has\n",
+                     zapaddr, main_pool.size);
+          return;
+        }
         MEMCPY_2DOS(zapaddr, &val, size);
         mhp_printf("Modified %d byte(s) at 0x%08x with value %#lx\n", size, zapaddr, val);
         zapaddr += size;
@@ -1869,6 +1874,11 @@ static void mhp_memset(int argc, char *argv[])
 
       case V_STRING:
         size = strlen(arg + 1);
+        if (!addr_is_mapped(zapaddr, size)) {
+          mhp_printf("%08x is outside the %08zx bytes of memory dosemu has\n",
+                     zapaddr, main_pool.size);
+          return;
+        }
         MEMCPY_2DOS(zapaddr, arg + 1, size);
         mhp_printf("Modified %d byte(s) at 0x%08x with value \"%s\"\n", size, zapaddr, arg + 1);
         zapaddr += size;
@@ -2001,6 +2011,13 @@ int mhp_setbp(unsigned int seekval)
 {
   int i1;
 
+  /* 'g' writes the int3 over whatever is there, so an address dosemu has no
+   * memory for takes the process down as soon as the client is let run */
+  if (!addr_is_mapped(seekval, 1)) {
+    mhp_printf("%08x is outside the %08zx bytes of memory dosemu has\n",
+               seekval, main_pool.size);
+    return 0;
+  }
   for (i1 = 0; i1 < MAXBP; i1++) {
     if (mhpdbgc.brktab[i1].brkaddr == seekval && mhpdbgc.brktab[i1].is_valid) {
       mhp_printf("Duplicate breakpoint, nothing done\n");
