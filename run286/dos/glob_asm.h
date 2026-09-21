@@ -21,6 +21,7 @@ __ASM(unsigned, int_stk_esp) SEMIC		/* the handlers' 16bit stack */
 __ASM(unsigned, int_stk_ss) SEMIC
 __ASM(unsigned, int_ret_sel) SEMIC		/* 16bit cs holding int_ret16 */
 __ASM(unsigned, int_ds) SEMIC			/* the program's own DGROUP */
+__ASM(unsigned, int_entered) SEMIC	/* how many reached the stub at all */
 __ASM(unsigned, int_taken) SEMIC		/* how many have arrived */
 __ASM_ARR(unsigned, int_count, 12) SEMIC		/* and per vector */
 __ASM(unsigned, int_last) SEMIC			/* and where the last one did */

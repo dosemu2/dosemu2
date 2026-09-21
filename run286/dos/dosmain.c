@@ -55,7 +55,8 @@ static void trace_interrupts(const char *when)
 
     for (i = 0; i < INT_SLOTS; i++)
 	p += sprintf(p, "%u ", int_count[i]);
-    trc("run286:   %u interrupts %s, by slot: %s\n", int_taken, when, buf);
+    trc("run286:   %u interrupts %s (%u entries into the stub), by slot: %s\n",
+	    int_taken, when, int_entered, buf);
     dump_hooked_vectors();
 }
 

@@ -168,6 +168,15 @@ _int_stubs:
 .endr
 
 _int_common:
+    /*
+     * Before anything that touches the stack. The per-vector counters
+     * below say which handler ran; this one says only that the host came
+     * here, so that "the host says it called us and our counter is zero"
+     * can be told apart from "the host never came". Read through %cs
+     * because our own DS is not loaded yet, and the stack is whatever the
+     * host left us, which is the thing in question.
+     */
+    incl %cs:_int_entered
     pushal
     pushl %ds
     pushl %es
@@ -343,6 +352,8 @@ _int_target:				/* offset, selector, per vector */
 .endr
 .global _int_taken
 _int_taken:	.long 0
+.global _int_entered
+_int_entered:	.long 0
 .global _int_count
 _int_count:
 .rept INT_SLOTS
