@@ -31,7 +31,9 @@ sudo apt install -y \
   dos2unix \
   bridge-utils \
   libvirt-daemon \
-  libvirt-daemon-system
+  libvirt-daemon-system \
+  xvfb \
+  xdotool
 
 sudo apt install -y \
   dj64-dbgsym \
