@@ -25,10 +25,12 @@ def memory_dpmi_dtrbase(self):
     self.mkexe_with_djgpp("dtrbase", r"""
 #include <stdio.h>
 
-/* everything a DPMI client can address through a base of its own is
- * below this: conventional memory, the HMA, and the extended memory
- * dosemu hands out start well under it. */
-#define REACHABLE_END 0x01000000u
+/* what we answer with has to be out of the client's world altogether,
+ * so require it in the top two gigabytes. Anything lower is somewhere
+ * a client could plausibly have memory: dosemu hands DPMI memory out
+ * from $_dpmi_base, which the test configuration puts at 128M, and a
+ * client may map more above that. */
+#define UNREACHABLE_START 0x80000000u
 
 static int check(const char *nm, unsigned char *p)
 {
@@ -37,7 +39,7 @@ static int check(const char *nm, unsigned char *p)
   int bad = 0;
 
   printf("%s limit=%04x base=%08x\n", nm, limit, base);
-  if (base < REACHABLE_END) {
+  if (base < UNREACHABLE_START) {
     printf("FAIL: %s base is memory the client can reach\n", nm);
     bad = 1;
   }
