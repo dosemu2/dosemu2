@@ -60,7 +60,7 @@ struct ne_image {
     uint8_t exetyp;
     uint32_t csip, sssp;
     uint32_t segtab, restab, modtab, imptab, enttab, nrestab;
-    uint16_t cbenttab;
+    uint16_t cbenttab, cbnrestab;
     struct ne_seg *seg;		/* cseg entries */
     char modref[NE_MAX_MODREF][9];
 };
@@ -99,5 +99,8 @@ const char *ne_impname(const struct ne_image *ne, uint16_t off, char *buf,
  * Returns 0 on success. Segment numbers are 1-based, as in the file. */
 int ne_entry_lookup(const struct ne_image *ne, uint16_t ord, uint16_t *segnum,
 	uint16_t *off);
+/* The ordinal a module exports a name under, or 0 if it exports no such
+ * name. The linkers disagree about case, so the comparison ignores it. */
+uint16_t ne_name_ordinal(const struct ne_image *ne, const char *name);
 
 #endif

@@ -50,6 +50,7 @@ void trc(const char *fmt, ...)
 #define TRAP_EXC_IDX	0xfffe		/* the same, as a DPMI exception */
 #define STUB_SIZE	8		/* one import stub, see make_stub() */
 #define MAX_IMPORTS	1024
+#define MAX_MODULES	8
 #define SEG_STRIDE	0x10000		/* linear room reserved per segment */
 
 struct import {
@@ -66,11 +67,24 @@ struct seg_info {
     uint16_t sel;
 };
 
-struct dos_ldr {
-    const struct ne_image *ne;
+/*
+ * The program and every DLL it imports from. A DLL the games ship beside
+ * the program is a plain NE of its own, so it loads the same way: its
+ * segments get descriptors of their own and its relocations go through
+ * the same ops, with its own module as the context.
+ */
+struct module {
+    char name[9];
+    uint8_t *file;
+    struct ne_image ne;
     struct seg_info *seg;
     __dpmi_meminfo mem;
     uint16_t base_sel;
+};
+
+struct dos_ldr {
+    struct module mod[MAX_MODULES];	/* the program is mod[0] */
+    int nmod;
     unsigned nstub;		/* imports we could not resolve yet */
     unsigned ncall;		/* API calls served so far */
     int trace;
@@ -83,25 +97,33 @@ struct dos_ldr {
 
 static struct dos_ldr ldr;
 
+static uint8_t *slurp(const char *path, size_t *size);
+static int load_segments(struct module *m);
+static int commit_segments(struct module *m);
+static int dos_resolve_ord(void *ctx, const char *mod, uint16_t ord,
+	struct ne_far *a);
+static int dos_resolve_name(void *ctx, const char *mod, const char *name,
+	struct ne_far *a);
+
 static int dos_seg_addr(void *ctx, uint16_t segnum, struct ne_far *a)
 {
-    struct dos_ldr *l = ctx;
+    struct module *m = ctx;
 
-    if (!segnum || segnum > l->ne->cseg)
+    if (!segnum || segnum > m->ne.cseg)
 	return -1;
-    a->sel = l->seg[segnum - 1].sel;
+    a->sel = m->seg[segnum - 1].sel;
     a->off = 0;
     return 0;
 }
 
 static uint8_t *dos_seg_mem(void *ctx, uint16_t segnum, uint32_t *size)
 {
-    struct dos_ldr *l = ctx;
+    struct module *m = ctx;
 
-    if (!segnum || segnum > l->ne->cseg)
+    if (!segnum || segnum > m->ne.cseg)
 	return NULL;
-    *size = l->seg[segnum - 1].size;
-    return l->seg[segnum - 1].shadow;
+    *size = m->seg[segnum - 1].size;
+    return m->seg[segnum - 1].shadow;
 }
 
 /* PHAPI and DOSCALLS are not implemented yet. Every import gets a stub of
@@ -144,16 +166,133 @@ static int make_stub(struct dos_ldr *l, const char *mod, const char *name,
     return 0;
 }
 
+static struct module *find_module(const char *name)
+{
+    int i;
+
+    for (i = 0; i < ldr.nmod; i++)
+	if (!strcasecmp(ldr.mod[i].name, name))
+	    return &ldr.mod[i];
+    return NULL;
+}
+
+/*
+ * A module the program imports from that is not one of ours. The games
+ * ship these as plain NE DLLs in the directory they run from, so load
+ * <NAME>.DLL the same way as the program: descriptors of its own, its own
+ * relocations, and its code made executable before anything calls into it.
+ *
+ * DOS opens the file whatever case the name is in, and these DLLs have no
+ * initialisation entry point, so there is nothing to enter before use.
+ */
+static struct module *dll_load(const char *name)
+{
+    struct module *m;
+    struct pl_bound b;
+    struct ne_ldr_ops ops = {};
+    struct ne_reloc_stats st = {};
+    const char *err = "";
+    char path[16];
+    size_t size;
+    int i;
+
+    if (ldr.nmod >= MAX_MODULES) {
+	trc("run286: too many modules to load %s\n", name);
+	return NULL;
+    }
+    m = &ldr.mod[ldr.nmod];
+    memset(m, 0, sizeof(*m));
+    snprintf(m->name, sizeof(m->name), "%s", name);
+    snprintf(path, sizeof(path), "%.8s.DLL", name);
+    m->file = slurp(path, &size);
+    if (!m->file) {
+	trc("run286: cannot read %s\n", path);
+	return NULL;
+    }
+    if (pl_bound_parse(&b, m->file, size, &err) != 0 ||
+	    ne_parse(&m->ne, m->file, size, b.app_off, &err) != 0) {
+	trc("run286: %s: %s\n", path, err);
+	free(m->file);
+	m->file = NULL;
+	return NULL;
+    }
+    m->seg = calloc(m->ne.cseg, sizeof(*m->seg));
+    if (!m->seg || load_segments(m) != 0)
+	return NULL;
+    /* claim the slot before relocating: a DLL may import from another */
+    ldr.nmod++;
+
+    ops.ctx = m;
+    ops.seg_addr = dos_seg_addr;
+    ops.seg_mem = dos_seg_mem;
+    ops.resolve_ord = dos_resolve_ord;
+    ops.resolve_name = dos_resolve_name;
+    for (i = 1; i <= m->ne.cseg; i++) {
+	if (ne_relocate(&m->ne, i, &ops, &st, &err) != 0) {
+	    trc("run286: %s segment %d: %s\n", path, i, err);
+	    return NULL;
+	}
+    }
+    if (commit_segments(m) != 0)
+	return NULL;
+    trc("run286: loaded %s, %u segments, %u fixups, %u unresolved\n",
+	    path, m->ne.cseg, st.applied, st.unresolved);
+    return m;
+}
+
+/*
+ * Resolve an import against a DLL rather than against our own API. The
+ * name a program imports by and the name the DLL exports under differ in
+ * case often enough that ne_name_ordinal() ignores it.
+ */
+static int dll_import(const char *mod, const char *name, uint16_t ord,
+	struct ne_far *a)
+{
+    struct module *m;
+    uint16_t segnum, off;
+
+    if (!mod || !strcmp(mod, "PHAPI") || !strcmp(mod, "DOSCALLS"))
+	return -1;
+    m = find_module(mod);
+    if (!m) {
+	m = dll_load(mod);
+	if (!m)
+	    return -1;
+    }
+    if (name) {
+	ord = ne_name_ordinal(&m->ne, name);
+	if (!ord) {
+	    trc("run286: %s exports no %s\n", mod, name);
+	    return -1;
+	}
+    }
+    if (ne_entry_lookup(&m->ne, ord, &segnum, &off) != 0 ||
+	    !segnum || segnum > m->ne.cseg) {
+	trc("run286: %s has no entry %u\n", mod, ord);
+	return -1;
+    }
+    a->sel = m->seg[segnum - 1].sel;
+    a->off = off;
+    if (ldr.trace)
+	trc("run286: %s.%s#%u -> %04x:%04x\n", mod, name ?: "", ord,
+		a->sel, a->off);
+    return 0;
+}
+
 static int dos_resolve_ord(void *ctx, const char *mod, uint16_t ord,
 	struct ne_far *a)
 {
-    return make_stub(ctx, mod, NULL, ord, a);
+    if (dll_import(mod, NULL, ord, a) == 0)
+	return 0;
+    return make_stub(&ldr, mod, NULL, ord, a);
 }
 
 static int dos_resolve_name(void *ctx, const char *mod, const char *name,
 	struct ne_far *a)
 {
-    return make_stub(ctx, mod, name, 0, a);
+    if (dll_import(mod, name, 0, a) == 0)
+	return 0;
+    return make_stub(&ldr, mod, name, 0, a);
 }
 
 /*
@@ -527,9 +666,10 @@ static int read_cfg_trace(char *logp, size_t logsz)
     return n > 1;
 }
 
-static int load_segments(struct dos_ldr *l, const uint8_t *file)
+static int load_segments(struct module *m)
 {
-    const struct ne_image *ne = l->ne;
+    const struct ne_image *ne = &m->ne;
+    const uint8_t *file = m->file;
     unsigned long total = 0, off;
     int i;
 
@@ -538,28 +678,29 @@ static int load_segments(struct dos_ldr *l, const uint8_t *file)
      * the program holds a pointer into has to be copied anywhere. */
     total = (unsigned long)ne->cseg * SEG_STRIDE;
 
-    l->mem.size = total;
-    if (__dpmi_allocate_memory(&l->mem) == -1) {
+    m->mem.size = total;
+    if (__dpmi_allocate_memory(&m->mem) == -1) {
 	trc("run286: cannot allocate %lu bytes of DPMI memory\n", total);
 	return -1;
     }
-    l->base_sel = __dpmi_allocate_ldt_descriptors(ne->cseg);
-    if (l->base_sel == (uint16_t)-1) {
+    m->base_sel = __dpmi_allocate_ldt_descriptors(ne->cseg);
+    if (m->base_sel == (uint16_t)-1) {
 	trc("run286: cannot allocate %u descriptors\n", ne->cseg);
 	return -1;
     }
-    trc("run286: %lu bytes at linear %#lx, %u selectors from %#x\n",
-	    total, (unsigned long)l->mem.address, ne->cseg, l->base_sel);
+    trc("run286: %s: %lu bytes at linear %#lx, %u selectors from %#x\n",
+	    m->name, total, (unsigned long)m->mem.address, ne->cseg,
+	    m->base_sel);
 
     off = 0;
     for (i = 0; i < ne->cseg; i++) {
 	struct ne_seg *sg = &ne->seg[i];
-	struct seg_info *si = &l->seg[i];
+	struct seg_info *si = &m->seg[i];
 	uint32_t len = ne_seg_len(sg);
 
 	si->size = sg->minalloc;
-	si->lin = l->mem.address + off;
-	si->sel = l->base_sel + i * 8;
+	si->lin = m->mem.address + off;
+	si->sel = m->base_sel + i * 8;
 	off += SEG_STRIDE;
 
 	/* everything is a writable data segment while we fill it in */
@@ -581,14 +722,14 @@ static int load_segments(struct dos_ldr *l, const uint8_t *file)
     return 0;
 }
 
-static int commit_segments(struct dos_ldr *l)
+static int commit_segments(struct module *m)
 {
-    const struct ne_image *ne = l->ne;
+    const struct ne_image *ne = &m->ne;
     __dpmi_paddr dst = {};
     int i;
 
     for (i = 0; i < ne->cseg; i++) {
-	struct seg_info *si = &l->seg[i];
+	struct seg_info *si = &m->seg[i];
 
 	dst.selector = si->sel;
 	dst.offset32 = 0;
@@ -611,8 +752,8 @@ int main(int argc, char **argv)
      * environment instead. A stubbed run286.exe will get a real argv. */
     const char *path = getenv("RUN286_IMAGE");
     struct dos_ldr *l = &ldr;
+    struct module *m = &l->mod[0];
     struct pl_bound b;
-    struct ne_image ne;
     struct ne_ldr_ops ops = {};
     struct ne_reloc_stats st = {};
     const char *err = "";
@@ -645,7 +786,8 @@ int main(int argc, char **argv)
 	    trace_fp = fopen(log, "w");
     }
     trc("run286: loading %s\n", path);
-    file = slurp(path, &size);
+    snprintf(m->name, sizeof(m->name), "%s", "PROGRAM");
+    file = m->file = slurp(path, &size);
     if (!file) {
 	trc("run286: cannot read %s\n", path);
 	return 2;
@@ -654,49 +796,50 @@ int main(int argc, char **argv)
 	trc("run286: %s\n", err);
 	return 1;
     }
-    if (ne_parse(&ne, file, size, b.app_off, &err) != 0) {
+    if (ne_parse(&m->ne, file, size, b.app_off, &err) != 0) {
 	trc("run286: %s\n", err);
 	return 1;
     }
     trc("run286: NE at %#x, %u segments, entry %04x:%04x\n", b.app_off,
-	    ne.cseg, (unsigned)(ne.csip >> 16), (unsigned)(ne.csip & 0xffff));
+	    m->ne.cseg, (unsigned)(m->ne.csip >> 16),
+	    (unsigned)(m->ne.csip & 0xffff));
 
-    l->ne = &ne;
-    l->seg = calloc(ne.cseg, sizeof(*l->seg));
-    if (!l->seg || load_segments(l, file) != 0)
+    l->nmod = 1;
+    m->seg = calloc(m->ne.cseg, sizeof(*m->seg));
+    if (!m->seg || load_segments(m) != 0)
 	return 1;
     if (stub_seg_init(l, MAX_IMPORTS) != 0)
 	return 1;
 
-    ops.ctx = l;
+    ops.ctx = m;
     ops.seg_addr = dos_seg_addr;
     ops.seg_mem = dos_seg_mem;
     ops.resolve_ord = dos_resolve_ord;
     ops.resolve_name = dos_resolve_name;
-    for (i = 1; i <= ne.cseg; i++) {
-	if (ne_relocate(&ne, i, &ops, &st, &err) != 0) {
+    for (i = 1; i <= m->ne.cseg; i++) {
+	if (ne_relocate(&m->ne, i, &ops, &st, &err) != 0) {
 	    trc("run286: segment %d: %s\n", i, err);
 	    return 1;
 	}
     }
     trc("run286: %u fixups, %u locations, %u unresolved, %u import stubs\n",
 	    st.applied, st.patched, st.unresolved, l->nstub);
-    if (commit_segments(l) != 0)
+    if (commit_segments(m) != 0)
 	return 1;
 
-    entry_seg = ne.csip >> 16;
-    ss_seg = ne.sssp >> 16;
-    sp = ne.sssp & 0xffff;
+    entry_seg = m->ne.csip >> 16;
+    ss_seg = m->ne.sssp >> 16;
+    sp = m->ne.sssp & 0xffff;
     if (!ss_seg)			/* SS follows the automatic data segment */
-	ss_seg = ne.autodata;
-    if (!entry_seg || entry_seg > ne.cseg || !ss_seg || ss_seg > ne.cseg ||
-	    !ne.autodata || ne.autodata > ne.cseg) {
+	ss_seg = m->ne.autodata;
+    if (!entry_seg || entry_seg > m->ne.cseg || !ss_seg || ss_seg > m->ne.cseg ||
+	    !m->ne.autodata || m->ne.autodata > m->ne.cseg) {
 	trc("run286: bad entry %08x, stack %08x or autodata %u\n",
-		ne.csip, ne.sssp, ne.autodata);
+		m->ne.csip, m->ne.sssp, m->ne.autodata);
 	return 1;
     }
     if (!sp)				/* top of the stack segment */
-	sp = l->seg[ss_seg - 1].size;
+	sp = m->seg[ss_seg - 1].size;
     desc_probe();
     trc("run286: gdt %04x:%04x%04x, idt %04x:%04x%04x\n",
 	    gate_gdt[0], gate_gdt[2], gate_gdt[1],
@@ -720,17 +863,17 @@ int main(int argc, char **argv)
     hook_exceptions();
     /* what a handler of the program's would have found in DS and ES had
      * it interrupted the program rather than us */
-    int_ds = l->seg[ne.autodata - 1].sel;
+    int_ds = m->seg[m->ne.autodata - 1].sel;
     trc("run286: entering %04x:%04x, stack %04x:%04x, ds %04x\n",
-	    l->seg[entry_seg - 1].sel, (unsigned)(ne.csip & 0xffff),
-	    l->seg[ss_seg - 1].sel, sp, l->seg[ne.autodata - 1].sel);
+	    m->seg[entry_seg - 1].sel, (unsigned)(m->ne.csip & 0xffff),
+	    m->seg[ss_seg - 1].sel, sp, m->seg[m->ne.autodata - 1].sel);
     fflush(stdout);
-    rc = ne_enter(l->seg[entry_seg - 1].sel, ne.csip & 0xffff,
-	    l->seg[ss_seg - 1].sel, sp,
-	    l->seg[ne.autodata - 1].sel, l->seg[ne.autodata - 1].sel,
-	    env_init(path), l->seg[ne.autodata - 1].size);
+    rc = ne_enter(m->seg[entry_seg - 1].sel, m->ne.csip & 0xffff,
+	    m->seg[ss_seg - 1].sel, sp,
+	    m->seg[m->ne.autodata - 1].sel, m->seg[m->ne.autodata - 1].sel,
+	    env_init(path), m->seg[m->ne.autodata - 1].size);
     trc("run286: back from the program after %u API calls, rc %d\n",
 	    l->ncall, rc);
-    ne_free(&ne);
+    ne_free(&m->ne);
     return 0;
 }

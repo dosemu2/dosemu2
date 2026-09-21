@@ -165,6 +165,7 @@ int ne_parse(struct ne_image *ne, const uint8_t *file, size_t size,
     ne->modtab = rd16(h + 0x28);
     ne->imptab = rd16(h + 0x2a);
     ne->nrestab = rd32(h + 0x2c);
+    ne->cbnrestab = rd16(h + 0x20);
     ne->cmovent = rd16(h + 0x30);
     ne->align_shift = rd16(h + 0x32);
     if (!ne->align_shift)
@@ -302,4 +303,61 @@ int ne_entry_lookup(const struct ne_image *ne, uint16_t ord, uint16_t *segnum,
 	}
     }
     return -1;
+}
+
+static int name_eq(const uint8_t *p, size_t l, const char *name)
+{
+    size_t i;
+
+    for (i = 0; i < l; i++) {
+	int a = p[i], b = (unsigned char)name[i];
+
+	if (a >= 'a' && a <= 'z')
+	    a -= 'a' - 'A';
+	if (b >= 'a' && b <= 'z')
+	    b -= 'a' - 'A';
+	if (!b || a != b)
+	    return 0;
+    }
+    return !name[l];
+}
+
+/* A name table is a run of counted strings, each followed by the ordinal it
+ * stands for, terminated by a zero length. The first entry is the module's
+ * own name (resident) or its description (non-resident), under ordinal 0. */
+static uint16_t name_table_lookup(const uint8_t *p, const uint8_t *end,
+	const char *name)
+{
+    while (p < end) {
+	size_t l = *p;
+
+	if (!l || p + 1 + l + 2 > end)
+	    break;
+	if (name_eq(p + 1, l, name))
+	    return rd16(p + 1 + l);
+	p += 1 + l + 2;
+    }
+    return 0;
+}
+
+uint16_t ne_name_ordinal(const struct ne_image *ne, const char *name)
+{
+    const uint8_t *end = ne->file + ne->file_size;
+    uint16_t ord;
+
+    if (!name || !name[0])
+	return 0;
+    /* the resident table has no length of its own: it runs up to the
+     * module reference table, which follows it in every NE */
+    if (ne->restab < ne->modtab) {
+	ord = name_table_lookup(ne->file + ne->hdr + ne->restab,
+		ne->file + ne->hdr + ne->modtab, name);
+	if (ord)
+	    return ord;
+    }
+    if (ne->nrestab && ne->nrestab + ne->cbnrestab <= ne->file_size)
+	end = ne->file + ne->nrestab + ne->cbnrestab;
+    if (ne->nrestab && ne->nrestab < ne->file_size)
+	return name_table_lookup(ne->file + ne->nrestab, end, name);
+    return 0;
 }
