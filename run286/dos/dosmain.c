@@ -23,6 +23,8 @@
 #define AR_DATA16	0x00f2		/* data, writable */
 
 #define GATE_INT	0x66		/* free vector the stubs go through */
+#define TRAP_IDX	0xffff		/* the stub int 3 goes through */
+#define TRAP_EXC_IDX	0xfffe		/* the same, as a DPMI exception */
 #define STUB_SIZE	8		/* one import stub, see make_stub() */
 #define MAX_IMPORTS	1024
 #define SEG_STRIDE	0x10000		/* linear room reserved per segment */
@@ -131,6 +133,51 @@ static int dos_resolve_name(void *ctx, const char *mod, const char *name,
     return make_stub(ctx, mod, name, 0, a);
 }
 
+/*
+ * The program executed int 3. Say where, and hand back whatever message it
+ * had built below its frame pointer: a program that traps on purpose has
+ * just formatted one there, and it is the only explanation we are going to
+ * get.
+ *
+ * The frames both start above gate_entry's own saves and the int GATE_INT
+ * frame the stub added, and the host builds them to its client's bitness,
+ * which here is 32bit even though the stub the trap arrives on is not. An
+ * exception frame carries a far return address and an error code before
+ * the machine state, and names the stack the program was on; an interrupt
+ * frame is the machine state alone, on that same stack.
+ */
+#define TRAP_BASE	(CALL_EAX + 4 + 12)	/* past the GATE_INT frame */
+
+static void report_trap(struct call *c, int exception)
+{
+    uint16_t bp = _farpeekw(c->ss, c->sp + CALL_EBP);
+    unsigned st = c->sp + TRAP_BASE + (exception ? 12 : 0);
+    uint16_t ss = exception ? _farpeekl(c->ss, st + 16) : c->ss;
+    char buf[0x108];
+    unsigned i, run = 0, lines = 0;
+
+    printf("run286: the program trapped at %04x:%08x\n",
+	    (uint16_t)_farpeekl(c->ss, st + 4), _farpeekl(c->ss, st));
+    if (bp < sizeof(buf))
+	return;
+    for (i = 0; i < sizeof(buf); i++)
+	buf[i] = _farpeekb(ss, bp - sizeof(buf) + i);
+    /* whatever text is in there, a piece at a time */
+    for (i = 0; i < sizeof(buf); i++) {
+	if (buf[i] == '\n' || buf[i] == '\r' ||
+		(buf[i] >= 0x20 && (unsigned char)buf[i] < 0x7f)) {
+	    run++;
+	    continue;
+	}
+	buf[i] = 0;
+	if (run >= 6 && lines < 8) {
+	    printf("run286:   %s\n", buf + i - run);
+	    lines++;
+	}
+	run = 0;
+    }
+}
+
 /* Called from gate_entry once the program enters a stub. Returns nonzero to
  * unwind ne_enter() instead of resuming the program. */
 int ASMCFUNC run286_import(void)
@@ -140,14 +187,21 @@ int ASMCFUNC run286_import(void)
     struct call c;
     uint16_t rc;
 
+    c.ss = gate_cli_ss;
+    c.sp = gate_cli_esp;
+    if (n == TRAP_IDX || n == TRAP_EXC_IDX) {
+	/* an interrupt frame is IP, CS, flags; an exception frame has a
+	 * far return and an error code in front of it */
+	report_trap(&c, n == TRAP_EXC_IDX);
+	gate_exit_code = 1;
+	return 1;
+    }
     if (n >= ldr.nstub) {
 	printf("run286: bogus import index %u\n", n);
 	gate_exit_code = 1;
 	return 1;
     }
     im = &ldr.imp[n];
-    c.ss = gate_cli_ss;
-    c.sp = gate_cli_esp;
     if (!im->fn) {
 	char nm[72];
 
@@ -217,8 +271,10 @@ static uint16_t env_init(const char *path)
 static int stub_seg_init(struct dos_ldr *l, unsigned nimp)
 {
     __dpmi_paddr h;
+    uint32_t trap;
 
-    l->stub_mem.size = nimp * STUB_SIZE;
+    /* two slots past the imports for the int 3 stubs below */
+    l->stub_mem.size = (nimp + 2) * STUB_SIZE;
     if (__dpmi_allocate_memory(&l->stub_mem) == -1) {
 	printf("run286: cannot allocate the stub segment\n");
 	return -1;
@@ -254,6 +310,34 @@ static int stub_seg_init(struct dos_ldr *l, unsigned nimp)
 	printf("run286: cannot hook int %#x\n", GATE_INT);
 	return -1;
     }
+
+    /* A program that traps would otherwise take the host down with it, and
+     * these ones trap on purpose: Origin's error() formats its message on
+     * the stack, prints it and executes int 3. Route the trap through a
+     * stub of the same shape as an import so it arrives in C, where the
+     * message is still there to be read. */
+    trap = nimp * STUB_SIZE;
+    _farpokeb(l->stub_data_sel, trap + 0, 0xb8);
+    _farpokew(l->stub_data_sel, trap + 1, TRAP_IDX);
+    _farpokeb(l->stub_data_sel, trap + 3, 0xcd);
+    _farpokeb(l->stub_data_sel, trap + 4, GATE_INT);
+    _farpokeb(l->stub_data_sel, trap + 5, 0xcf);	/* iret, never reached */
+    h.selector = l->stub_code_sel;
+    h.offset32 = trap;
+    if (__dpmi_set_protected_mode_interrupt_vector(3, &h) == -1) {
+	printf("run286: cannot hook int 3\n");
+	return -1;
+    }
+    /* a host may deliver it as an exception instead, on its own frame */
+    trap += STUB_SIZE;
+    _farpokeb(l->stub_data_sel, trap + 0, 0xb8);
+    _farpokew(l->stub_data_sel, trap + 1, TRAP_EXC_IDX);
+    _farpokeb(l->stub_data_sel, trap + 3, 0xcd);
+    _farpokeb(l->stub_data_sel, trap + 4, GATE_INT);
+    _farpokeb(l->stub_data_sel, trap + 5, 0xcb);	/* never reached */
+    h.offset32 = trap;
+    if (__dpmi_set_processor_exception_handler_vector(3, &h) == -1)
+	printf("run286: cannot hook exception 3\n");
     return 0;
 }
 
