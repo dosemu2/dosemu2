@@ -54,7 +54,7 @@ from func_memory_dpmi_leak_check_dos import memory_dpmi_leak_check_dos
 from func_memory_ems_borland import memory_ems_borland, memory_emm286_borland
 from func_memory_ems_vcpi import memory_ems_vcpi, memory_ems_vcpi_disabled
 from func_memory_jemm import memory_jemm_api, memory_jemm_disabled, \
-    memory_jemm_windows, memory_jemm_xms
+    memory_jemm_windows, memory_jemm_xms, memory_jemm_mouse
 from func_memory_hma import (memory_hma_freespace, memory_hma_alloc, memory_hma_a20,
                              memory_hma_alloc3, memory_hma_chain)
 from func_memory_uma import memory_uma_strategy
@@ -1087,6 +1087,11 @@ class OurTestCase(BaseTestCase):
     def test_memory_jemm_xms(self):
         """Memory JEMM leaves XMS alone"""
         memory_jemm_xms(self)
+
+    @mark(['memtest', 'emstest'])
+    def test_memory_jemm_mouse(self):
+        """Memory JEMM mouse from protected mode"""
+        memory_jemm_mouse(self)
 
     def test_floppy_img(self):
         """Floppy image file"""

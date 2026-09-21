@@ -412,6 +412,14 @@ class BaseTestCase(object):
     def boot_log(self):
         return self.logfiles['log'][0].read_text()
 
+    def term_log(self):
+        """Everything that reached the terminal, boot messages included.
+
+        runDosemu() only returns what came after the prompt, so this is
+        the way to look at what DOS printed while it was still booting.
+        """
+        return self.logfiles['xpt'][0].read_bytes().decode('cp437', 'replace')
+
 # helpers
 
     def mkcom_with_ia16(self, fname, content, dname=None, extraargs=None):
