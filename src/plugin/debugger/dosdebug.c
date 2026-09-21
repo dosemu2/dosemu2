@@ -127,7 +127,7 @@ static COMMAND cmds[] = {
    "                               val can be specified as for modify memory except\n"
    "                               that string values are not supported\n"},
   {"r32", NULL,
-   "                  show regs in 32 bit format\n"},
+   "                  show regs, and switch between 16 and 32 bit format\n"},
   {"m", NULL,
    "ADDR val [val ..] modify memory at address ADDR ('-' for previous addr)\n"
    "                               val can be:\n"

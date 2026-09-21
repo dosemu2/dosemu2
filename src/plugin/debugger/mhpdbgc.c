@@ -2384,6 +2384,9 @@ static void mhp_regs(int argc, char *argv[])
 static void mhp_regs32(int argc, char *argv[])
 {
   reg32 ^= 1;
+  /* the point of asking is to see them, and without this nothing is printed
+   * until the next 'r', which leaves the command looking like it did nothing */
+  mhp_regs(1, argv);
 }
 
 static void mhp_r0(int argc, char *argv[])
