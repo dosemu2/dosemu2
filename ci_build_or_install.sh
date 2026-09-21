@@ -35,22 +35,25 @@ add_apt_repository()
 # the PPA index therefore surfaces a minute and a half later, as
 # mk-build-deps failing to install fdpp-build-deps or as a dependency on
 # thunk-gen that cannot be satisfied, which reads like a packaging problem
-# and is not one.  Retry while an index is missing, then carry on: this
-# turns a blip into a working index and never fails a run that would
-# otherwise have got through.
+# and is not one.  Retry while an index is missing, and otherwise answer
+# exactly as the bare call would: a fetch error that does not clear is
+# carried on with, as apt intends, while a failure of another kind -- a
+# held dpkg lock, a sources.list that does not parse -- keeps its non-zero
+# status and stops the script on its own step.
 apt_update()
 {
   attempt=1
   while : ; do
-    out="$(sudo apt-get update -q 2>&1 || true)"
+    status=0
+    out="$(sudo apt-get update -q 2>&1)" || status=$?
     printf '%s\n' "${out}"
     if ! printf '%s\n' "${out}" | grep -q '^Err:' ; then
-      return 0
+      return ${status}
     fi
     if [ ${attempt} -ge 3 ] ; then
       echo "apt-get update: attempt ${attempt} still reports a fetch error," \
         "going on with the indexes we have" >&2
-      return 0
+      return ${status}
     fi
     delay=$((attempt * 15))
     echo "apt-get update: attempt ${attempt} could not fetch an index," \
