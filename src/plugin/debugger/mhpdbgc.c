@@ -41,6 +41,7 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <sys/ioctl.h>
+#include <sys/uio.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <stdarg.h>
@@ -900,6 +901,33 @@ static void mhp_tracec(int argc, char *argv[])
   loopbuf[idx++] = '\0';
 }
 
+/* A host address is read through a bare pointer, so an unmapped one faults
+ * inside dosemu and its own handler takes the whole process down.  Let the
+ * kernel do the read instead - it answers EFAULT rather than raising a
+ * signal - and report how much of the range is there.  One probe per page
+ * is enough to find where the mapping ends. */
+static unsigned int unix_readable_len(uintptr_t addr, unsigned int len)
+{
+  unsigned char c;
+  struct iovec liov = { .iov_base = &c, .iov_len = 1 };
+  struct iovec riov = { .iov_len = 1 };
+  uintptr_t pgsz = HOST_PAGE_SIZE;
+  uintptr_t a, next, end;
+  unsigned int done = 0;
+
+  if (!len || addr + len < addr)
+    return 0;
+  end = addr + len;
+  for (a = addr; a < end; a = next) {
+    next = (a + pgsz) & ~(pgsz - 1);
+    riov.iov_base = (void *)a;
+    if (process_vm_readv(getpid(), &liov, 1, &riov, 1, 0) != 1)
+      break;
+    done = (next < end ? next : end) - addr;
+  }
+  return done;
+}
+
 /* In unix32 an address with no segment is one in dosemu's own space, and on
  * a 64bit host that does not fit the 32 bits of the dosaddr_t mhp_getadr
  * hands back - every address 'ldt' prints is above 4G.  Take it again here,
@@ -974,6 +1002,15 @@ static void mhp_dump(int argc, char *argv[])
 #endif
   if (IN_DPMI && seg)
     data32 = dpmi_segment_is32(seg);
+  if (unixaddr) {
+    unsigned int len = unix_readable_len(ubuf, nbytes);
+
+    if (!len) {
+      mhp_printf("%#lx is not mapped in dosemu\n", (unsigned long)ubuf);
+      return;
+    }
+    nbytes = len;		/* show what there is of it */
+  }
   for (i = 0; i < nbytes; i++) {
     if ((i & 0x0f) == 0x00) {
       if (seg != 0 || limit != 0xFFFFFFFF) {
@@ -1704,6 +1741,15 @@ static void mhp_disasm(int argc, char *argv[])
     if (!unixaddr)		/* a DOS address, seen where dosemu keeps it */
       ubuf = (uintptr_t)mem_base + seekval;
     def_size |= 4;
+  }
+  if (def_size & 4) {
+    unsigned int len = unix_readable_len(ubuf, nbytes);
+
+    if (!len) {
+      mhp_printf("%#lx is not mapped in dosemu\n", (unsigned long)ubuf);
+      return;
+    }
+    nbytes = len;		/* show what there is of it */
   }
   rc = 0;
   buf = seekval;
