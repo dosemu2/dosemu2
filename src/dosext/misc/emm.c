@@ -2599,19 +2599,34 @@ static int jemm_shared(int physical_page)
   return base >= JEMM_HW_BASE && base < JEMM_HW_TOP;
 }
 
+/* The array reaches to the end of the first megabyte, and its last two windows
+ * land on what is ours for good: the ROM BIOS stubs, the low memory heap and
+ * the block of halts every interrupt is dispatched through.  Those windows
+ * exist for the client to count and to address, but they never carry an alias,
+ * the way a window over the video aperture carries none while the card owns
+ * it.  Aliasing them instead takes the halt block out from under the
+ * interrupts and trips the JIT on its own protected pages. */
+static int jemm_ours(int physical_page)
+{
+  return PHYS_PAGE_ADDR(physical_page) >= JEMM_TOP;
+}
+
 /* a window whose address is on loan to its original owner right now */
 static int jemm_hidden(int physical_page)
 {
-  return config.jemm && jemm_dos_view && jemm_shared(physical_page);
+  if (!config.jemm)
+    return 0;
+  if (jemm_ours(physical_page))
+    return 1;
+  return jemm_dos_view && jemm_shared(physical_page);
 }
 
 /* The first window that is nobody else's.  dosemu borrows four windows as the
  * buffer it bounces DOS calls of a protected-mode client through, see
  * prepare_ems_frame() in msdos.c.  Normally the whole frame is ours and the
- * first window will do, but under JEMM the bottom of the array lies over
- * memory that still belongs to DOS and to the video card, and mapping over
- * that behind their back corrupts both.  Returns -1 when there is no such
- * window. */
+ * first window will do, but under JEMM the array starts on the video aperture
+ * and ends on our own ROM area, and mapping over either behind its owner's
+ * back corrupts it.  Returns -1 when there is no such window. */
 int emm_first_own_page(void)
 {
   int i;
@@ -2619,7 +2634,7 @@ int emm_first_own_page(void)
   if (!config.jemm)
     return 0;
   for (i = 0; i < phys_pages; i++) {
-    if (!jemm_shared(i))
+    if (!jemm_shared(i) && !jemm_ours(i))
       return i;
   }
   return -1;
@@ -2736,20 +2751,22 @@ int jemm_api(void)
 
 /* JEMM leaves its client where DOS loaded it and puts the EMS windows above,
  * over the video memory and the ROMs: its DE06 translates that whole region
- * page by page, and the clients ask for all 24 windows of it by number.  We
- * cannot give away the top of the first megabyte, so the array is moved down
- * instead and ends at JEMM_TOP, which puts its first two windows over the top
- * of DOS's memory.  Those 32k have to go: the client reads its own DOS memory
- * through the very addresses it maps windows over, and it does not expect the
- * two to be the same bytes.  Called from config_post_process(), which is where
- * the frame has to be settled before memcheck sees it. */
+ * page by page, and the clients ask for all 24 windows of it by number.  The
+ * array therefore starts at JEMM_HW_BASE, exactly where the real one does.
+ * That matters to the client and not only to us: Privateer's allocator sorts
+ * a block by comparing its segment against 0xa000, so a window below that line
+ * is ordinary DOS memory to it, and a window it may remap is not.  With the
+ * array moved down by two windows to keep our own top of memory, its far heap
+ * comes out empty; from 0xa000 it gets its 296k.  Called from
+ * config_post_process(), which is where the frame has to be settled before
+ * memcheck sees it. */
 void jemm_config(void)
 {
   if (!config.jemm)
     return;
   config.ems_uma_pages = EMM_UMA_MAX_PHYS;
   config.ems_cnv_pages = 0;
-  config.ems_frame = (JEMM_TOP >> 4) - 0x400 * config.ems_uma_pages;
+  config.ems_frame = JEMM_HW_BASE >> 4;
   if (config.mem_size > config.ems_frame >> 6)
     config.mem_size = config.ems_frame >> 6;
   c_printf("CONF: JEMM: %i EMS windows from 0x%04x, DOS memory %iK\n",
