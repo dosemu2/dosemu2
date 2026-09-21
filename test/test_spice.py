@@ -159,7 +159,123 @@ hang:   mov     ah, 0                   ; keep asking the BIOS for the time,
         jmp     hang
 """
 
-GUEST_PROGRAMS = {"modes": MODE_CYCLER, "keys": KEY_LOGGER, "beep": BEEPER}
+# Reports the mouse driver's view of the world -- buttons and position as
+# one hex line per change -- so a test can see what the guest was told
+# rather than what the wire carried.
+MOUSE_LOGGER = r"""
+bits 16
+org 0x100
+
+start:
+        cld
+        mov     ah, 0x3c                ; create the file, truncating it
+        xor     cx, cx
+        mov     dx, fname
+        int     0x21
+        jc      hang
+        mov     bx, ax
+        mov     ah, 0x3e
+        int     0x21
+
+        xor     ax, ax                  ; reset the mouse driver
+        int     0x33
+        test    ax, ax
+        jz      hang
+
+again:
+        mov     ax, 3                   ; buttons in bx, position in cx:dx
+        int     0x33
+        cmp     bx, [lastb]
+        jne     report
+        cmp     cx, [lastx]
+        jne     report
+        cmp     dx, [lasty]
+        jne     report
+        jmp     again
+
+report:
+        mov     [lastb], bx
+        mov     [lastx], cx
+        mov     [lasty], dx
+
+        mov     di, line
+        mov     ax, bx
+        call    put1
+        mov     ax, [lastx]
+        call    put4
+        mov     ax, [lasty]
+        call    put4
+        mov     al, 10
+        stosb
+        call    append
+        jmp     again
+
+hang:   jmp     hang
+
+nib:    and     al, 0x0f
+        add     al, '0'
+        cmp     al, '9'
+        jbe     .ok
+        add     al, 7
+.ok:    ret
+
+put1:   call    nib
+        stosb
+        ret
+
+put4:   push    ax
+        mov     cl, 12
+        shr     ax, cl
+        call    nib
+        stosb
+        pop     ax
+        push    ax
+        mov     cl, 8
+        shr     ax, cl
+        call    nib
+        stosb
+        pop     ax
+        push    ax
+        mov     cl, 4
+        shr     ax, cl
+        call    nib
+        stosb
+        pop     ax
+        call    nib
+        stosb
+        ret
+
+append:
+        mov     ax, di
+        sub     ax, line
+        mov     [linelen], ax
+        mov     ax, 0x3d01              ; open for writing
+        mov     dx, fname
+        int     0x21
+        jc      .out
+        mov     bx, ax
+        mov     ax, 0x4202              ; seek to the end
+        xor     cx, cx
+        xor     dx, dx
+        int     0x21
+        mov     ah, 0x40                ; append the line
+        mov     cx, [linelen]
+        mov     dx, line
+        int     0x21
+        mov     ah, 0x3e                ; close, so the host sees it at once
+        int     0x21
+.out:   ret
+
+fname:  db      'MOUSE.TXT', 0
+lastb:  dw      0xffff
+lastx:  dw      0xffff
+lasty:  dw      0xffff
+linelen: dw     0
+line:   times 16 db 0
+"""
+
+GUEST_PROGRAMS = {"modes": MODE_CYCLER, "keys": KEY_LOGGER, "beep": BEEPER,
+                  "mouse": MOUSE_LOGGER}
 
 # The PIT counts down from this at 1193182 Hz, giving a square wave of half
 # that rate -- 1000 Hz, which is what the client must hear.
@@ -174,6 +290,14 @@ BEEP_SECONDS = 3
 
 SCANCODE_A = 0x1e
 SCANCODE_LSHIFT = 0x2a
+
+# Two points in the client's own coordinates, the second below and to the
+# right of the first, so the guest's view of the move can be checked
+# without knowing how the two coordinate spaces line up.
+POINTER_NEAR = (100, 50)
+POINTER_FAR = (600, 350)
+BUTTON_LEFT = 1
+MASK_LEFT = 1
 
 CONNECT_CYCLES = 4
 # 320x200, 720x400 and 640x480: one of each is what proves the client
@@ -502,6 +626,57 @@ class SpiceTestCase(unittest.TestCase):
         self.assertAlmostEqual(hz, BEEP_HZ, delta=BEEP_HZ * BEEP_TOLERANCE,
                                msg="the client heard %.0f Hz where the PIT "
                                    "divisor asks for %.0f" % (hz, BEEP_HZ))
+
+    def test_pointer_reaches_the_guest(self):
+        """the client's pointer moves and clicks arrive at the DOS driver"""
+        with self.dosemuRunning("mouse") as run:
+            c = Client(run["port"])
+            self.assertTrue(c.open(), "the client could not connect")
+            self.assertTrue(c.pump(CLIENT_TIMEOUT, lambda: bool(c.sizes)),
+                            "the client saw no screen")
+            seen = run["home"] / ".dosemu" / "drive_c" / "mouse.txt"
+
+            # the position is re-sent while we wait: the client tells the
+            # server its logical size on its own schedule, and until it has,
+            # there is no coordinate space to report a position in
+            near = self.pointer(c, seen, lambda m: m[1] > 0 and m[2] > 0,
+                                "the pointer to arrive at all",
+                                self.mover(c, POINTER_NEAR))
+            self.pointer(c, seen,
+                         lambda m: m[1] > near[1] and m[2] > near[2],
+                         "the pointer to move down and to the right",
+                         self.mover(c, POINTER_FAR))
+
+            # a press arrives through spice's wheel callback rather than its
+            # buttons one, which is why this is worth a test of its own
+            c.inputs.button_press(BUTTON_LEFT, MASK_LEFT)
+            self.pointer(c, seen, lambda m: m[0] & MASK_LEFT,
+                         "the button to go down")
+            c.inputs.button_release(BUTTON_LEFT, 0)
+            self.pointer(c, seen, lambda m: not m[0] & MASK_LEFT,
+                         "the button to come back up")
+            c.close()
+
+    def mover(self, c, where):
+        return lambda: c.inputs.position(where[0], where[1], 0, 0)
+
+    def pointer(self, c, seen, ok, what, resend=None, timeout=20):
+        """Wait for the guest's mouse driver to report what ok() asks for."""
+        deadline = monotonic() + timeout
+        last = None
+        while monotonic() < deadline:
+            if resend:
+                resend()
+            if seen.exists():
+                lines = seen.read_text(errors="replace").split("\n")
+                for line in lines:
+                    if len(line) == 9:
+                        last = (int(line[0], 16), int(line[1:5], 16),
+                                int(line[5:9], 16))
+                        if ok(last):
+                            return last
+            c.pump(0.2)
+        self.fail("waited for %s, the guest last saw %s" % (what, last))
 
     def typed(self, c, keyfile, want, timeout=10):
         """What the guest has received so far, once it has received enough."""
