@@ -48,6 +48,7 @@ from func_memory_dpmi_dpmi10_ldt import memory_dpmi_dpmi10_ldt
 from func_memory_dpmi_int_stack import (memory_dpmi_int_stack,
                                         memory_dpmi_iret_stack)
 from func_memory_dpmi_nullseg import memory_dpmi_nullseg
+from func_memory_dpmi_pm_stack import memory_dpmi_pm_stack
 from func_memory_dpmi_ecm import (memory_dpmi_ecm_alloc, memory_dpmi_ecm_mini,
                                   memory_dpmi_ecm_modeswitch, memory_dpmi_ecm_psp)
 from func_memory_dpmi_japheth import memory_dpmi_japheth
@@ -1041,6 +1042,11 @@ class OurTestCase(BaseTestCase):
     def test_memory_dpmi_iret_stack(self):
         """Memory DPMI iret stack limit"""
         memory_dpmi_iret_stack(self)
+
+    @mark(['memtest', 'dpmitest'])
+    def test_memory_dpmi_pm_stack(self):
+        """Memory DPMI PM interrupt stack limit"""
+        memory_dpmi_pm_stack(self)
 
     @mark(['memtest', 'dpmitest'])
     def test_memory_dpmi_leak_check_nofree(self):
