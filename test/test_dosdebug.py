@@ -12,6 +12,10 @@ from time import time
 
 from common_framework import (BaseTestCase, main, main_setup, IPROMPT,
                               DOSEMU_CONF_DEFAULT, UNSUPPORTED)
+
+# A watchpoint is the CPU emulator's jit taking a fault, so the test has to
+# ask for the emulator rather than take whatever the machine offers.
+CPUEMU_CONF = DOSEMU_CONF_DEFAULT + '$_cpu_vm = "emulated"\n'
 from common_os import frdos130, ppdosgit
 
 # Something for DOS to run while the debugger looks at it.
@@ -26,6 +30,62 @@ start:
 	mov ax, 4C00h
 	int 21h
 msg:	db "SIMPLE OK",13,10,'$'
+"""
+
+# The debugger stops this one on its own int3, then watches the write that
+# follows.  0x500 is the scratch byte right above the BIOS data area, so
+# nothing else in the machine has an opinion about what is in it.
+#
+# 0x501 is written first and must not stop anything: the protection is by
+# page while the watch is by byte, so the neighbour faults too and has to be
+# let through.  Letting it through takes the protection off the page, and it
+# goes back on only at the next poll, so the client waits for a BIOS tick
+# before the write the test is really about.
+# A watch on the word a push lands in has to fire, and the whole of it: the
+# helpers the jit uses for stack writes reach memory through a mirror that
+# the protection is not on, so this is the case that says whether a write
+# goes the way the watchpoint can see.
+STKWATCH_ASM = r"""
+	cpu 386
+	org 100h
+	bits 16
+start:
+	int3			; tell a watching debugger we are here
+	mov cx, 3
+	mov bx, 0A55Ah
+.again:
+	push bx			; the write the watchpoint is for
+	pop bx
+	inc bx
+	dec cx
+	jnz .again
+	mov dx, msg
+	mov ah, 9
+	int 21h
+	mov ax, 4C00h
+	int 21h
+msg:	db "STKWATCH OK",13,10,'$'
+"""
+
+WATCH_ASM = r"""
+	cpu 386
+	org 100h
+	bits 16
+start:
+	int3			; tell a watching debugger we are here
+	xor ax, ax
+	mov es, ax
+	mov byte [es:501h], 0A5h ; next door to the watch, must not stop
+	mov ebx, [es:46Ch]	; the BIOS tick count
+.wait:	cmp ebx, [es:46Ch]	; one tick is more than enough for the poll
+	je .wait		; that puts the protection back
+	mov byte [es:500h], 5Ah	; the write the watchpoint is for
+	mov dx, msg
+	mov ah, 9
+	int 21h
+	mov ax, 4C00h
+	int 21h
+msg:	db "WATCH OK",13,10,'$'
 """
 
 # A minimal DPMI client. It does nothing but enter 16-bit protected mode and
@@ -361,6 +421,93 @@ class OurTestCase(BaseTestCase):
         bl = results.split("bl=")[-1].split("Interrupts:")[0]
         self.assertNotRegex(bl, r"\n\s*\d+: [0-9a-f]+",
                             "a breakpoint was left behind: " + results)
+
+
+    def test_dosdebug_watchpoint(self):
+        """Dosdebug watchpoint on a client write"""
+
+        self.mkfile("testit.bat", "c:\\watch\nrem end\n", newline="\r\n")
+        self.mkcom_with_nasm("watch", WATCH_ASM)
+
+        def body(args):
+            # the client's own int3 is what gets us inside it
+            self.dbgCmd("bpint 3")
+            self.dbgchild.sendline("g")
+            self.dbgWaitStop(pm=False, limit=40)
+            self.dbgCmd("bcint 3")
+
+            # a watch takes an address the way every other command does
+            out = ["set=" + self.dbgCmd("bpw 0:500 1")]
+            out.append("list=" + self.dbgCmd("bpw"))
+            self.dbgchild.sendline("g")
+            _, _, stop = self.dbgWaitStop(pm=False, limit=40)
+            out.append("stop=" + stop)
+            out.append("mem=" + self.dbgCmd("d 0:500 2"))
+            out.append("clr=" + self.dbgCmd("bcw"))
+            out.append("empty=" + self.dbgCmd("bpw"))
+            return " | ".join(out)
+
+        results = self.runWithDosdebug("testit.bat", body, config=CPUEMU_CONF)
+
+        # the client has to run on afterwards, not be left wedged on the
+        # instruction the watchpoint stopped it at
+        self.assertNotIn('Timeout', results)
+        self.assertRegex(results, r"Watchpoint 0 set at 00000500", results)
+        self.assertRegex(results,
+                         r"watchpoint 0: 00000500 about to be written from"
+                         r" [0-9a-f]{8}, it holds 00", results)
+        # The dump at the stop settles both halves of it: the watched byte
+        # is still 00, so the stop is before the write, and the neighbour
+        # already holds a5, so its own write was let through silently.
+        mem = results.split("mem=")[-1].split(" | ")[0]
+        self.assertRegex(mem, r"0500\s+00 A5", mem)
+        # clearing has to leave the list empty
+        empty = results.split("empty=")[-1]
+        self.assertNotRegex(empty, r"\n\s*\d+: [0-9a-f]+",
+                            "a watchpoint was left behind: " + results)
+
+    def test_dosdebug_watchpoint_stack(self):
+        """Dosdebug watchpoint on a client stack write"""
+
+        self.mkfile("testit.bat", "c:\\stkwatch\nrem end\n", newline="\r\n")
+        self.mkcom_with_nasm("stkwatch", STKWATCH_ASM)
+
+        def body(args):
+            self.dbgCmd("bpint 3")
+            self.dbgchild.sendline("g")
+            _, _, stop = self.dbgWaitStop(pm=False, limit=40)
+            self.dbgCmd("bcint 3")
+
+            # where the next push lands, which is what we want to watch
+            m = re.search(r"SS:SP=([0-9a-f]{4}):([0-9a-f]{4})", stop)
+            if not m:
+                self.fail("no stack pointer in:\n" + stop)
+            ss, sp = int(m.group(1), 16), int(m.group(2), 16)
+            where = (ss << 4) + ((sp - 2) & 0xffff)
+
+            out = ["set=" + self.dbgCmd("bpw %x 2" % where)]
+            hits = 0
+            for _ in range(3):
+                self.dbgchild.sendline("g")
+                _, _, stop = self.dbgWaitStop(pm=False, limit=40)
+                out.append("stop=" + stop)
+                hits += stop.count("watchpoint 0:")
+            out.append("hits=%d" % hits)
+            out.append("clr=" + self.dbgCmd("bcw"))
+            return " | ".join(out)
+
+        results = self.runWithDosdebug("testit.bat", body, config=CPUEMU_CONF)
+
+        self.assertNotIn('Timeout', results)
+        # every push has to be reported, not just the first: the jit patches
+        # a write it has faulted on, and a patched write goes a way the
+        # protection cannot see
+        self.assertRegex(results, r"watchpoint 0: [0-9a-f]{8} about to be"
+                         r" written", results)
+        hits = int(results.split("hits=")[-1].split(" | ")[0])
+        self.assertEqual(hits, 3, "only %d of 3 pushes reported: %s"
+                         % (hits, results))
+
 
 
 # The DOS variants we want get included here

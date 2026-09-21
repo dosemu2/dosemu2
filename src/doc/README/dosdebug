@@ -397,6 +397,83 @@ the mode that was when you defined the breakpoint.
 </para>
 </listitem></varlistentry>
 <varlistentry>
+<term>bpw [addr [len]]</term>
+<listitem>
+<para>
+     Stop when the client writes to the <emphasis>len</emphasis> bytes at
+     <emphasis>addr</emphasis>, which defaults to one byte. The address is
+     read the same way <emphasis>bp</emphasis> reads it. With no arguments
+     the watchpoints set so far are listed.
+</para>
+<para>
+     When the write comes from compiled code the client is stopped on the
+     instruction that is about to write, so the registers and the
+     disassembly say who does it and with what; the memory still holds what
+     it held before, and one <emphasis>t</emphasis> lets the write happen.
+     Not everything is compiled, though, and a write the interpreter makes
+     cannot be stopped on: there the report says the write has already
+     happened and shows what is there now. The report says which of the two
+     it is.
+</para>
+<para>
+<emphasis>NOTE:</emphasis> this works by taking write permission away from
+the mapping the client runs on, which only the CPU emulator's jit can
+report back, so it is refused when the client runs on KVM or natively. Only
+DOS memory up to the end of the HMA can be watched, and not the video
+emulation's aperture or ROM, which are protected already and for other
+reasons.
+</para>
+<para>
+<emphasis>What it does not see.</emphasis> This works by taking write
+permission away from the mapping the client runs on, and dosemu reaches the
+same memory through a mirror of its own, which memory.h keeps unprotected on
+purpose so that its writes are not trapped. Anything written through that
+mirror is therefore missed, and two kinds of write go through it.
+</para>
+<para>
+     The first is dosemu writing on the client's behalf: what a DOS call, the
+     BIOS or a driver puts there. This one is by design, and no watchpoint
+     reports it.
+</para>
+<para>
+     The second is the client's own writes that the jit does not perform
+     itself but hands to a helper in <emphasis>cpatch.c</emphasis> -
+     <emphasis>stk_16</emphasis>, <emphasis>stk_32</emphasis>,
+     <emphasis>wri8_slow</emphasis> and their siblings - all of which end in
+     <emphasis>WRITE_WORD()</emphasis> and its siblings, which is the mirror.
+     Those helpers are asked about a watch before they write, so the write is
+     reported, after the fact rather than before it: the client cannot be
+     stopped on the instruction there, because by then it is inside a call
+     the compiled code made.
+</para>
+<para>
+     An instruction only reaches those helpers once the jit has patched it,
+     and it is patched on a fault. A watched address takes its fault before
+     the patching code is reached, so an instruction writing to watched bytes
+     is not patched while the watch is armed: the helpers matter for an
+     instruction that was already patched when the watch went on, which is
+     what the hook above is for.
+</para>
+<para>
+     That matters because the way this fails is silence: a watchpoint that
+     says nothing means nothing was caught, not that nothing wrote. The one
+     case above that stays silent is dosemu's own writing for the client.
+</para>
+<para>
+     The protection is by page while the watch is by byte, so a write to a
+     neighbour in the same page faults too. Such a write is let through,
+     but the page stays unprotected until the next poll, which is driven by
+     the timer tick. A write to the watched bytes in that window is missed.
+</para>
+</listitem></varlistentry>
+<varlistentry>
+<term>bcw [watchp.No.]</term>
+<listitem>
+<para>
+     Clear a watchpoint, or all of them when given no number.
+</para>
+</listitem></varlistentry>
+<varlistentry>
 <term>bpint xx</term>
 <listitem>
 <para>

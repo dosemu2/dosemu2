@@ -165,6 +165,11 @@ static COMMAND cmds[] = {
    "ADDR              set int3 style breakpoint\n"},
   {"bc", NULL,
    "n                 clear breakpoint #n (as listed by bl)\n"},
+  {"bpw", NULL,
+   "[ADDR [n]]        stop when the client writes n bytes at ADDR,\n"
+   "                  or list the watchpoints if given nothing\n"},
+  {"bcw", NULL,
+   "[n]               clear watchpoint #n, or all of them\n"},
   {"bpint", NULL,
    "xx                set breakpoint on INT xx\n"},
   {"bcint", NULL,

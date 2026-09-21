@@ -44,6 +44,29 @@ unsigned int mhp_debug(unsigned, unsigned int, unsigned int);
 void mhp_send(void);
 void mhp_close(void);
 void mhp_clear_all_bp(void);
+void mhp_watch_poll(void);
+void mhp_watch_set(void);
+void mhp_watch_clr(void);
+/* Returns 0 if the fault is not a watchpoint's, 1 if it is and the client
+ * should just run on, 2 if it is and the client should be stopped on the
+ * faulting instruction.  "before" says whether the caller is able to do
+ * that; the report is worded from it. */
+/* Reports a write the jit performs on the client's behalf, which reaches
+ * memory through dosemu's own mirror and so takes no fault. */
+#ifdef USE_MHPDBG
+int mhp_watch_fault(uintptr_t cr2, unsigned int err, unsigned int pc,
+                    int before);
+void mhp_watch_write(dosaddr_t addr, unsigned int len);
+#else
+static inline int mhp_watch_fault(uintptr_t cr2, unsigned int err,
+                                  unsigned int pc, int before)
+{
+  return 0;
+}
+static inline void mhp_watch_write(dosaddr_t addr, unsigned int len)
+{
+}
+#endif
 void mhp_printf(const char *, ...) FORMAT(printf, 1, 2);
 int mhp_getaxlist_value(int v, int mask);
 int mhp_getcsip_value(void);
