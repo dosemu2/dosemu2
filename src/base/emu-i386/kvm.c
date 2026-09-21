@@ -1670,14 +1670,24 @@ static unsigned int kvm_run(void)
           }
           break;
         }
-        /* The client still owns the CPU, so this hlt is one the monitor
-           reached by faulting inside the mode-switch stub, at ring 0.
-           Such a fault does not switch stacks, so its frame went wherever
-           the stub's esp pointed and not into monitor->regs, and there is
-           nothing here to hand to vm86_fault().  Resuming just stops at
-           the same hlt again until a pending interrupt is injected into a
-           CPU that is half way between the two worlds, and the guest
-           triple faults; say what happened instead. */
+        /* The client owning the CPU does not mean the CPU is in the
+           client's own code.  A VCPI client runs DOS in v86 under its own
+           page tables, and the gate we plant in its IDT brings a trap
+           taken there back to us.  That one came from a lower privilege
+           level, so it switched stacks and its frame is in monitor->regs
+           like any other: it is an ordinary v86 fault and is handled as
+           one.  Reading the faulting instruction is safe because the first
+           megabyte is identity mapped under the client's CR3. */
+        if (monitor->regs.eflags & X86_EFLAGS_VM)
+          goto vcpi_v86_fault;
+        /* Otherwise the monitor reached this hlt by faulting inside the
+           mode-switch stub, at ring 0.  Such a fault does not switch
+           stacks, so its frame went wherever the stub's esp pointed and
+           not into monitor->regs, and there is nothing here to hand to
+           vm86_fault().  Resuming just stops at the same hlt again until a
+           pending interrupt is injected into a CPU that is half way
+           between the two worlds, and the guest triple faults; say what
+           happened instead. */
         ioctl(vcpufd, KVM_GET_SREGS, &sregs);
         error("KVM: VCPI: monitor faulted at ring 0, rip=%04x:%08llx "
               "cr2=%08llx cr3=%08llx\n", sregs.cs.selector,
@@ -1686,6 +1696,7 @@ static unsigned int kvm_run(void)
         leavedos_main(99);
         break;
       }
+vcpi_v86_fault:
       if (fixup_hlt_exit(regs))
         break;
       exit_reason = KVM_EXIT_HLT;
