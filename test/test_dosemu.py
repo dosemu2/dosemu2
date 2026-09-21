@@ -59,6 +59,7 @@ from func_memory_hma import (memory_hma_freespace, memory_hma_alloc, memory_hma_
                              memory_hma_alloc3, memory_hma_chain)
 from func_memory_uma import memory_uma_strategy
 from func_memory_xms import memory_xms
+from func_memory_xms_pm16 import memory_xms_pm16
 from func_memory_xms_pages import memory_xms_pages
 from func_misc import (create_new_psp, passing_dos_errorlevel_back, passing_environment_variable,
                        systype)
@@ -1022,6 +1023,11 @@ class OurTestCase(BaseTestCase):
     def test_memory_xms(self):
         """Memory XMS"""
         memory_xms(self)
+
+    @mark(['memtest', 'xmstest', 'dpmitest'])
+    def test_memory_xms_pm16(self):
+        """Memory XMS PM entry, 16-bit client"""
+        memory_xms_pm16(self)
 
     @mark(['memtest', 'dpmitest'])
     def test_memory_dpmi10_ldt(self):
