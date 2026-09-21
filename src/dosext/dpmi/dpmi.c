@@ -5747,14 +5747,19 @@ static int dpmi_gpf_simple(cpuctx_t *scp, uint8_t *lina, void *sp, int *rv)
        * "pusha; pushfd; cli" (drally),
        * "pushfw; cli" (PoliceQuest4)
        * "pushfw; pop ax; cli" (PoliceQuest4)
-       *  patterns */
-      if (!in_dpmi_irq && _eip >= 2 &&
+       *  patterns, and forward for
+       * "cli; jz +1; sti; pop bp; popf" (Ultima VIII),
+       * where the flags come back a few bytes down the road */
+      if (!in_dpmi_irq &&
+          ((lina[1] == 0x74 && lina[2] == 0x01 && lina[3] == 0xfb &&
+                  lina[4] == 0x5d && lina[5] == 0x9d) ||
+          (_eip >= 2 &&
           ((lina[-2] == 0x9c && lina[-1] == 0x58) ||
           (lina[-2] == 0xc3 && lina[-1] == 0x9c) ||
           (lina[-2] == 0x60 && lina[-1] == 0x9c) ||
           (lina[-2] == 0x66 && lina[-1] == 0x9c) ||
           (_eip >= 4 && lina[-4] == 0x66 && lina[-3] == 0x9c &&
-                  lina[-2] == 0x66 && lina[-1] == 0x58)
+                  lina[-2] == 0x66 && lina[-1] == 0x58)))
       )) {
         D_printf("DOOM cli work-around\n");
         if (!dpmi_is_cli)
