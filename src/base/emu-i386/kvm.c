@@ -1814,7 +1814,14 @@ int true_kvm_vm86(struct vm86_struct *info)
 #endif
   monitor->int_revectored = info->int_revectored;
 
-  if (!kvm_in_vcpi()) {
+  /* A VCPI client owning the CPU still runs DOS under itself in v86, and
+     those traps come to us like any other: the monitor puts the frame in
+     monitor->regs and we service it.  What we service it with has to go
+     back, or every edit is lost -- coopth_callf() pushes a call frame and
+     points cs:eip at its hlt, and dropping that makes the monitor iret to
+     the very int the thread was started for, over and over, until the int
+     67h threads run out of recursion depth. */
+  if (!kvm_in_vcpi() || (regs->eflags & X86_EFLAGS_VM)) {
     monitor->tss.esp0 = offsetof(struct monitor, regs) + sizeof(monitor->regs);
     *regs = info->regs;
     regs->eflags &= (SAFE_MASK | X86_EFLAGS_VIF | X86_EFLAGS_VIP);
