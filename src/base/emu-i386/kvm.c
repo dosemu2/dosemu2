@@ -1638,21 +1638,30 @@ static unsigned int kvm_run(void)
           perror("KVM: KVM_GET_REGS");
           leavedos_main(99);
         }
-        if (kregs.rip - 1 != (VCPI_CODE_PAGE << PAGE_SHIFT) +
-            (kvm_mon_vcpi_hlt - (kvm_mon_start + 2 * PAGE_SIZE)))
+        if (kregs.rip - 1 == (VCPI_CODE_PAGE << PAGE_SHIFT) +
+            (kvm_mon_vcpi_hlt - (kvm_mon_start + 2 * PAGE_SIZE))) {
+          state.eax = kregs.rax;
+          state.edx = kregs.rdx;
+          E_printf("VCPI: PM interface, AX=%x\n",
+                   (unsigned)state.eax & 0xffff);
+          ems_fn(&state);
+          kregs.rax = state.eax;
+          kregs.rdx = state.edx;
+          ret = ioctl(vcpufd, KVM_SET_REGS, &kregs);
+          if (ret == -1) {
+            perror("KVM: KVM_SET_REGS");
+            leavedos_main(99);
+          }
           break;
-        state.eax = kregs.rax;
-        state.edx = kregs.rdx;
-        E_printf("VCPI: PM interface, AX=%x\n", (unsigned)state.eax & 0xffff);
-        ems_fn(&state);
-        kregs.rax = state.eax;
-        kregs.rdx = state.edx;
-        ret = ioctl(vcpufd, KVM_SET_REGS, &kregs);
-        if (ret == -1) {
-          perror("KVM: KVM_SET_REGS");
-          leavedos_main(99);
         }
-        break;
+        /* Any other hlt belongs to the monitor: the client has already
+           dropped back to v86 through pm_to_v86, and monitor->regs, which
+           is all kvm_in_vcpi() has to go by, has not caught up with it yet.
+           Swallowing the trap here left us re-entering the same hlt for as
+           long as it took a stray interrupt to be injected through the
+           client's IDT, which is not mapped any more -> triple fault.
+           Fall through instead: handling the trap is what refreshes
+           monitor->regs and ends the client's turn. */
       }
       if (fixup_hlt_exit(regs))
         break;
