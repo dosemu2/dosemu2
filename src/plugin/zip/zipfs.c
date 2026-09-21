@@ -79,6 +79,7 @@ struct zipfs {
   int id_fd;            // the stamp, held shared while this mount lives
   int log_fd;           // the directory log, -1 until there is one
   int next_id;          // the next overlay id to hand out
+  off_t log_consumed;   // how much of the directory log is in the tree
 };
 
 /* a half-open range of the entry that the chunk file owns */
@@ -798,16 +799,16 @@ static int map_append_trunc(struct ext_map *m, off_t len)
  * ever has to be found and edited. A record that does not parse ends
  * the replay, since anything after it has lost its place.
  *
- * The replay happens at mount and nowhere else, on purpose. The extent
- * maps are read again whenever they are looked at, so two instances do
- * see each other's writes to entries that already exist; names are the
- * exception, and a create or a delete by one is not seen by the other
- * until it mounts the archive afresh. Reading the log as we go would
- * mean the tree changing under an operation that has already taken a
- * node out of it - a delete arriving between the lookup in
- * zip_fs_unlink() and its own log record would free that node under
- * the caller - so it needs the node's lifetime rethought first, and
- * that is more than this wants to be.
+ * The log is taken in again at the start of every operation, so two
+ * instances see each other's creates and deletes the way they already
+ * see each other's writes through the extent maps. The start of an
+ * operation is the only place it can happen: in the middle of one, a
+ * delete arriving between the lookup in zip_fs_unlink() and its own
+ * log record would free the node the caller is holding. Nothing else
+ * needs protecting from it - an open file keeps its node alive by the
+ * refcount, and a directory is copied into the handle when it is
+ * opened - so the rule is simply that log_catchup() runs before the
+ * first lookup() of an operation and never after it.
  */
 #define LOG_NAME "dir.log"
 #define LOG_HDR_LEN 8
@@ -874,7 +875,7 @@ static int log_append(struct zipfs *zfs, int op, unsigned id,
    * a record of a full-length name comes back 4088 bytes of 4104. The
    * record is lost either way and the caller is told so, but the part
    * that did land would sit in front of everything appended later, and
-   * log_replay() stops at the first record it cannot read whole. So
+   * log_catchup() stops at the first record it cannot read whole. So
    * leaving it there loses the entire rest of the log at the next
    * mount, not just this record. Put the file back the length it had.
    * The lock is what makes that safe to do: another mount appending
@@ -1053,6 +1054,15 @@ static void log_apply(struct zipfs *zfs, int op, unsigned id,
   n = node_walk(zfs, name, 1);
   if (!n)
     return;
+  /*
+   * The entry this record makes is already here, so the record has
+   * nothing left to say and the fields below are not ours to reset:
+   * the size and the time are whatever has been written since. That
+   * is what lets the log be replayed more than once over the same
+   * tree, our own records included.
+   */
+  if (n->ovl_id == (int)id && n->idx == -1 && !n->is_dir == !(op == 'd'))
+    return;
   n->ovl_id = id;
   n->idx = -1;
   n->size = n->arc_size = 0;
@@ -1066,14 +1076,36 @@ static void log_apply(struct zipfs *zfs, int op, unsigned id,
   }
 }
 
-static void log_replay(struct zipfs *zfs)
+/*
+ * Take in every record the log has gained since the last look. The
+ * cursor only moves over a record that was read whole and applied, so
+ * a record that is still being written - or one a crash left half
+ * there - is simply waited for rather than skipped.
+ *
+ * Our own records are read back too, and that costs nothing - but not
+ * because applying a record twice is harmless in itself. It is for '+'
+ * and 'd', which the previous patch made so on purpose, and it is not
+ * for 'a' and 't', which write the record's value over whatever the
+ * node holds. What makes it right is the order: every record is
+ * applied exactly once, as the log has them, and every change made on
+ * this side appends its record before it touches the node. So the
+ * replay ends at the state the log describes, whichever side wrote
+ * each record. Anything added later that changes a node without
+ * appending its record first would break that, and belongs here rather
+ * than in a comment.
+ *
+ * Skipping our own would mean knowing which of the records between the
+ * cursor and the end are ours, which is exactly what we cannot know.
+ */
+static void log_catchup(struct zipfs *zfs)
 {
   unsigned char hdr[LOG_HDR_LEN];
   char name[LOG_MAX_NAME + 1];
-  off_t pos = 0;
+  off_t pos;
 
   if (log_open(zfs, 0) == -1)
     return;
+  pos = zfs->log_consumed;
   while (pread(zfs->log_fd, hdr, sizeof(hdr), pos) == sizeof(hdr)) {
     int len = hdr[2] | (hdr[3] << 8);
     unsigned id = hdr[4] | (hdr[5] << 8) | (hdr[6] << 16) |
@@ -1083,10 +1115,8 @@ static void log_replay(struct zipfs *zfs)
       break;
     if (!hdr[0] || !strchr("+-drat", hdr[0]) || hdr[1])
       break;
-    pos += sizeof(hdr);
-    if (pread(zfs->log_fd, name, len, pos) != len)
+    if (pread(zfs->log_fd, name, len, pos + sizeof(hdr)) != len)
       break;
-    pos += len;
     name[len] = '\0';
     if (hdr[0] == 'r') {
       char *sep = memchr(name, '\0', len);
@@ -1095,10 +1125,25 @@ static void log_replay(struct zipfs *zfs)
       if (!sep || sep == name || sep == name + len - 1)
         break;
       node_rename(zfs, name, sep + 1);
-      continue;
+    } else {
+      log_apply(zfs, hdr[0], id, name);
     }
-    log_apply(zfs, hdr[0], id, name);
+    /* only now is the record really in the tree */
+    pos += sizeof(hdr) + len;
+    zfs->log_consumed = pos;
   }
+}
+
+/*
+ * The lookup an operation starts with, and the only place the log may
+ * be taken in: once an operation is holding a node, a record freeing
+ * that node would pull it out from under the caller. Every later
+ * lookup inside the same operation uses lookup() itself.
+ */
+static struct zip_node *lookup_fresh(vfs_fs_t *fs, const char *path)
+{
+  log_catchup(fs->priv);
+  return lookup(fs, path);
 }
 
 /*
@@ -1608,7 +1653,7 @@ static const struct vfs_dir_ops zip_dir_ops = {
 static vfs_file_t *zip_fs_open(vfs_fs_t *fs, const char *path, int flags)
 {
   struct zipfs *zfs = fs->priv;
-  struct zip_node *n = lookup(fs, path);
+  struct zip_node *n = lookup_fresh(fs, path);
   struct zip_file *zf;
   struct zip_stat st;
 
@@ -1699,7 +1744,7 @@ static vfs_file_t *zip_fs_creat(vfs_fs_t *fs, const char *path, int flags,
 {
   struct zipfs *zfs = fs->priv;
 
-  if (!lookup(fs, path)) {
+  if (!lookup_fresh(fs, path)) {
     const char *rel = rel_path(fs, path);
 
     if (!rel) {
@@ -1726,7 +1771,7 @@ static int zip_fs_ro(void)
 static int zip_fs_unlink(vfs_fs_t *fs, const char *path)
 {
   struct zipfs *zfs = fs->priv;
-  struct zip_node *n = lookup(fs, path);
+  struct zip_node *n = lookup_fresh(fs, path);
   const char *rel = rel_path(fs, path);
 
   if (!n || !rel || !n->parent) {
@@ -1752,7 +1797,7 @@ static int zip_fs_mkdir(vfs_fs_t *fs, const char *path, mode_t mode)
     errno = ENOENT;
     return -1;
   }
-  if (lookup(fs, path)) {
+  if (lookup_fresh(fs, path)) {
     errno = EEXIST;
     return -1;
   }
@@ -1765,7 +1810,7 @@ static int zip_fs_mkdir(vfs_fs_t *fs, const char *path, mode_t mode)
 static int zip_fs_rmdir(vfs_fs_t *fs, const char *path)
 {
   struct zipfs *zfs = fs->priv;
-  struct zip_node *n = lookup(fs, path);
+  struct zip_node *n = lookup_fresh(fs, path);
   const char *rel = rel_path(fs, path);
 
   if (!n || !rel || !n->parent) {
@@ -1794,7 +1839,7 @@ static int zip_fs_rmdir(vfs_fs_t *fs, const char *path)
 static int zip_fs_rename(vfs_fs_t *fs, const char *oldpath, const char *newpath)
 {
   struct zipfs *zfs = fs->priv;
-  struct zip_node *n = lookup(fs, oldpath);
+  struct zip_node *n = lookup_fresh(fs, oldpath);
   const char *from = rel_path(fs, oldpath);
   const char *to = rel_path(fs, newpath);
   struct zip_node *old, *dir;
@@ -1845,7 +1890,7 @@ static int zip_fs_utime(vfs_fs_t *fs, const char *path, time_t atime,
     time_t mtime)
 {
   struct zipfs *zfs = fs->priv;
-  struct zip_node *n = lookup(fs, path);
+  struct zip_node *n = lookup_fresh(fs, path);
   const char *rel = rel_path(fs, path);
   long long secs;
 
@@ -1875,7 +1920,7 @@ static int zip_fs_setxattr(vfs_fs_t *fs, const char *path, int attr)
 
 static int zip_fs_set_dos_attr(vfs_fs_t *fs, const char *path, int attr)
 {
-  struct zip_node *n = lookup(fs, path);
+  struct zip_node *n = lookup_fresh(fs, path);
   const char *rel = rel_path(fs, path);
 
   if (!n || !rel || !n->parent) {
@@ -1893,7 +1938,7 @@ static int zip_fs_getxattr(vfs_fs_t *fs, const char *path)
 
 static int zip_fs_get_dos_attr(vfs_fs_t *fs, const char *path, int mode)
 {
-  struct zip_node *n = lookup(fs, path);
+  struct zip_node *n = lookup_fresh(fs, path);
 
   if (!n) {
     errno = ENOENT;
@@ -1904,7 +1949,7 @@ static int zip_fs_get_dos_attr(vfs_fs_t *fs, const char *path, int mode)
 
 static int zip_fs_stat(vfs_fs_t *fs, const char *path, struct stat *sb)
 {
-  struct zip_node *n = lookup(fs, path);
+  struct zip_node *n = lookup_fresh(fs, path);
 
   if (!n) {
     errno = ENOENT;
@@ -1916,7 +1961,7 @@ static int zip_fs_stat(vfs_fs_t *fs, const char *path, struct stat *sb)
 
 static int zip_fs_access(vfs_fs_t *fs, const char *path, int mode)
 {
-  if (!lookup(fs, path)) {
+  if (!lookup_fresh(fs, path)) {
     errno = ENOENT;
     return -1;
   }
@@ -1935,6 +1980,7 @@ static int zip_fs_statvfs(vfs_fs_t *fs, const char *path, struct statvfs *sb)
   struct zipfs *zfs = fs->priv;
   struct statvfs host;
 
+  log_catchup(zfs);
   memset(sb, 0, sizeof(*sb));
   sb->f_bsize = sb->f_frsize = 512;
   sb->f_namemax = 255;
@@ -1951,7 +1997,7 @@ static int zip_fs_statvfs(vfs_fs_t *fs, const char *path, struct statvfs *sb)
 
 static vfs_dir_t *zip_fs_opendir(vfs_fs_t *fs, const char *path)
 {
-  struct zip_node *n = lookup(fs, path);
+  struct zip_node *n = lookup_fresh(fs, path);
   struct zip_node *c;
   struct zip_dir *zd;
   int cnt = 0;
@@ -2194,7 +2240,7 @@ static int zip_mount(vfs_fs_t *fs, const char *path)
   }
 
   /* whatever an earlier run created or deleted, on top of the archive */
-  log_replay(zfs);
+  log_catchup(zfs);
   /* and whatever it wrote, so that a listing shows the size DOS would
    * read rather than the archive's */
   sizes_from_overlay(zfs);

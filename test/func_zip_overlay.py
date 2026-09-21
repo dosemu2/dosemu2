@@ -10,6 +10,14 @@ from func_zip_backend import (ARCHIVE, DEFLATED, FINDDRIVE, MARKER, STORED,
 PATCH = "PATCHED-BY-THE-OVERLAY"
 NEWNAME = "CREATED.TXT"
 
+# What the stand-in for a second dosemu2 instance creates, and how many
+# seconds DOS waits for it. The record is appended as soon as the log
+# exists, so the wait only has to outlast one directory lookup; it is
+# kept well inside the test timeout so a failure reports itself rather
+# than running the clock out.
+SECONDNAME = "OTHERINS.TXT"
+SECONDWAIT = 20
+
 # How many times zip_overlay_rewrite rewrites its entry, and the size of
 # one record of the extent map beside a chunk file.
 ROUNDS = 200
@@ -537,3 +545,85 @@ int main(void) {
     left = sorted(str(p.relative_to(tmpdir)) for p in tmpdir.rglob("*")
                   if p.is_file())
     self.assertEqual([], left, "a read-only session left an overlay behind")
+
+
+def log_record(op, name, ident=0):
+    """One directory log record, as zipfs.c's log_append() writes it."""
+    raw = name.encode("ascii")
+    return (bytes([ord(op), 0, len(raw) & 0xff, (len(raw) >> 8) & 0xff,
+                   ident & 0xff, (ident >> 8) & 0xff,
+                   (ident >> 16) & 0xff, (ident >> 24) & 0xff]) + raw)
+
+
+def zip_overlay_second_writer(self):
+    """An entry another instance creates shows up without a remount."""
+    ovl_isolate(self)
+    archive, _ = mkziparchive(self)
+    tmpdir = self.imagedir / "ziptmp"
+
+    # The second instance. It cannot be a second dosemu2 here, so it is
+    # the thing a second dosemu2 would do: append a create record to the
+    # shared directory log. The overlay's log appearing is what says the
+    # drive is mounted and writable, so there is nothing to synchronise
+    # through the image.
+    from threading import Thread
+
+    done = []
+
+    def other_instance():
+        from time import sleep
+
+        for _ in range(600):
+            logs = list(tmpdir.rglob("dir.log"))
+            if logs:
+                with open(logs[0], "ab") as f:
+                    f.write(log_record("+", SECONDNAME, 0x4000))
+                done.append(logs[0])
+                return
+            sleep(0.1)
+
+    writer = Thread(target=other_instance, daemon=True)
+    writer.start()
+    self.addCleanup(writer.join, 30)
+
+    self.mkexe_with_djgpp("ovlsecond", FINDDRIVE + r"""
+#include <unistd.h>
+
+int main(void) {
+  int f, i;
+
+  if (find_drive())
+    return 4;
+
+  /* make an entry of our own, which is what creates the overlay and
+   * with it the directory log the other instance appends to */
+  f = open(onarchive(NEWNAME), O_WRONLY | O_CREAT | O_BINARY, 0644);
+  if (f < 0) {
+    printf("create failed\n");
+    return 3;
+  }
+  close(f);
+  printf("overlay is live\n");
+
+  /* the other instance's entry has to turn up without a remount */
+  for (i = 0; i < SECONDWAIT; i++) {
+    if (access(onarchive(SECONDNAME), 0) == 0) {
+      printf("second writer's entry is visible after %d tries\n", i);
+      return 0;
+    }
+    sleep(1);
+  }
+  printf("second writer's entry never showed up\n");
+  return 1;
+}
+""", extraargs=defines(["-DNEWNAME=\"%s\"" % NEWNAME,
+                        "-DSECONDNAME=\"%s\"" % SECONDNAME,
+                        "-DSECONDWAIT=%d" % SECONDWAIT]))
+
+    results = runovl(self, archive, "ovlsecond")[0]
+
+    self.assertNotIn("archive drive not found", results)
+    self.assertNotIn("failed", results)
+    self.assertIn("overlay is live", results)
+    self.assertTrue(done, "the second writer never found the log")
+    self.assertIn("second writer's entry is visible", results)
