@@ -486,6 +486,72 @@ dpmi_pm_block * DPMI_mallocLinear(dpmi_pm_block_root *root,
     return block;
 }
 
+/*
+ * Hand back an address for a range that no single hardware ram
+ * registration holds.
+ *
+ * One registration has to contain the whole range for it to have an
+ * address of its own, because that is all get_hardware_ram() can answer
+ * with, and the virtual bases are not laid out in the same order as the
+ * physical ones. A client is free to ask for a range that crosses from
+ * one registration into the next, and the first megabyte of extended
+ * memory does exactly that: the HMA and the memory above it are
+ * registered separately, so a request for 0x100000 bytes at 0x100000
+ * straddles the seam at 0x110000 and was refused. There is nothing
+ * wrong with the range, our side of it just is not contiguous, so build
+ * a window that is and alias the pages into it.
+ */
+static dpmi_pm_block *map_hwram_pieces(dpmi_pm_block_root *root,
+  dosaddr_t hwaddr, unsigned int size)
+{
+    dpmi_pm_block *block;
+    dosaddr_t targ;
+    unsigned off;
+    int i;
+
+    size = HOST_PAGE_ALIGN(size);
+    /* all of it has to be hardware ram we know, or there is nothing to
+     * build the window out of */
+    for (off = 0; off < size; off += HOST_PAGE_SIZE) {
+	if (get_hardware_ram(hwaddr + off, HOST_PAGE_SIZE) == (dosaddr_t)-1)
+	    return NULL;
+    }
+
+    targ = smalloc_aligned_topdown(&main_pool,
+	    dpmi_lin_rsv_base + dpmi_lin_mem_rsv(), HOST_PAGE_SIZE, size);
+    if (targ == (dosaddr_t)-1)
+	return NULL;
+
+    /* a page at a time: what backs one registration is not promised to
+     * carry on into the next */
+    for (off = 0; off < size; off += HOST_PAGE_SIZE) {
+	dosaddr_t va = get_hardware_ram(hwaddr + off, HOST_PAGE_SIZE);
+
+	if (alias_mapping(MAPPING_LOWMEM, targ + off, HOST_PAGE_SIZE,
+		DPMI_PROT_RWX, dosaddr_to_unixaddr(va)) == -1) {
+	    D_printf("DPMI: hwram page at %#x failed to map\n", hwaddr + off);
+	    while (off) {
+		off -= HOST_PAGE_SIZE;
+		restore_mapping(MAPPING_DPMI, targ + off, HOST_PAGE_SIZE);
+	    }
+	    smfree(&main_pool, targ);
+	    return NULL;
+	}
+    }
+
+    block = alloc_pm_block(root, size);
+    block->base = targ;
+    block->linear = 1;
+    block->hwram = 1;
+    block->hwram_span = 1;
+    /* mapped, and not memory of ours to account for */
+    for (i = 0; i < size / HOST_PAGE_SIZE; i++)
+	block->attrs[i] = 8 | 2;
+    block->handle = pm_block_handle_used++;
+    block->size = size;
+    return block;
+}
+
 dpmi_pm_block * DPMI_mapHWRam(dpmi_pm_block_root *root,
   dosaddr_t hwaddr, unsigned int size)
 {
@@ -495,7 +561,7 @@ dpmi_pm_block * DPMI_mapHWRam(dpmi_pm_block_root *root,
 
     vbase = get_hardware_ram(hwaddr, size);
     if (vbase == -1)
-	return NULL;
+	return map_hwram_pieces(root, hwaddr, size);
     block = alloc_pm_block(root, size);
     block->base = vbase;
     block->linear = 1;
@@ -510,6 +576,18 @@ dpmi_pm_block * DPMI_mapHWRam(dpmi_pm_block_root *root,
 static void do_unmap_hwram(dpmi_pm_block_root *root, dpmi_pm_block *block)
 {
     e_invalidate_full(block->base, block->size);
+    if (block->hwram_span) {
+	/* this one is a window we built rather than an address we
+	 * already had, so it has to be taken down again */
+	int i;
+
+	for (i = 0; i < block->size / HOST_PAGE_SIZE; i++)
+	    restore_mapping(MAPPING_DPMI, block->base + i * HOST_PAGE_SIZE,
+		    HOST_PAGE_SIZE);
+	mprotect_mapping(MAPPING_DPMI, block->base, block->size,
+		PROT_READ | PROT_WRITE);
+	smfree(&main_pool, block->base);
+    }
     free_pm_block(root, block);
 }
 
