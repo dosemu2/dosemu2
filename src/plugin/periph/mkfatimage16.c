@@ -564,28 +564,36 @@ int main(int argc, char *argv[])
   }
 
   /* Size the image and close */
-  if (outfile != stdout) {
-    if (total_file_size) {
-      /* a file system that has holes gives this away: the size is the
-       * disk's, the blocks are only the ones we wrote. ftruncate() is
-       * what says that exactly - seeking past the end and writing a
-       * byte allocates the block that byte lands in, and it can only
-       * ever make the file longer, so an image that overran its own
-       * geometry stayed overrun.
-       */
-      if (!raw)
-        total_file_size += sizeof(*header);
+  if (total_file_size) {
+    struct stat st;
+    int fd = fileno(outfile);
 
-      if (fflush(outfile) != 0 ||
-          ftruncate(fileno(outfile), total_file_size) != 0) {
-        fprintf(stderr, "Error: cannot size the image to %ld bytes: %s\n",
-                total_file_size, strerror(errno));
-        fclose(outfile);
-        return 1;
-      }
+    /* a file system that has holes gives this away: the size is the
+     * disk's, the blocks are only the ones we wrote. ftruncate() is
+     * what says that exactly - seeking past the end and writing a
+     * byte allocates the block that byte lands in, and it can only
+     * ever make the file longer, so an image that overran its own
+     * geometry stayed overrun.
+     */
+    if (!raw)
+      total_file_size += sizeof(*header);
+
+    if (fflush(outfile) != 0) {
+      fprintf(stderr, "Error: cannot write the image: %s\n", strerror(errno));
+      return 1;
     }
-    fclose(outfile);
+    /* a pipe has no length to set, a redirect to a file has: which is
+     * why this asks what the stream is rather than whether it is stdout
+     */
+    if (fstat(fd, &st) == 0 && S_ISREG(st.st_mode) &&
+        ftruncate(fd, total_file_size) != 0) {
+      fprintf(stderr, "Error: cannot size the image to %ld bytes: %s\n",
+              total_file_size, strerror(errno));
+      return 1;
+    }
   }
+  if (outfile != stdout)
+    fclose(outfile);
 
   return 0;
 }

@@ -35,8 +35,8 @@ The output is either written to
 (hence do not forget to append\ "\ >\ hdimagefile", else you will see
 garbage on the screen) or to the file specified by the
 .B \-f
-option. In the latter case the image file is given the size the disk's
-geometry calls for, so that it matches
+option. In either case, as long as it is a file and not a pipe, the image
+is given the size the disk's geometry calls for, so that it matches
 .BR \-t / \-h " or " \-k .
 Only the sectors that carry something are written, so on a file system
 that has holes - which is every one dosemu2 is likely to be run on - the
