@@ -59,6 +59,8 @@
 #include "hma.h"
 #include "bios_sym.h"
 #include "misc/dis8086.h"
+#include "misc/smalloc.h"
+#include "mapping/mapping.h"
 #include "dos2linux.h"
 #include "coopth.h"
 #include "kvm.h"
@@ -90,6 +92,13 @@ static int decode_symreg(char *, regnum_t *, int *);
 static unsigned int linmode = 0;
 static unsigned int codeorg = 0;
 static int reg32;
+
+/* A client running with its own page tables - a VCPI client that went to
+ * ring 0 is what this is for - sees memory through them, so an address it
+ * works with is not the physical address dosemu can reach.  Name that
+ * client's page directory here and 'u' and 'd' walk it. */
+static unsigned int pgdir_base;
+static int pgdir_on;
 
 static unsigned int dpmimode;
 static int _in_dpmi(void) {
@@ -944,6 +953,171 @@ static void mhp_tracec(int argc, char *argv[])
   loopbuf[idx++] = '\0';
 }
 
+#define PG_P    0x001
+#define PG_RW   0x002
+#define PG_US   0x004
+#define PG_A    0x020
+#define PG_D    0x040
+#define PG_PS   0x080
+
+/* What a client's page tables hold are physical addresses, and above the HMA
+ * dosemu does not keep memory where a client thinks it is: extended memory
+ * and everything cut from it, the VCPI pool included, live at a virtual
+ * address of dosemu's own choosing.  get_hardware_ram() is that translation,
+ * and it fails for an address dosemu has no memory for at all - which a
+ * table we did not build is free to name. */
+static int phys_to_dosaddr(unsigned pa, int len, dosaddr_t *va)
+{
+  dosaddr_t v;
+
+  if (pa + len < pa)            /* a table entry can name the very top */
+    return 0;
+  v = physaddr_to_dosaddr(pa, len);
+  if (v == (dosaddr_t)-1 || v + len > main_pool.size)
+    return 0;
+  *va = v;
+  return 1;
+}
+
+/* One 32 bit walk of the selected page directory.  On failure *why tells
+ * what stopped it; *pde and *pte hold whatever was read before that. */
+static int pgdir_walk(dosaddr_t lin, unsigned int *phys, unsigned int *pde,
+    unsigned int *pte, const char **why)
+{
+  dosaddr_t ent;
+
+  *pde = 0;
+  *pte = 0;
+  if (!phys_to_dosaddr((pgdir_base & 0xfffff000) + ((lin >> 22) << 2), 4,
+                       &ent)) {
+    *why = "page directory is not in memory dosemu can read";
+    return 0;
+  }
+  *pde = READ_DWORD(ent);
+  if (!(*pde & PG_P)) {
+    *why = "page directory entry not present";
+    return 0;
+  }
+  if (*pde & PG_PS) {   /* a 4M page, which needs CR4.PSE to mean anything */
+    *phys = (*pde & 0xffc00000) | (lin & 0x3fffff);
+    return 1;
+  }
+  if (!phys_to_dosaddr((*pde & 0xfffff000) + (((lin >> 12) & 0x3ff) << 2), 4,
+                       &ent)) {
+    *why = "page table is not in memory dosemu can read";
+    return 0;
+  }
+  *pte = READ_DWORD(ent);
+  if (!(*pte & PG_P)) {
+    *why = "page not present";
+    return 0;
+  }
+  *phys = (*pte & 0xfffff000) | (lin & 0xfff);
+  return 1;
+}
+
+/* -1 rather than a fault, so the caller can print that much and carry on */
+static int mhp_peek(dosaddr_t addr, int xlat)
+{
+  unsigned int phys, pde, pte;
+  dosaddr_t va;
+  const char *why;
+
+  if (!xlat)
+    return READ_BYTE(addr);
+  if (!pgdir_walk(addr, &phys, &pde, &pte, &why))
+    return -1;
+  if (!phys_to_dosaddr(phys, 1, &va))
+    return -1;
+  return READ_BYTE(va);
+}
+
+static void mhp_pgdir(int argc, char *argv[])
+{
+  unsigned int val;
+
+  if (argc > 1) {
+    if (!strcmp(argv[1], "off")) {
+      pgdir_on = 0;
+    } else if (getval_ui(argv[1], 16, &val)) {
+      pgdir_base = val & 0xfffff000;
+      pgdir_on = 1;
+    } else {
+      mhp_printf("Invalid page directory address '%s'\n", argv[1]);
+      return;
+    }
+  }
+  if (pgdir_on)
+    mhp_printf("page directory %08x, 'u' and 'd' translate through it\n",
+               pgdir_base);
+  else
+    mhp_printf("no page directory, 'u' and 'd' take addresses as physical\n");
+}
+
+/* the CPU keeps no dirty bit in a directory entry that names a page table,
+ * so whatever bit 6 holds there says nothing */
+static void print_pgent(const char *name, unsigned int ent, int has_dirty)
+{
+  mhp_printf("  %s %08x  %s %s %s%s%s\n", name, ent,
+             ent & PG_P ? "present" : "not present",
+             ent & PG_RW ? "rw" : "ro",
+             ent & PG_US ? "user" : "supervisor",
+             ent & PG_A ? " accessed" : "",
+             has_dirty && (ent & PG_D) ? " dirty" : "");
+}
+
+static void mhp_pgtrans(int argc, char *argv[])
+{
+  unsigned int lin, pde, pte, phys;
+  dosaddr_t va;
+  const char *why;
+  int ok;
+
+  if (argc < 2) {
+    mhp_printf("Usage: pgt <linear address> [page directory]\n");
+    return;
+  }
+  if (!getval_ui(argv[1], 16, &lin)) {
+    mhp_printf("Invalid address '%s'\n", argv[1]);
+    return;
+  }
+  if (argc > 2) {
+    if (!getval_ui(argv[2], 16, &pde)) {
+      mhp_printf("Invalid page directory address '%s'\n", argv[2]);
+      return;
+    }
+    pgdir_base = pde & 0xfffff000;
+    pgdir_on = 1;
+  }
+  if (!pgdir_on) {
+    mhp_printf("no page directory selected, see 'pgdir'\n");
+    return;
+  }
+
+  ok = pgdir_walk(lin, &phys, &pde, &pte, &why);
+  mhp_printf("\nlinear %08x through page directory %08x\n", lin, pgdir_base);
+  if (pde)
+    print_pgent("PDE", pde, !!(pde & PG_PS));
+  if (pte)
+    print_pgent("PTE", pte, 1);
+  if (!ok) {
+    mhp_printf("  %s\n", why);
+    return;
+  }
+  if (pde & PG_PS)
+    mhp_printf("  4M page, if the client set CR4.PSE - without it the CPU\n"
+               "  ignores this bit and the address is not what is shown\n");
+  if (!phys_to_dosaddr(phys, 1, &va)) {
+    mhp_printf("  physical %08x, which is not memory dosemu can read\n",
+               phys);
+    return;
+  }
+  mhp_printf("  physical %08x", phys);
+  if (va != phys)   /* dosemu keeps it elsewhere, and 'd' wants that address */
+    mhp_printf(", which dosemu holds at %08x", va);
+  mhp_printf("\n");
+}
+
 static void mhp_dump(int argc, char *argv[])
 {
   static char lastd[32];
@@ -957,7 +1131,8 @@ static void mhp_dump(int argc, char *argv[])
   unsigned int limit;
   int data32 = 0;
   int unixaddr;
-  unsigned char c;
+  int xlat;
+  int c;
 
   if (argc > 1) {
     if (!mhp_getadr(argv[1], &seekval, &seg, &off, &limit, IN_DPMI)) {
@@ -994,6 +1169,7 @@ static void mhp_dump(int argc, char *argv[])
   if (IN_DPMI && seg)
     data32 = dpmi_segment_is32(seg);
   unixaddr = linmode == 2 && seg == 0 && limit == 0xFFFFFFFF;
+  xlat = pgdir_on && !unixaddr;
   for (i = 0; i < nbytes; i++) {
     if ((i & 0x0f) == 0x00) {
       if (seg != 0 || limit != 0xFFFFFFFF) {
@@ -1009,15 +1185,22 @@ static void mhp_dump(int argc, char *argv[])
     if (unixaddr)
       c = UNIX_READ_BYTE((uintptr_t)buf + i);
     else
-      c = READ_BYTE(buf + i);
-    mhp_printf("%02X ", c);
+      c = mhp_peek(buf + i, xlat);
+    if (c < 0)
+      mhp_printf("-- ");
+    else
+      mhp_printf("%02X ", c);
     if ((i & 0x0f) == 0x0f) {
       mhp_printf(" ");
       for (i2 = i - 15; i2 <= i; i2++) {
         if (unixaddr)
           c = UNIX_READ_BYTE((uintptr_t)buf + i2);
         else
-          c = READ_BYTE(buf + i2);
+          c = mhp_peek(buf + i2, xlat);
+        if (c < 0) {       /* a space here would read as a real one */
+          mhp_printf("%c", '-');
+          continue;
+        }
         c &= 0x7F;
         if (c >= 0x20) {
           mhp_printf("%c", c);
@@ -1643,6 +1826,9 @@ static void mhp_mode(int argc, char *argv[])
   mhp_printf ("current mode: %s, dpmi %s%s\n",
     linmode == 2 ? "unix32":linmode ? "lin32" : "seg16", in_dpmi_pm() ? "enabled" : "disabled",
     dpmimode ? (IN_DPMI ? " [default enabled]" : " [default disabled]") : "");
+  if (pgdir_on)
+    mhp_printf("'u' and 'd' translate through the page directory at %08x\n",
+               pgdir_base);
 }
 
 static void mhp_disasm(int argc, char *argv[])
@@ -1665,6 +1851,8 @@ static void mhp_disasm(int argc, char *argv[])
   unsigned int ref;
   unsigned int limit;
   int segmented = (linmode == 0);
+  int xlat;
+  unsigned char pgbuf[16 + 16];	/* what is decoded, plus a tail to stop in */
   const char *s;
 
   if (argc > 1) {
@@ -1713,8 +1901,9 @@ static void mhp_disasm(int argc, char *argv[])
   if (linmode == 2) {
     if (seg != 0 || limit != 0xFFFFFFFF)
       seekval += (uintptr_t)mem_base;
-    def_size |= 4;
+    def_size |= 4 | 8;		/* dosemu's own code, so x86-64 */
   }
+  xlat = pgdir_on && !(def_size & 4);
   rc = 0;
   buf = seekval;
   org = codeorg ? codeorg : seekval;
@@ -1725,14 +1914,43 @@ static void mhp_disasm(int argc, char *argv[])
       if ((s = getsym_from_bios(seg, off + bytesdone)) || (s = getsym_from_dos_segofs(seg, off + bytesdone)))
         mhp_printf("%s:\n", s);
     }
-    if (IN_DPMI && base_addr + off + bytesdone > LOWMEM_SIZE + HMASIZE && !dpmi_is_valid_range(base_addr + off + bytesdone, 10))
+    if (!xlat && IN_DPMI && base_addr + off + bytesdone > LOWMEM_SIZE + HMASIZE && !dpmi_is_valid_range(base_addr + off + bytesdone, 10))
       break;
     refseg = seg;
-    rc = dis_8086(buf + bytesdone, frmtbuf, def_size, &ref, (IN_DPMI ? base_addr : refseg * 16));
+    if (xlat) {
+      int got;
+
+      /* the pages behind two halves of one instruction need not be next
+       * to each other, so decode out of a buffer we gathered ourselves */
+      for (got = 0; got < 16; got++) {
+        int b = mhp_peek(buf + bytesdone + got, 1);
+
+        if (b < 0)
+          break;
+        pgbuf[got] = b;
+      }
+      if (!got) {
+        mhp_printf("%08x: <not mapped>\n", seekval + bytesdone);
+        break;
+      }
+      /* dis8086 does not take a length, and a run of prefixes walks it on
+       * byte by byte, so leave it a tail of zeroes to stop in */
+      memset(pgbuf + got, 0, sizeof(pgbuf) - got);
+      rc = dis_8086((uintptr_t)pgbuf, frmtbuf, def_size | 4, &ref,
+                    (uintptr_t)pgbuf - (off + bytesdone));
+      if (rc > got) {
+        mhp_printf("%08x: <runs into an unmapped page>\n",
+                   seekval + bytesdone);
+        break;
+      }
+    } else
+      rc = dis_8086(buf + bytesdone, frmtbuf, def_size, &ref, (IN_DPMI ? base_addr : refseg * 16));
     if (bytesdone + rc > 256)
       break;
     for (i = 0; i < rc; i++) {
-      if (def_size & 4)
+      if (xlat)
+        sprintf(&bytebuf[i * 2], "%02X", pgbuf[i]);
+      else if (def_size & 4)
         sprintf(&bytebuf[i * 2], "%02X", UNIX_READ_BYTE((uintptr_t)buf + bytesdone + i));
       else
         sprintf(&bytebuf[i * 2], "%02X", READ_BYTE(buf + bytesdone + i));
@@ -1752,7 +1970,7 @@ static void mhp_disasm(int argc, char *argv[])
        * spurious printing of immediate memory references if a symbol
        * at seg:0000 has been defined.
        */
-      if ((ref != (refseg << 4)) && ((s = getsym_from_dos_linear(ref))))
+      if (!xlat && (ref != (refseg << 4)) && ((s = getsym_from_dos_linear(ref))))
         mhp_printf("(%s)", s);
     } else {
       if (def_size & 4)
@@ -3102,6 +3320,8 @@ static const struct cmd_db cmdtab[] = {
   {"m",             mhp_memset},
   {"d",             mhp_dump},
   {"u",             mhp_disasm},
+  {"pgdir",         mhp_pgdir},
+  {"pgt",           mhp_pgtrans},
   {"g",             mhp_go},
   {"stop",          mhp_stop},
   {"mode",          mhp_mode},

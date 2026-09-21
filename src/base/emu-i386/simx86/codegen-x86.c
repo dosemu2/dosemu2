@@ -2043,7 +2043,7 @@ shrot0:
 		static char frmtbuf[256];
 		int i;
 		unsigned int ref;
-		int rc = dis_8086((uintptr_t)CpTemp, frmtbuf, 5, &ref, 0);
+		int rc = dis_8086((uintptr_t)CpTemp, frmtbuf, 5 | 8, &ref, 0);
 		dbug_printf("%16p: ", CpTemp);
 		for (i=0; i < 11; i++) {
 			if (i < rc)
