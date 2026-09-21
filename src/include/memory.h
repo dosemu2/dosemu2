@@ -27,9 +27,12 @@
 /* don't change these for now, they're hardwired! */
 /* the same address as BIOSSEG:MOUSE_INT33_OFF, spelled differently so that
  * a client cannot tell our int 33h entry from a real driver's by its
- * segment.  Only when BIOSSEG is 0 there is no paragraph below it. */
-#define Mouse_SEG       (BIOSSEG ? BIOSSEG - 1 : 0)
-#define Mouse_INT_OFF	(BIOSSEG ? MOUSE_INT33_OFF + 0x10 : MOUSE_INT33_OFF)
+ * segment.  The segment has to stay non-zero whatever BIOSSEG is, because
+ * that is how a DOS program decides there is no mouse at all; with BIOSSEG
+ * 0 there is no paragraph below it, so split the offset instead. */
+#define Mouse_SEG       (BIOSSEG ? BIOSSEG - 1 : (MOUSE_INT33_OFF >> 4))
+#define Mouse_INT_OFF	(BIOSSEG ? MOUSE_INT33_OFF + 0x10 : \
+			 (MOUSE_INT33_OFF & 0xf))
 
 /* intercept-stub for dosdebugger (catches INT21/AX=4B00 */
 #define DBGload_SEG BIOSSEG
