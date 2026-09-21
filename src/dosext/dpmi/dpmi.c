@@ -4029,6 +4029,16 @@ static void do_pm_int(cpuctx_t *scp, int i)
 
   old_ss = _ss;
   old_esp = _esp;
+  if (!in_dpmi_pm()) {
+    /* The handler we are about to run may switch to real mode and back,
+     * which overwrites the real mode registers we have to return to.
+     * Put them away the same way an RM excursion from PM does.
+     * That also moves the real mode stack to our private one, which is
+     * what we want here too: the real mode stack we interrupted belongs
+     * to the client's own frame and nothing run on top of it should push
+     * there. Both are undone when the interrupt returns to real mode. */
+    save_rm_regs();
+  }
   sp = enter_lpms(&DPMI_CLIENT.stack_frame);
   imr = port_inb(0x21);
   DPMI_CLIENT.imr[0] = imr;
@@ -5051,12 +5061,12 @@ static void return_from_hwint(cpuctx_t *scp, void * const sp)
   unsigned char imr;
   unsigned int val;
   int inum;
+  int pm;
   leave_lpms(scp);
       D_printf("DPMI: Return from hardware interrupt handler, "
     "in_dpmi_pm_stack=%i\n", DPMI_CLIENT.in_dpmi_pm_stack);
   if (DPMI_CLIENT.is_32) {
     unsigned int *ssp = sp;
-    int pm;
     _eip = *ssp++;
     _cs = *ssp++;
     _eflags = dpmi_flags_from_stack_r0(*ssp++);
@@ -5073,7 +5083,6 @@ static void return_from_hwint(cpuctx_t *scp, void * const sp)
     val = *ssp++;
   } else {
     unsigned short *ssp = sp;
-    int pm;
     _LWORD(eip) = *ssp++;
     _cs = *ssp++;
     _eflags = dpmi_flags_from_stack_r0(*ssp++);
@@ -5090,6 +5099,8 @@ static void return_from_hwint(cpuctx_t *scp, void * const sp)
     val = *ssp++;
   }
   if (in_dpmi_irq > 0) {
+    if (!pm)
+      restore_rm_regs();
     in_dpmi_irq--;
     imr = val & 0xff;
     port_outb(0x21, imr);
