@@ -69,6 +69,8 @@ from func_serial import (serial_simple_read_echo, serial_simple_write_file,
 from func_truename import (mfs_truename_ufs_lfn, mfs_truename_ufs_sfn, mfs_truename_vfat_linux_mounted_lfn,
                            mfs_truename_vfat_linux_mounted_sfn, sfn_truename)
 
+from func_zip_backend import zip_read, zip_dir_listing, zip_write_refused
+
 from func_ndis import ndis_mac_driver
 from func_network import network_mtcp
 from func_ipx import ipx_relay
@@ -80,7 +82,7 @@ class OurTestCase(BaseTestCase):
 
     attrs = {'cmdtest', 'dpmitest', 'emstest', 'fattest', 'fcbtest', 'hmatest', 'labeltest', 'lfntest',
              'locktest', 'memtest', 'mfstest', 'nettest', 'serialtest', 'sfntest', 'sharetest', 'umatest',
-             'xmstest'}
+             'xmstest', 'ziptest'}
 
     @mark('cmdtest')
     def test_command_com_psp_fcbs(self):
@@ -90,6 +92,31 @@ class OurTestCase(BaseTestCase):
     def test_drv_removable(self):
         """Drive is removable (IOCTL)"""
         drv_removable(self)
+
+    @mark(['mfstest', 'ziptest'])
+    def test_zip_read_stored(self):
+        """ZIP read a stored entry"""
+        zip_read(self, "stored")
+
+    @mark(['mfstest', 'ziptest'])
+    def test_zip_read_deflated(self):
+        """ZIP read a deflated entry"""
+        zip_read(self, "deflated")
+
+    @mark(['mfstest', 'ziptest'])
+    def test_zip_read_subdir(self):
+        """ZIP read an entry in a subdirectory"""
+        zip_read(self, "subdir")
+
+    @mark(['mfstest', 'ziptest'])
+    def test_zip_dir_listing(self):
+        """ZIP directory listing"""
+        zip_dir_listing(self)
+
+    @mark(['mfstest', 'ziptest'])
+    def test_zip_write_refused(self):
+        """ZIP write is refused on a read-only archive"""
+        zip_write_refused(self)
 
     @mark(['mfstest', 'sfntest'])
     def test_mfs_sfn_directory_create(self):

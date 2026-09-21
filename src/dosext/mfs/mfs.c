@@ -863,6 +863,7 @@ void mfs_done(void)
 
 void mfs_late_deinit(void)
 {
+  vfs_done();
   fslib_done();
 }
 
@@ -2521,7 +2522,7 @@ static int RedirectDisk(struct vm86_regs *state, unsigned int drive,
     }
   } else {
     /* internal or lredir request should work w/o case-matching tricks */
-    if (mfs_stat_file(idx, path, &st) == -1) {
+    if (vfs_stat(vfs_get_fs(idx), path, &st) == -1) {
       error("MFS: %s unaccessible\n", path);
       SETWORD(&state->eax, PATH_NOT_FOUND);
       return FALSE;

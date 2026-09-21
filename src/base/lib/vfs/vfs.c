@@ -31,6 +31,7 @@
 #include <errno.h>
 #include <assert.h>
 #include "emu.h"
+#include "utilities.h"
 #include "dosemu_debug.h"
 #include "fslib/fslib.h"
 #include "vfs.h"
@@ -471,15 +472,138 @@ static const struct vfs_fs_ops posix_fs_ops = {
   .set_dos_attr = posix_fs_set_dos_attr,
 };
 
-static vfs_fs_t fs_instances[128];
+/*
+ * Backend selection.
+ *
+ * A backend is chosen per mfs_idx, i.e. per path registered with fslib,
+ * which is the granularity at which a path first becomes addressable
+ * (see mfs_define_drive()). Anything not bound to a backend keeps using
+ * the posix one, so indices that never pass through vfs_bind() behave
+ * exactly as before.
+ */
+#define MAX_FS_INSTANCES 128
+#define MAX_BACKENDS 4
+
+static vfs_fs_t fs_instances[MAX_FS_INSTANCES];
+static char *fs_paths[MAX_FS_INSTANCES];
+static const struct vfs_backend *backends[MAX_BACKENDS];
+static int num_backends;
+
+void vfs_register_backend(const struct vfs_backend *be)
+{
+  assert(num_backends < MAX_BACKENDS);
+  backends[num_backends++] = be;
+}
+
+/*
+ * Remember the path so that the backend can be picked on first use.
+ * Mounting can not happen here: vfs_bind() is called while paths are
+ * still being registered, and fslib refuses to serve anything until
+ * it is sealed.
+ */
+int vfs_bind(int mfs_idx, const char *path)
+{
+  if (mfs_idx <= 0 || mfs_idx >= MAX_FS_INSTANCES)
+    return -1;
+  if (fs_instances[mfs_idx].ops)
+    return -1;  // already in use
+  free(fs_paths[mfs_idx]);
+  fs_paths[mfs_idx] = strdup(path);
+  return 0;
+}
+
+static void set_posix_fs(vfs_fs_t *fs, int mfs_idx)
+{
+  fs->ops = &posix_fs_ops;
+  fs->mfs_idx = mfs_idx;
+  fs->be = NULL;
+  fs->priv = NULL;
+}
+
+/*
+ * Optional backends live in plugins, which are loaded by name rather
+ * than scanned for. Pull them in on first use, so that a setup with no
+ * archives never loads their libraries. With plugins linked in rather
+ * than dlopened, they have registered themselves already and this is a
+ * no-op.
+ */
+static void load_backends(void)
+{
+  static int loaded;
+
+  if (loaded)
+    return;
+  loaded = 1;
+  load_plugin("zip");
+}
+
+int vfs_probe(const char *path)
+{
+  int i;
+
+  load_backends();
+  for (i = 0; i < num_backends; i++) {
+    if (backends[i]->probe(path))
+      return 1;
+  }
+  return 0;
+}
+
+static void mount_fs(vfs_fs_t *fs, int mfs_idx)
+{
+  const char *path = fs_paths[mfs_idx];
+  int i;
+
+  fs->mfs_idx = mfs_idx;
+  load_backends();
+  if (!path) {
+    set_posix_fs(fs, mfs_idx);
+    return;
+  }
+  for (i = 0; i < num_backends; i++) {
+    const struct vfs_backend *be = backends[i];
+
+    if (!be->probe(path))
+      continue;
+    fs->be = be;
+    fs->priv = NULL;
+    if (be->mount(fs, path) == 0) {
+      d_printf("VFS: %s mounted by %s backend\n", path, be->name);
+      return;
+    }
+    error("VFS: %s backend failed on %s\n", be->name, path);
+    break;
+  }
+  set_posix_fs(fs, mfs_idx);
+}
 
 vfs_fs_t *vfs_get_fs(int mfs_idx)
 {
-  if (mfs_idx <= 0 || mfs_idx >= 128)
+  vfs_fs_t *fs;
+
+  if (mfs_idx <= 0 || mfs_idx >= MAX_FS_INSTANCES)
     return NULL;
-  fs_instances[mfs_idx].ops = &posix_fs_ops;
-  fs_instances[mfs_idx].mfs_idx = mfs_idx;
-  return &fs_instances[mfs_idx];
+  fs = &fs_instances[mfs_idx];
+  if (!fs->ops)
+    mount_fs(fs, mfs_idx);
+  return fs;
+}
+
+void vfs_done(void)
+{
+  int i;
+
+  for (i = 0; i < MAX_FS_INSTANCES; i++) {
+    vfs_fs_t *fs = &fs_instances[i];
+
+    if (fs->ops && fs->be && fs->be->umount)
+      fs->be->umount(fs);
+    fs->ops = NULL;
+    fs->be = NULL;
+    fs->priv = NULL;
+    free(fs_paths[i]);
+    fs_paths[i] = NULL;
+  }
 }
 
 vfs_file_t *vfs_open(vfs_fs_t *fs, const char *path, int flags)
@@ -632,85 +756,109 @@ int vfs_fset_dos_attr(vfs_file_t *file, int attr)
 
 int vfs_close(vfs_file_t *file)
 {
-  if (!file || !file->ops || !file->ops->close)
+  if (!file || !file->ops || !file->ops->close) {
+    errno = ENOSYS;
     return -1;
+  }
   return file->ops->close(file);
 }
 
 ssize_t vfs_read(vfs_file_t *file, void *buf, size_t count)
 {
-  if (!file || !file->ops || !file->ops->read)
+  if (!file || !file->ops || !file->ops->read) {
+    errno = ENOSYS;
     return -1;
+  }
   return file->ops->read(file, buf, count);
 }
 
 ssize_t vfs_write(vfs_file_t *file, const void *buf, size_t count)
 {
-  if (!file || !file->ops || !file->ops->write)
+  if (!file || !file->ops || !file->ops->write) {
+    errno = ENOSYS;
     return -1;
+  }
   return file->ops->write(file, buf, count);
 }
 
 off_t vfs_lseek(vfs_file_t *file, off_t offset, int whence)
 {
-  if (!file || !file->ops || !file->ops->lseek)
+  if (!file || !file->ops || !file->ops->lseek) {
+    errno = ENOSYS;
     return -1;
+  }
   return file->ops->lseek(file, offset, whence);
 }
 
 int vfs_fstat(vfs_file_t *file, struct stat *sb)
 {
-  if (!file || !file->ops || !file->ops->fstat)
+  if (!file || !file->ops || !file->ops->fstat) {
+    errno = ENOSYS;
     return -1;
+  }
   return file->ops->fstat(file, sb);
 }
 
 int vfs_ftruncate(vfs_file_t *file, off_t length)
 {
-  if (!file || !file->ops || !file->ops->ftruncate)
+  if (!file || !file->ops || !file->ops->ftruncate) {
+    errno = ENOSYS;
     return -1;
+  }
   return file->ops->ftruncate(file, length);
 }
 
 int vfs_fsync(vfs_file_t *file)
 {
-  if (!file || !file->ops || !file->ops->fsync)
+  if (!file || !file->ops || !file->ops->fsync) {
+    errno = ENOSYS;
     return -1;
+  }
   return file->ops->fsync(file);
 }
 
 int vfs_flock(vfs_file_t *file, int op)
 {
-  if (!file || !file->ops || !file->ops->flock)
+  if (!file || !file->ops || !file->ops->flock) {
+    errno = ENOSYS;
     return -1;
+  }
   return file->ops->flock(file, op);
 }
 
 int vfs_setlk(vfs_file_t *file, struct flock *fl)
 {
-  if (!file || !file->ops || !file->ops->setlk)
+  if (!file || !file->ops || !file->ops->setlk) {
+    errno = ENOSYS;
     return -1;
+  }
   return file->ops->setlk(file, fl);
 }
 
 int vfs_getlk(vfs_file_t *file, struct flock *fl)
 {
-  if (!file || !file->ops || !file->ops->getlk)
+  if (!file || !file->ops || !file->ops->getlk) {
+    errno = ENOSYS;
     return -1;
+  }
   return file->ops->getlk(file, fl);
 }
 
 int vfs_closedir(vfs_dir_t *dir)
 {
-  if (!dir || !dir->ops || !dir->ops->closedir)
+  if (!dir || !dir->ops || !dir->ops->closedir) {
+    errno = ENOSYS;
     return -1;
+  }
   return dir->ops->closedir(dir);
 }
 
 int vfs_readdir(vfs_dir_t *dir, struct vfs_dirent *de)
 {
-  if (!dir || !dir->ops || !dir->ops->readdir)
+  if (!dir || !dir->ops || !dir->ops->readdir) {
+    errno = ENOSYS;
     return -1;
+  }
   return dir->ops->readdir(dir, de);
 }
 
@@ -721,8 +869,10 @@ int vfs_dir_has_sfn(vfs_dir_t *dir)
 
 int vfs_fstatdir(vfs_dir_t *dir, struct stat *statbuf)
 {
-  if (!dir || !dir->ops || !dir->ops->fstatdir)
+  if (!dir || !dir->ops || !dir->ops->fstatdir) {
+    errno = ENOSYS;
     return -1;
+  }
   return dir->ops->fstatdir(dir, statbuf);
 }
 

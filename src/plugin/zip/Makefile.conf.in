@@ -1,0 +1,11 @@
+#
+# (C) Copyright dosemu2 project.
+#
+# Makefile.conf.in for DOSEMU
+#
+# This file is included by all Makefiles
+
+LIBZIPINC:=@LIBZIP_CFLAGS@
+LIBZIPLIB:=@LIBZIP_LIBS@
+
+LIBS += $(LIBZIPLIB)

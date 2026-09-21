@@ -45,6 +45,7 @@
 #include "int.h"
 #include "vint.h"
 #include "dos2linux.h"
+#include "vfs/vfs.h"
 #include "video.h"
 #include "clipboard.h"
 #include "priv.h"
@@ -2311,7 +2312,7 @@ int add_extra_drive(char *path, int ro, int cd, int grp)
 	error("Path %s does not exist\n", path);
 	return -1;
     }
-    if (!exists_dir(drv->path)) {
+    if (!exists_dir(drv->path) && !vfs_probe(drv->path)) {
 	error("Directory %s does not exist\n", drv->path);
 	free(drv->path);
 	return -1;
