@@ -41,6 +41,7 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <sys/ioctl.h>
+#include <sys/uio.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <stdarg.h>
@@ -57,9 +58,9 @@
 #include "utilities.h"
 #include "dosemu_config.h"
 #include "hma.h"
+#include "misc/smalloc.h"
 #include "bios_sym.h"
 #include "misc/dis8086.h"
-#include "misc/smalloc.h"
 #include "dos2linux.h"
 #include "coopth.h"
 #include "kvm.h"
@@ -901,15 +902,36 @@ static void mhp_tracec(int argc, char *argv[])
   loopbuf[idx++] = '\0';
 }
 
-/* Only the memory dosemu mapped for DOS can be touched at all, and main_pool
- * spans exactly that: conventional, the HMA, extended memory, XMS and DPMI
- * alike.  Going past it faults, and dosemu's fault handler takes the whole
- * process down with it. */
-static int addr_is_mapped(dosaddr_t addr, unsigned int len)
+/* How many of the len bytes at a DOS address dosemu can touch.  main_pool
+ * spans the memory it maps for DOS - conventional, the HMA, extended
+ * memory, XMS and DPMI alike - so nothing outside it is DOS memory at all.
+ * Inside it the size is not the whole answer either: the pool is allocated
+ * with an uncommitted hole in the middle (init.c says so where it makes
+ * one), so rather than reason about the layout, ask the kernel whether the
+ * memory is there.  A read through process_vm_readv() on ourselves answers
+ * EFAULT instead of raising a signal, and it goes through the very pointer
+ * READ_BYTE would use.  One probe per page finds where the memory ends. */
+static unsigned int addr_readable_len(dosaddr_t addr, unsigned int len)
 {
-  if (addr + len < addr)
+  unsigned char c;
+  struct iovec liov = { .iov_base = &c, .iov_len = 1 };
+  struct iovec riov = { .iov_len = 1 };
+  dosaddr_t pgsz = HOST_PAGE_SIZE;
+  dosaddr_t a, next, end;
+
+  if (!len || addr + len < addr || addr >= main_pool.size)
     return 0;
-  return addr + len <= main_pool.size;
+  if (main_pool.size - addr < len)	/* however much of it is there */
+    len = main_pool.size - addr;
+  end = addr + len;
+  for (a = addr; ; a = next) {
+    riov.iov_base = LINEAR2UNIX(a);
+    if (process_vm_readv(getpid(), &liov, 1, &riov, 1, 0) != 1)
+      return a - addr;
+    next = (a | (pgsz - 1)) + 1;
+    if (!next || next >= end)		/* the rest is in this page */
+      return len;
+  }
 }
 
 static void mhp_dump(int argc, char *argv[])
@@ -963,13 +985,13 @@ static void mhp_dump(int argc, char *argv[])
     data32 = dpmi_segment_is32(seg);
   unixaddr = linmode == 2 && seg == 0 && limit == 0xFFFFFFFF;
   if (!unixaddr) {
-    if (!addr_is_mapped(buf, 1)) {
-      mhp_printf("%08x is outside the %08zx bytes of memory dosemu has\n",
-                 buf, main_pool.size);
+    unsigned int len = addr_readable_len(buf, nbytes);
+
+    if (!len) {
+      mhp_printf("%08x is not memory dosemu has\n", buf);
       return;
     }
-    if (buf + nbytes > main_pool.size)  /* show what there is of it */
-      nbytes = main_pool.size - buf;
+    nbytes = len;		/* show what there is of it */
   }
   for (i = 0; i < nbytes; i++) {
     if ((i & 0x0f) == 0x00) {
@@ -1697,13 +1719,13 @@ static void mhp_disasm(int argc, char *argv[])
   org = codeorg ? codeorg : seekval;
 
   if (!(def_size & 4)) {
-    if (!addr_is_mapped(buf, 1)) {
-      mhp_printf("%08x is outside the %08zx bytes of memory dosemu has\n",
-                 buf, main_pool.size);
+    unsigned int len = addr_readable_len(buf, nbytes);
+
+    if (!len) {
+      mhp_printf("%08x is not memory dosemu has\n", buf);
       return;
     }
-    if (buf + nbytes > main_pool.size)  /* show what there is of it */
-      nbytes = main_pool.size - buf;
+    nbytes = len;		/* show what there is of it */
   }
 
   for (bytesdone = 0; bytesdone < nbytes; bytesdone += rc) {
@@ -1862,9 +1884,8 @@ static void mhp_memset(int argc, char *argv[])
           mhp_printf("Value too large for data type\n");
           return;
         }
-        if (!addr_is_mapped(zapaddr, size)) {
-          mhp_printf("%08x is outside the %08zx bytes of memory dosemu has\n",
-                     zapaddr, main_pool.size);
+        if (addr_readable_len(zapaddr, size) < (unsigned)size) {
+          mhp_printf("%08x is not memory dosemu has\n", zapaddr);
           return;
         }
         MEMCPY_2DOS(zapaddr, &val, size);
@@ -1874,9 +1895,8 @@ static void mhp_memset(int argc, char *argv[])
 
       case V_STRING:
         size = strlen(arg + 1);
-        if (!addr_is_mapped(zapaddr, size)) {
-          mhp_printf("%08x is outside the %08zx bytes of memory dosemu has\n",
-                     zapaddr, main_pool.size);
+        if (size && addr_readable_len(zapaddr, size) < (unsigned)size) {
+          mhp_printf("%08x is not memory dosemu has\n", zapaddr);
           return;
         }
         MEMCPY_2DOS(zapaddr, arg + 1, size);
@@ -2013,9 +2033,8 @@ int mhp_setbp(unsigned int seekval)
 
   /* 'g' writes the int3 over whatever is there, so an address dosemu has no
    * memory for takes the process down as soon as the client is let run */
-  if (!addr_is_mapped(seekval, 1)) {
-    mhp_printf("%08x is outside the %08zx bytes of memory dosemu has\n",
-               seekval, main_pool.size);
+  if (!addr_readable_len(seekval, 1)) {
+    mhp_printf("%08x is not memory dosemu has\n", seekval);
     return 0;
   }
   for (i1 = 0; i1 < MAXBP; i1++) {
