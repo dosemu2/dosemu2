@@ -585,9 +585,31 @@ static int map_write_rec(struct ext_map *m, off_t off, uint64_t len)
   return 0;
 }
 
+/* is [off, end) already the overlay's, whole and in one piece? */
+static int map_covers(const struct ext_map *m, off_t off, off_t end)
+{
+  int i;
+
+  for (i = 0; i < m->n; i++) {
+    if (m->v[i].end < end)
+      continue;
+    return m->v[i].off <= off;
+  }
+  return 0;
+}
+
+/*
+ * A record says the overlay owns a range, nothing more: the data
+ * itself is already in the chunk file. So a write into a range the
+ * map has been told about needs no second record, and DOS programs
+ * rewrite the same record of the same file over and over. Without
+ * this the map file grows by 16 bytes per write forever, while the
+ * entry it describes never changes shape.
+ */
 static int map_append(struct ext_map *m, off_t off, off_t len)
 {
-  if (map_write_rec(m, off, len) != 0)
+  if (!map_covers(m, off, off + len) &&
+      map_write_rec(m, off, len) != 0)
     return -1;
   if (off + len > m->size)
     m->size = off + len;

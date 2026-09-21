@@ -8,6 +8,11 @@ from func_zip_backend import (ARCHIVE, DEFLATED, FINDDRIVE, MARKER, STORED,
 PATCH = "PATCHED-BY-THE-OVERLAY"
 NEWNAME = "CREATED.TXT"
 
+# How many times zip_overlay_rewrite rewrites its entry, and the size of
+# one record of the extent map beside a chunk file.
+ROUNDS = 200
+MAP_REC_LEN = 16
+
 
 def ovl_files(self):
     """Every file the overlay kept, apart from the directory log."""
@@ -339,3 +344,54 @@ int main(void) {
     # the inflated data behind it is untouched, and so is the length
     self.assertIn("tail " + data[DEFLATED][-32:], results)
     self.assertIn("length %d" % len(data[DEFLATED]), results)
+
+
+def zip_overlay_rewrite(self):
+    """Rewriting one entry over and over does not grow the overlay."""
+    ovl_isolate(self)
+    archive, _ = mkziparchive(self)
+
+    # A DOS program that rewrites its one record in place is the ordinary
+    # case, not an unusual one, so the map beside the chunk file must not
+    # gain a record every time round.
+    self.mkexe_with_djgpp("ovlrewr", FINDDRIVE + r"""
+#include <string.h>
+
+int main(void) {
+  int f, i;
+
+  if (find_drive())
+    return 3;
+
+  for (i = 0; i < ROUNDS; i++) {
+    f = open(onarchive(ENTRY), O_WRONLY | O_BINARY);
+    if (f < 0) {
+      printf("open failed at %d\n", i);
+      return 2;
+    }
+    if (write(f, PATCH, strlen(PATCH)) != (int)strlen(PATCH)) {
+      printf("write failed at %d\n", i);
+      close(f);
+      return 2;
+    }
+    close(f);
+  }
+  printf("rewrote %d times\n", ROUNDS);
+  return 0;
+}
+""", extraargs=defines(["-DENTRY=\"%s\"" % STORED,
+                        "-DPATCH=\"%s\"" % PATCH,
+                        "-DROUNDS=%d" % ROUNDS]))
+
+    results = runovl(self, archive, "ovlrewr")[0]
+
+    self.assertNotIn("archive drive not found", results)
+    self.assertNotIn("failed", results)
+    self.assertIn("rewrote %d times" % ROUNDS, results)
+
+    maps = [p for p in (self.imagedir / "ziptmp").rglob("*.map")]
+    self.assertEqual(1, len(maps), "expected one map file, got %r" % maps)
+    # The entry keeps one shape throughout, so one record describes it.
+    # Anything near ROUNDS records means every write recorded itself.
+    self.assertLessEqual(maps[0].stat().st_size, 4 * MAP_REC_LEN,
+                         "the map grew with the writes")
