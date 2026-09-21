@@ -25,8 +25,11 @@
 #define LFN_HELPER_ADD	((LFN_HELPER_SEG << 4) + LFN_HELPER_OFF)
 
 /* don't change these for now, they're hardwired! */
-#define Mouse_SEG       (BIOSSEG-1)
-#define Mouse_INT_OFF	(MOUSE_INT33_OFF + 0x10)
+/* the same address as BIOSSEG:MOUSE_INT33_OFF, spelled differently so that
+ * a client cannot tell our int 33h entry from a real driver's by its
+ * segment.  Only when BIOSSEG is 0 there is no paragraph below it. */
+#define Mouse_SEG       (BIOSSEG ? BIOSSEG - 1 : 0)
+#define Mouse_INT_OFF	(BIOSSEG ? MOUSE_INT33_OFF + 0x10 : MOUSE_INT33_OFF)
 
 /* intercept-stub for dosdebugger (catches INT21/AX=4B00 */
 #define DBGload_SEG BIOSSEG

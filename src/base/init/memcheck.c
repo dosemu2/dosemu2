@@ -172,13 +172,25 @@ void memcheck_type_init(void)
 void memcheck_init(void)
 {
   memcheck_type_init();
-  memcheck_reserve('d', 0x00000, config.mem_size*1024); /* dos memory  */
-  memcheck_reserve('r', SEGOFF2LINEAR(BIOSSEG, DOSEMU_LMHEAP_OFF),
-		   DOSEMU_LMHEAP_SIZE);
-  assert(DOSEMU_LMHEAP_OFF + DOSEMU_LMHEAP_SIZE == bios_data_start);
-  /* dosemu bios */
-  memcheck_reserve('b', SEGOFF2LINEAR(BIOSSEG, bios_data_start),
-		   DOSEMU_BIOS_SIZE());
+  {
+    dosaddr_t r_start = SEGOFF2LINEAR(BIOSSEG, DOSEMU_LMHEAP_OFF);
+    dosaddr_t b_start = SEGOFF2LINEAR(BIOSSEG, bios_data_start);
+    dosaddr_t b_end, dos_end = config.mem_size * 1024;
+
+    assert(DOSEMU_LMHEAP_OFF + DOSEMU_LMHEAP_SIZE == bios_data_start);
+    /* ours first: under JEMM they sit inside DOS memory rather than above
+     * it, at the very bottom, and DOS starts above them */
+    memcheck_reserve('r', r_start, DOSEMU_LMHEAP_SIZE);
+    memcheck_reserve('b', b_start, DOSEMU_BIOS_SIZE());
+    b_end = b_start + DOSEMU_BIOS_SIZE();
+    if (r_start < dos_end) {
+      memcheck_reserve('d', 0x00000, r_start);
+      if (b_end < dos_end)
+	memcheck_reserve('d', b_end, dos_end - b_end);
+    } else {
+      memcheck_reserve('d', 0x00000, dos_end); /* dos memory  */
+    }
+  }
 }
 
 int memcheck_isfree(dosaddr_t addr_start, uint32_t size)

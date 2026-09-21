@@ -83,6 +83,17 @@ static void fdpp_cleanup(void)
     kptr = NULL;
 }
 
+/* The first segment of DOS's own low memory.  Normally right above the
+ * interrupt vectors and the BIOS data area; under $_jemm our low memory
+ * heap and BIOS image are down there instead, so start above them. */
+static uint16_t fdpp_low_seg(void)
+{
+	if (!config.jemm)
+		return 0x90;
+	return (SEGOFF2LINEAR(BIOSSEG, DOSEMU_LMHEAP_OFF) +
+		DOSEMU_LMHEAP_SIZE + DOSEMU_BIOS_SIZE() + 15) >> 4;
+}
+
 static int fdpp_pre_boot(unsigned char *boot_sec)
 {
     int err;
@@ -155,7 +166,7 @@ static int fdpp_pre_boot(unsigned char *boot_sec)
         kptr = lowmem_alloc_aligned(16, tot_sz + fdpp_boot_xtra_space());
         daddr = DOSEMU_LMHEAP_OFFS_OF(kptr);
         assert(!(daddr & 15));
-        heap_seg = 0x90;  // for low heap
+        heap_seg = fdpp_low_seg();  // for low heap
         seg = DOSEMU_LMHEAP_SEG + (daddr >> 4);
         bpseg = seg + (tot_sz >> 4);
         khigh++;
@@ -167,7 +178,7 @@ static int fdpp_pre_boot(unsigned char *boot_sec)
         assert(!(daddr & 15));
         heap_seg = DOSEMU_LMHEAP_SEG + (daddr >> 4);
         bpseg = heap_seg + (heap_sz >> 4);
-        seg = 0x90;
+        seg = fdpp_low_seg();
         hhigh++;
     }
     krnl = FdppKernelReloc(hndl, seg, &new_seg, FdppLoaderHook);
