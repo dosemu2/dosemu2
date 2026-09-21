@@ -1097,28 +1097,47 @@ static void log_apply(struct zipfs *zfs, int op, unsigned id,
  * Skipping our own would mean knowing which of the records between the
  * cursor and the end are ours, which is exactly what we cannot know.
  */
-static void log_catchup(struct zipfs *zfs)
+/*
+ * The record at pos, if a whole well-formed one is there. Returns its
+ * length, or 0 for a record still being written, one a crash left
+ * behind, or the end of the file. name takes the record's bytes and a
+ * NUL; its own length is what the return value has over the header,
+ * which 'r' needs to find the NUL between its two names.
+ */
+static int log_read_rec(struct zipfs *zfs, off_t pos, int *op, unsigned *id,
+    char *name)
 {
   unsigned char hdr[LOG_HDR_LEN];
+  int len;
+
+  if (pread(zfs->log_fd, hdr, sizeof(hdr), pos) != sizeof(hdr))
+    return 0;
+  len = hdr[2] | (hdr[3] << 8);
+  if (len < 1 || len > LOG_MAX_NAME)
+    return 0;
+  if (!hdr[0] || !strchr("+-drat", hdr[0]) || hdr[1])
+    return 0;
+  if (pread(zfs->log_fd, name, len, pos + sizeof(hdr)) != len)
+    return 0;
+  name[len] = '\0';
+  *op = hdr[0];
+  *id = hdr[4] | (hdr[5] << 8) | (hdr[6] << 16) | ((unsigned)hdr[7] << 24);
+  return LOG_HDR_LEN + len;
+}
+
+static void log_catchup(struct zipfs *zfs)
+{
   char name[LOG_MAX_NAME + 1];
   off_t pos;
+  unsigned id;
+  int n, op;
 
   if (log_open(zfs, 0) == -1)
     return;
   pos = zfs->log_consumed;
-  while (pread(zfs->log_fd, hdr, sizeof(hdr), pos) == sizeof(hdr)) {
-    int len = hdr[2] | (hdr[3] << 8);
-    unsigned id = hdr[4] | (hdr[5] << 8) | (hdr[6] << 16) |
-        ((unsigned)hdr[7] << 24);
-
-    if (len < 1 || len > LOG_MAX_NAME)
-      break;
-    if (!hdr[0] || !strchr("+-drat", hdr[0]) || hdr[1])
-      break;
-    if (pread(zfs->log_fd, name, len, pos + sizeof(hdr)) != len)
-      break;
-    name[len] = '\0';
-    if (hdr[0] == 'r') {
+  while ((n = log_read_rec(zfs, pos, &op, &id, name)) > 0) {
+    if (op == 'r') {
+      int len = n - LOG_HDR_LEN;
       char *sep = memchr(name, '\0', len);
 
       /* both names have to be there for the record to mean anything */
@@ -1126,10 +1145,10 @@ static void log_catchup(struct zipfs *zfs)
         break;
       node_rename(zfs, name, sep + 1);
     } else {
-      log_apply(zfs, hdr[0], id, name);
+      log_apply(zfs, op, id, name);
     }
     /* only now is the record really in the tree */
-    pos += sizeof(hdr) + len;
+    pos += n;
     zfs->log_consumed = pos;
   }
 }
