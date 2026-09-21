@@ -496,3 +496,40 @@ $_jemm = (on)
     self.assertNotIn("NOXMS", results)
     self.assertNotIn("NOFREE", results)
     self.assertIn("XMSOK", results)
+
+
+def memory_jemm_mouse(self):
+    # A DPMI client asks the mouse driver whether it is there, the way
+    # every DOS program does: int 33h with ax=0, expecting ax=ffffh and
+    # bx=3.  It has to work with JEMM, where our BIOS sits at segment 0.
+    self.mkexe_with_djgpp("jmouse", r"""
+#include <stdio.h>
+#include <dpmi.h>
+
+int main(void)
+{
+  __dpmi_regs r = {};
+
+  r.x.ax = 0;
+  __dpmi_int(0x33, &r);
+  printf("MOUSE=%04x/%04x\n", r.x.ax, r.x.bx);
+  return 0;
+}
+""")
+
+    self.mkfile("testit.bat", """\
+c:\\jmouse
+rem end
+""", newline="\r\n")
+
+    results = self.runDosemu("testit.bat", config="""\
+$_hdimage = "dXXXXs/c:hdtype1 +1"
+$_floppy_a = ""
+$_ems = (8192)
+$_jemm = (on)
+""")
+
+    self.assertIn("MOUSE=ffff/0003", results)
+    # the shell asks the same question while DOS is still booting, which is
+    # before the interrupt revectoring is undone, so look at the boot output
+    self.assertNotIn("mouse not detected", self.term_log())
