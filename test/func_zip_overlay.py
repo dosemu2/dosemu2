@@ -1,5 +1,7 @@
 from os import environ
 
+from zipfile import ZipFile, ZIP_STORED
+
 from func_zip_backend import (ARCHIVE, DEFLATED, FINDDRIVE, MARKER, STORED,
                               mkziparchive)
 
@@ -14,11 +16,16 @@ ROUNDS = 200
 MAP_REC_LEN = 16
 
 
+# The overlay's own bookkeeping, which belongs to the archive rather than
+# to any one entry: the directory log and the archive's fingerprint.
+OVL_BOOKKEEPING = ("dir.log", "id")
+
+
 def ovl_files(self):
-    """Every file the overlay kept, apart from the directory log."""
+    """Every file the overlay kept for an entry."""
     tmpdir = self.imagedir / "ziptmp"
     return sorted(str(p.relative_to(tmpdir)) for p in tmpdir.rglob("*")
-                  if p.is_file() and p.name != "dir.log")
+                  if p.is_file() and p.name not in OVL_BOOKKEEPING)
 
 
 def ovl_isolate(self):
@@ -395,3 +402,72 @@ int main(void) {
     # Anything near ROUNDS records means every write recorded itself.
     self.assertLessEqual(maps[0].stat().st_size, 4 * MAP_REC_LEN,
                          "the map grew with the writes")
+
+
+def zip_overlay_swapped_archive(self):
+    """An overlay is not applied to a different archive at the same path."""
+    ovl_isolate(self)
+    archive, _ = mkziparchive(self)
+
+    self.mkexe_with_djgpp("ovlpat", FINDDRIVE + r"""
+#include <string.h>
+
+int main(void) {
+  int f;
+
+  if (find_drive())
+    return 3;
+  f = open(onarchive(ENTRY), O_WRONLY | O_BINARY);
+  if (f < 0) {
+    printf("open for write failed\n");
+    return 2;
+  }
+  if (write(f, PATCH, strlen(PATCH)) != (int)strlen(PATCH)) {
+    printf("write failed\n");
+    close(f);
+    return 2;
+  }
+  close(f);
+  printf("patched\n");
+  return 0;
+}
+""", extraargs=defines(["-DENTRY=\"%s\"" % STORED,
+                        "-DPATCH=\"%s\"" % PATCH]))
+
+    self.mkexe_with_djgpp("ovlshow", FINDDRIVE + r"""
+int main(void) {
+  static char b[512];
+  int f, n;
+
+  if (find_drive())
+    return 3;
+  f = open(onarchive(ENTRY), O_RDONLY | O_BINARY);
+  if (f < 0) {
+    printf("open for read failed\n");
+    return 2;
+  }
+  n = read(f, b, sizeof(b) - 1);
+  close(f);
+  b[n > 0 ? n : 0] = 0;
+  printf("CONTENT[%s]\n", b);
+  return 0;
+}
+""", extraargs=defines(["-DENTRY=\"%s\"" % STORED]))
+
+    self.assertIn("patched", runovl(self, archive, "ovlpat")[0])
+
+    # A different archive at the same path, whose entries land on the same
+    # indexes the overlay was written against. Without the archive's
+    # fingerprint beside the overlay, the old chunk would be laid over the
+    # new entry and DOS would read the two spliced together.
+    fresh = "FRESH-CONTENT-FROM-THE-SECOND-ARCHIVE"
+    with ZipFile(self.imagedir / ARCHIVE, "w") as z:
+        z.writestr(MARKER, "marker", compress_type=ZIP_STORED)
+        z.writestr(STORED, fresh, compress_type=ZIP_STORED)
+
+    results = runovl(self, archive, "ovlshow")[0]
+
+    self.assertNotIn(PATCH, results,
+                     "the old overlay was applied to the new archive")
+    # Refusing the mount is what that costs: the drive is not there.
+    self.assertIn("archive drive not found", results)

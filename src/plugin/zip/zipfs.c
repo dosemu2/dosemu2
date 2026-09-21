@@ -72,6 +72,7 @@ struct zipfs {
   char *root;           // archive path, with a trailing slash
   int root_len;
   off_t arc_size;
+  uint64_t arc_id;      // what the archive's entries hash to
   struct zip_node *tree;
   char *ovl;            // overlay dir for this archive, with a trailing slash
   int ovl_made;         // the dir is known to exist
@@ -391,6 +392,117 @@ static char *ovl_path_for(const char *arc)
   return ret;
 }
 
+/*
+ * What the overlay belongs to.
+ *
+ * A chunk file is named by the entry's index in the archive, and the
+ * overlay directory is named after the archive's path. Neither says
+ * anything about the archive's contents, so if the file at that path is
+ * replaced - rebuilt, swapped for another release - an overlay written
+ * for the old one would be laid over entries it knows nothing about:
+ * index 1 is still index 1, but it is a different file now, and DOS
+ * would read the old overlay's bytes spliced over the new entry's.
+ *
+ * So the archive is fingerprinted over what identifies its entries, and
+ * the fingerprint is kept beside the overlay. Names, sizes and CRCs are
+ * what the central directory already has, so this costs one pass over
+ * entries that are about to be walked anyway. A rebuild that produces
+ * the same entries hashes the same, which is what we want: the overlay
+ * is still about the same files.
+ */
+static uint64_t arc_fingerprint(zip_t *za)
+{
+  uint64_t h = 14695981039346656037ULL;
+  zip_int64_t n = zip_get_num_entries(za, 0);
+  zip_int64_t i;
+
+  for (i = 0; i < n; i++) {
+    struct zip_stat st;
+    const char *name;
+    int j;
+
+    if (zip_stat_index(za, i, 0, &st) != 0)
+      continue;
+    name = st.valid & ZIP_STAT_NAME ? st.name : "";
+    for (j = 0; name[j]; j++) {
+      h ^= (unsigned char)name[j];
+      h *= 1099511628211ULL;
+    }
+    h ^= (uint64_t)st.size;
+    h *= 1099511628211ULL;
+    h ^= (uint64_t)st.crc;
+    h *= 1099511628211ULL;
+  }
+  h ^= (uint64_t)n;
+  h *= 1099511628211ULL;
+  return h;
+}
+
+/* the fingerprint file beside the chunks */
+static char *ovl_id_name(struct zipfs *zfs)
+{
+  char *ret;
+
+  if (!zfs->ovl || asprintf(&ret, "%sid", zfs->ovl) == -1)
+    return NULL;
+  return ret;
+}
+
+/*
+ * Whether an overlay that is already there was written for this
+ * archive. An overlay from a different one is not ours to read and not
+ * ours to throw away either - it is the only copy of what was written
+ * through it - so the mount fails and says where it is.
+ */
+static int ovl_id_ok(struct zipfs *zfs)
+{
+  char buf[32];
+  char *path = ovl_id_name(zfs);
+  uint64_t had;
+  int fd, n, ret = 1;
+
+  if (!path)
+    return 1;
+  fd = open(path, O_RDONLY | O_CLOEXEC);
+  if (fd == -1)
+    goto out;
+  n = read(fd, buf, sizeof(buf) - 1);
+  close(fd);
+  if (n <= 0)
+    goto out;
+  buf[n] = '\0';
+  had = strtoull(buf, NULL, 16);
+  if (had == zfs->arc_id)
+    goto out;
+  error("zip: %s holds an overlay for a different archive; "
+      "move it away to use this one\n", zfs->ovl);
+  ret = 0;
+out:
+  free(path);
+  return ret;
+}
+
+/* stamped when the directory is made, so a later mount can tell */
+static void ovl_id_write(struct zipfs *zfs)
+{
+  char *path = ovl_id_name(zfs);
+  char buf[32];
+  int fd, len;
+
+  if (!path)
+    return;
+  fd = open(path, O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC, S_IRUSR | S_IWUSR);
+  if (fd == -1) {
+    free(path);
+    return;
+  }
+  len = snprintf(buf, sizeof(buf), "%016" PRIx64 "\n", zfs->arc_id);
+  if (write(fd, buf, len) != len)
+    error("zip: cannot stamp %s: %s\n", path, strerror(errno));
+  close(fd);
+  free(path);
+}
+
 /* both levels, and the trailing slash has to go for mkdir() */
 static int ovl_make_dir(struct zipfs *zfs)
 {
@@ -418,6 +530,7 @@ static int ovl_make_dir(struct zipfs *zfs)
   if (mkdir(p, S_IRWXU) == -1 && errno != EEXIST)
     goto out;
   zfs->ovl_made = 1;
+  ovl_id_write(zfs);
   ret = 0;
 out:
   if (ret)
@@ -1983,6 +2096,16 @@ static int zip_mount(vfs_fs_t *fs, const char *path)
     error("zip: cannot index %s\n", path);
     if (zfs->tree)
       node_free(zfs->tree);
+    zip_close(zfs->za);
+    free(zfs->ovl);
+    free(zfs->root);
+    free(zfs);
+    return -1;
+  }
+
+  zfs->arc_id = arc_fingerprint(zfs->za);
+  if (!ovl_id_ok(zfs)) {
+    node_free(zfs->tree);
     zip_close(zfs->za);
     free(zfs->ovl);
     free(zfs->root);
