@@ -869,7 +869,30 @@ static int log_append(struct zipfs *zfs, int op, unsigned id,
     rec[LOG_HDR_LEN + len1] = '\0';
     memcpy(rec + LOG_HDR_LEN + len1 + 1, name2, len - len1 - 1);
   }
+  /*
+   * A full file system does not refuse the write, it takes what fits:
+   * a record of a full-length name comes back 4088 bytes of 4104. The
+   * record is lost either way and the caller is told so, but the part
+   * that did land would sit in front of everything appended later, and
+   * log_replay() stops at the first record it cannot read whole. So
+   * leaving it there loses the entire rest of the log at the next
+   * mount, not just this record. Put the file back the length it had.
+   * The lock is what makes that safe to do: another mount appending
+   * between our write and the truncate would lose its record instead.
+   */
+  if (flock(zfs->log_fd, LOCK_EX) == -1) {
+    free(rec);
+    return -1;
+  }
   ret = write(zfs->log_fd, rec, LOG_HDR_LEN + len);
+  if (ret > 0 && ret != LOG_HDR_LEN + len) {
+    off_t end = lseek(zfs->log_fd, 0, SEEK_CUR);
+
+    /* O_APPEND leaves the offset just past what went in */
+    if (end >= ret && ftruncate(zfs->log_fd, end - ret) != 0)
+      error("zip: cannot undo a short log write: %s\n", strerror(errno));
+  }
+  flock(zfs->log_fd, LOCK_UN);
   free(rec);
   return ret == LOG_HDR_LEN + len ? 0 : -1;
 }
