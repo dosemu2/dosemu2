@@ -4565,6 +4565,112 @@ cwde       A=8234a6f8 R=ffffa6f8
 cwd        A=8234a6f8 R=8234a6f8:8345ffff
 cdq        A=8234a6f8 R=8234a6f8:ffffffff
 bswapl    : A=12345678 R=78563412
+btw $3   A=12345678 bit=3  R=12345678 CF=1
+btw $12  A=12345678 bit=12 R=12345678 CF=1
+btsw $3  A=12345678 bit=3  R=12345678 CF=1
+btrw $12 A=12345678 bit=12 R=12344678 CF=1
+btcw $12 A=12345678 bit=12 R=12344678 CF=1
+btl $3   A=12345678 bit=3  R=12345678 CF=1
+btl $28  A=12345678 bit=28 R=12345678 CF=1
+btsl $3  A=12345678 bit=3  R=12345678 CF=1
+btrl $28 A=12345678 bit=28 R=02345678 CF=1
+btcl $28 A=12345678 bit=28 R=02345678 CF=1
+shldw $5 A=12345678 B=0f0f0f0f n=5  R=1234cf01
+shrdw $5 A=12345678 B=0f0f0f0f n=5  R=12347ab3
+shldl $5 A=12345678 B=0f0f0f0f n=5  R=468acf01
+shrdl $5 A=12345678 B=0f0f0f0f n=5  R=7891a2b3
+shldl $31 A=12345678 B=0f0f0f0f n=31 R=07878787
+shrdl $31 A=12345678 B=0f0f0f0f n=31 R=1e1e1e1e
+movzbl   A=00000080 R=00000080
+movsbl   A=00000080 R=ffffff80
+movzbw   A=00000080 R=00000080
+movsbw   A=00000080 R=0000ff80
+movzwl   A=00008000 R=00008000
+movswl   A=00008000 R=ffff8000
+bswap a    A=12345678 R=78563412
+bswap b    A=12345678 R=78563412
+bswap c    A=12345678 R=78563412
+bswap d    A=12345678 R=78563412
+bswap S    A=12345678 R=78563412
+bswap D    A=12345678 R=78563412
+long nop: all seven lengths executed
+d8 fadd   a=3.000000 b=2.000000 -> 5.000000 fpus=4000
+d8 fmul   a=3.000000 b=2.000000 -> 6.000000 fpus=4000
+d8 fsub   a=3.000000 b=2.000000 -> 1.000000 fpus=4000
+d8 fsubr  a=3.000000 b=2.000000 -> -1.000000 fpus=4000
+d8 fdiv   a=3.000000 b=2.000000 -> 1.500000 fpus=4000
+d8 fdivr  a=3.000000 b=2.000000 -> 0.666667 fpus=4000
+dc fadd   a=3.000000 b=2.000000 -> 5.000000 fpus=0000
+dc fmul   a=3.000000 b=2.000000 -> 6.000000 fpus=4000
+dc fsub   a=3.000000 b=2.000000 -> 1.000000 fpus=4000
+dc fsubr  a=3.000000 b=2.000000 -> -1.000000 fpus=4000
+dc fdiv   a=3.000000 b=2.000000 -> 1.500000 fpus=4000
+dc fdivr  a=3.000000 b=2.000000 -> 0.666667 fpus=4000
+de faddp  a=3.000000 b=2.000000 -> 5.000000 fpus=0000
+de fmulp  a=3.000000 b=2.000000 -> 6.000000 fpus=4000
+de fsubp  a=3.000000 b=2.000000 -> 1.000000 fpus=4000
+de fsubrp a=3.000000 b=2.000000 -> -1.000000 fpus=4000
+de fdivp  a=3.000000 b=2.000000 -> 1.500000 fpus=4000
+de fdivrp a=3.000000 b=2.000000 -> 0.666667 fpus=4000
+d8 fadd   a=-1.500000 b=0.250000 -> -1.250000 fpus=0000
+d8 fmul   a=-1.500000 b=0.250000 -> -0.375000 fpus=4000
+d8 fsub   a=-1.500000 b=0.250000 -> -1.750000 fpus=4000
+d8 fsubr  a=-1.500000 b=0.250000 -> 1.750000 fpus=4000
+d8 fdiv   a=-1.500000 b=0.250000 -> -6.000000 fpus=4000
+d8 fdivr  a=-1.500000 b=0.250000 -> -0.166667 fpus=4000
+dc fadd   a=-1.500000 b=0.250000 -> -1.250000 fpus=0000
+dc fmul   a=-1.500000 b=0.250000 -> -0.375000 fpus=4000
+dc fsub   a=-1.500000 b=0.250000 -> -1.750000 fpus=4000
+dc fsubr  a=-1.500000 b=0.250000 -> 1.750000 fpus=4000
+dc fdiv   a=-1.500000 b=0.250000 -> -6.000000 fpus=4000
+dc fdivr  a=-1.500000 b=0.250000 -> -0.166667 fpus=4000
+de faddp  a=-1.500000 b=0.250000 -> -1.250000 fpus=0000
+de fmulp  a=-1.500000 b=0.250000 -> -0.375000 fpus=4000
+de fsubp  a=-1.500000 b=0.250000 -> -1.750000 fpus=4000
+de fsubrp a=-1.500000 b=0.250000 -> 1.750000 fpus=4000
+de fdivp  a=-1.500000 b=0.250000 -> -6.000000 fpus=4000
+de fdivrp a=-1.500000 b=0.250000 -> -0.166667 fpus=4000
+fiaddl   a=3.000000 i=7 -> 10.000000 fpus=0000
+fimull   a=3.000000 i=7 -> 21.000000 fpus=4000
+fisubl   a=3.000000 i=7 -> -4.000000 fpus=4000
+fisubrl  a=3.000000 i=7 -> 4.000000 fpus=4000
+fidivl   a=3.000000 i=7 -> 0.428571 fpus=4000
+fidivrl  a=3.000000 i=7 -> 2.333333 fpus=4000
+fiadds   a=3.000000 i=-3 -> 0.000000 fpus=0100
+fimuls   a=3.000000 i=-3 -> -9.000000 fpus=4000
+fisubs   a=3.000000 i=-3 -> 6.000000 fpus=4000
+fisubrs  a=3.000000 i=-3 -> -6.000000 fpus=4000
+fidivs   a=3.000000 i=-3 -> -1.000000 fpus=4000
+fidivrs  a=3.000000 i=-3 -> -1.000000 fpus=4000
+fiaddl   a=-1.500000 i=7 -> 5.500000 fpus=4000
+fimull   a=-1.500000 i=7 -> -10.500000 fpus=4000
+fisubl   a=-1.500000 i=7 -> -8.500000 fpus=4000
+fisubrl  a=-1.500000 i=7 -> 8.500000 fpus=4000
+fidivl   a=-1.500000 i=7 -> -0.214286 fpus=4000
+fidivrl  a=-1.500000 i=7 -> -4.666667 fpus=0000
+fiadds   a=-1.500000 i=-3 -> -4.500000 fpus=0000
+fimuls   a=-1.500000 i=-3 -> 4.500000 fpus=4000
+fisubs   a=-1.500000 i=-3 -> 1.500000 fpus=4000
+fisubrs  a=-1.500000 i=-3 -> -1.500000 fpus=4000
+fidivs   a=-1.500000 i=-3 -> 0.500000 fpus=4000
+fidivrs  a=-1.500000 i=-3 -> 2.000000 fpus=4000
+sgdtl    mem=wwwwww..
+sidtl    mem=wwwwww..
+sldtw    mem=ww..
+strw     mem=ww..
+smsww    mem=ww..
+smsw     reg high16=written low16=written
+sldt     reg high16=written low16=written
+str      reg high16=written low16=written
+rdtsc    edx=written eax=written
+rdtsc    monotonic=yes
+rdtsc    flags=kept
+cpuid    leaf0 stable=yes maxleaf>=1=yes
+cpuid    vendor=printable
+cpuid    leaf1 fpu=1 tsc=1 cx8=1 cmov=1
+cpuid    leaf 00000000 written=abcd
+cpuid    leaf 00000002 written=abcd
+cpuid    leaf 80000000 written=abcd
 daa        A=12340503 R=12340509 CCIN=0010 CC=0014
 daa        A=12340506 R=1234050c CCIN=0010 CC=0014
 daa        A=12340507 R=1234050d CCIN=0010 CC=0010

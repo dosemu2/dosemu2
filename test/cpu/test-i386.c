@@ -3095,6 +3095,8 @@ extern void *__start_initcall;
 extern void *__stop_initcall;
 
 
+#include "test-i386-optable.h"
+
 int main(int argc, char **argv)
 {
     test_add();
@@ -3138,6 +3140,7 @@ int main(int argc, char **argv)
     test_lea();
 
     test_conv();
+    test_optable();
 
 #if !defined(__x86_64__)
     test_bcd();

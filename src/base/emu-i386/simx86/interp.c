@@ -2310,7 +2310,13 @@ repag0:
 				    if (REG3)
 					Gen(S_REG, _mode, REG3);
 				    else
-					Gen(S_DI, _mode);
+					/* the memory form stores a word
+					 * whatever the operand size is,
+					 * so DATA16 is forced here; the
+					 * register form above does follow
+					 * the operand size and zero
+					 * extends a 32 bit destination */
+					Gen(S_DI, _mode|DATA16);
 				    break;
 				case 2: /* LLDT */
 				    /* Load Local Descriptor Table Register */
@@ -2345,11 +2351,20 @@ repag0:
 				case 3: /* LIDT */ /* PM privileged AND real _mode */
 				    /* Load Interrupt Descriptor Table Register */
 				    PC += 3; goto not_permitted;
-				case 4: /* SMSW, 80286 compatibility */
-				    /* Store Machine Status Word */
+				case 4: { /* SMSW, 80286 compatibility */
+				    /* Store Machine Status Word. The memory
+				     * form stores the low word of cr0 and
+				     * nothing else, whatever the operand
+				     * size, but a register destination with
+				     * a 32 bit operand size takes the whole
+				     * of cr0, so DATA16 must be forced on
+				     * the one and not on the other. */
+				    int m16 = (D_HO(Fetch(PC+2)) != 3);
 				    Gen(L_CR0, _mode);
-				    PC++; PC += ModRM(opc, PC, _mode|DATA16|MSTORE);
-				    break;
+				    PC++;
+				    PC += ModRM(opc, PC,
+					    _mode|(m16? DATA16:0)|MSTORE);
+				    break; }
 				case 6: /* LMSW, 80286 compatibility, Privileged */
 				    /* Load Machine Status Word.  Privileged,
 				     * so a client at CPL 3 - which is every
