@@ -46,6 +46,7 @@ config.status
 /config.sub
 /install-sh
 __pycache__/
-/test-binaries/
-/test-imagedir/
-test/test-imagedir/
+# both of these are made relative to the directory the suite is run from,
+# which is the top of the tree or test/ depending on who is running it
+test-binaries/
+test-imagedir/
