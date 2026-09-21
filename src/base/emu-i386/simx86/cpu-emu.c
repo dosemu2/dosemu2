@@ -730,7 +730,19 @@ void reset_emu_cpu(void)
   TheCPU.dr[5] = 0x400;
   TheCPU.dr[6] = 0xffff1ff0;
   TheCPU.dr[7] = 0x400;
-  TheCPU.GDTR.Limit = TheCPU.IDTR.Limit = TheCPU.LDTR.Limit = TheCPU.TR.Limit = 0xffff;
+  TheCPU.LDTR.Limit = TheCPU.TR.Limit = 0xffff;
+  /* sgdt and sidt are the only readers of these four fields, and what
+   * they say is the only thing a client knows about the two tables.
+   * Leaving the base at zero told it the GDT sits at linear 0, where
+   * the interrupt vector table is: a 286 extender read a descriptor out
+   * of vectors 0 and 1 and died on it. Answer with a base no client can
+   * follow, the same one the kernel's UMIP emulation and the KVM path
+   * give, so that whichever way the client's sgdt is served it sees the
+   * same machine. */
+  TheCPU.GDTR.Base = EMU_GDT_BASE;
+  TheCPU.GDTR.Limit = EMU_GDT_LIMIT;
+  TheCPU.IDTR.Base = EMU_IDT_BASE;
+  TheCPU.IDTR.Limit = EMU_IDT_LIMIT;
   TheCPU.cs_cache.BoundL = 0x400;
   TheCPU.cs_cache.BoundH = 0x10ffff;
   TheCPU.ss_cache.BoundL = 0x100;
