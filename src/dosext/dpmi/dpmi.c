@@ -3429,7 +3429,10 @@ static void make_iret_frame_for(cpuctx_t *scp, void *sp,
     *--ssp = dpmi_flags_to_stack(_eflags);
     *--ssp = cs;
     *--ssp = eip;
-    _esp -= 12;
+    if (DPMI_CLIENT.is_32)
+      _esp -= 12;
+    else
+      _LWORD(esp) -= 12;
   } else {
     unsigned short *ssp = sp;
     *--ssp = dpmi_flags_to_stack(_eflags);
@@ -3537,8 +3540,10 @@ static void dpmi_realmode_callback(int rmcb_client, int num)
      * will produce an exception 10 as soon as we return from the
      * callback! */
     _eflags =  REG(eflags)&(~(AC|VM|TF|NT));
-    make_iret_frame(scp, sp, dpmi_sel(),
-	    DPMI_SEL_OFF(DPMI_return_from_rm_callback));
+    make_iret_frame_for(scp, sp, dpmi_sel(),
+	    DPMI_SEL_OFF(DPMI_return_from_rm_callback),
+	    handler_is_32(
+		DPMIclient[rmcb_client].realModeCallBack[num].selector));
     _cs = DPMIclient[rmcb_client].realModeCallBack[num].selector;
     _eip = DPMIclient[rmcb_client].realModeCallBack[num].offset;
     SetSelector(DPMIclient[rmcb_client].realModeCallBack[num].rm_ss_selector,
