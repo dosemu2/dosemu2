@@ -137,8 +137,48 @@ static uint16_t dos_exit_list(struct call *c)
     return 0;
 }
 
+/*
+ * USHORT DosSetSigHandler(PFN pfn, PFN *ppfnPrev, PUSHORT pfAction,
+ *			   USHORT fAction, USHORT usSigNum)
+ *
+ * The OS/2 signals a DOS extender can raise are the console ones, and
+ * nothing here raises them, so remember the handler, hand back what was
+ * there before and let it be. Ultima VIII asks for SIGINTR with
+ * SIGA_ACCEPT before it will start, and stops if the call is refused.
+ */
+#define MAX_SIG		8
+
+static uint32_t sig_handler[MAX_SIG];
+static uint16_t sig_action[MAX_SIG];
+
+static uint16_t dos_set_sig_handler(struct call *c)
+{
+    uint16_t sig = call_argw(c, 0);
+    uint16_t act = call_argw(c, 2);
+    uint32_t pactp = call_argd(c, 4);
+    uint32_t pprevp = call_argd(c, 8);
+    uint32_t pfn = call_argd(c, 12);
+
+    if (sig >= MAX_SIG)
+	return ERROR_INVALID_PARAMETER;
+    if (pactp)
+	call_setw(pactp, sig_action[sig]);
+    if (pprevp)
+	call_setd(pprevp, sig_handler[sig]);
+    /* SIGA_ACKNOWLEDGE, 4, only says the handler has finished */
+    if (act == 4)
+	return 0;
+    sig_action[sig] = act;
+    if (act == 2)			/* SIGA_ACCEPT */
+	sig_handler[sig] = pfn;
+    else
+	sig_handler[sig] = 0;
+    return 0;
+}
+
 static const struct api_fn doscalls[] = {
     { "DosExitList",		7,   6,	dos_exit_list },
+    { "DosSetSigHandler",	14,  16, dos_set_sig_handler },
     { "DosReallocSeg",		38,  4,	dos_realloc_seg },
     { "DosFreeSeg",		39,  2,	dos_free_seg },
     { "DosGetHugeShift",	41,  4,	dos_get_huge_shift },
