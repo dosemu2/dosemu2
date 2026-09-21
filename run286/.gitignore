@@ -1,2 +1,5 @@
 nedump
 *.o
+dos/libtmp.so
+dos/run286
+dos/tmp/
