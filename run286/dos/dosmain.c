@@ -543,6 +543,12 @@ int ASMCFUNC run286_import(void)
 	trc("run286:   called from %04x:%04x\n",
 		_farpeekw(c.ss, c.sp + CALL_ARGS - 2),
 		_farpeekw(c.ss, c.sp + CALL_ARGS - 4));
+    /* A program that sits in a poll loop makes the trace one repeated line
+     * and says nothing about whether its interrupt handlers still run, which
+     * is the first thing to ask when it stops moving. Say so now and then. */
+    if (ldr.trace && ldr.ncall % 512 == 0)
+	trc("run286:   %u interrupts so far, the last in slot %u\n",
+		int_taken, int_last);
     /* the result goes back in AX, which gate_entry pops off the program's
      * own stack on the way out */
     _farpokew(c.ss, c.sp + CALL_EAX, rc);
