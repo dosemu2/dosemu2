@@ -263,43 +263,6 @@ void vtmr_post_irq_dpmi(int masked)
     do_unmask(VTMR_PIT);
 }
 
-/* A VCPI client takes the CPU at ring 0 on its own IDT and has never seen
-   the virtual timer driver: vip[VTMR_PIT].irq is a line it does not
-   service and has no gate for, while vip[VTMR_PIT].orig_irq -- the real
-   IRQ 0 -- is the one it does hook.  Retire the virtual line for as long
-   as the client has the CPU, exactly the way vtmr_pre_irq_dpmi() does it
-   for a DPMI client.
-   Both halves are needed.  The mask retracts a request already standing
-   in the PIC, which is otherwise delivered as the first thing the client
-   sees: one interrupt on a vector it has no handler for.  The ack clears
-   vtmr_irr, without which every later tick is refused as "already
-   requested" -- the request can only be acknowledged by dosemu's own
-   DOS-side handler, and that cannot run while the client owns the CPU, so
-   the timer would stop dead after that one bogus interrupt. */
-static int vcpi_masked;
-
-void vtmr_pre_vcpi(void)
-{
-    if (vcpi_masked)
-        return;
-    vcpi_masked = 1;
-    do_mask(VTMR_PIT);
-    if (vtmr_irr & (1 << VTMR_PIT))
-        do_ack(VTMR_PIT, 1);
-}
-
-/* The monitor drops VCPI_ACTIVE in asm on its way back to v86, so there is
-   no call to hang the other half on.  It is not needed at that instant
-   either: nothing consults the virtual line until the next tick, and that
-   is where this is checked. */
-static void vtmr_check_vcpi(void)
-{
-    if (vcpi_masked && !kvm_vcpi_active()) {
-        vcpi_masked = 0;
-        do_unmask(VTMR_PIT);
-    }
-}
-
 int vrtc_pre_irq_dpmi(uint8_t *imr)
 {
     int masked = vint_is_masked(vth[VTMR_RTC].vint, imr);
@@ -314,25 +277,35 @@ void vrtc_post_irq_dpmi(int masked)
     do_unmask(VTMR_RTC);
 }
 
+/* The virtual timer is switched off for now: a VCPI client owns the CPU at
+   ring 0 on its own IDT and has no gate for the virtual line's vector, and
+   nothing can acknowledge a request left standing on that line while it
+   runs.  Reporting the line masked is all that is needed -- the masked arm
+   of VTMR_REQUEST_PORT is the legacy path, straight to vip[].orig_irq, the
+   real IRQ that every client does hook.
+   It has to be masked from the start rather than at the DE0C switch: a
+   request raised on the virtual line before the client takes the CPU is
+   already standing in the PIC, and is then delivered as the first thing the
+   client sees. */
+#define VTMR_DISABLED 1
+
 static int vtmr_is_masked(int timer)
 {
-    uint8_t imr[2] = { [0] = port_inb(0x21), [1] = port_inb(0xa1) };
-    uint16_t real_imr = (imr[1] << 8) | imr[0];
+    uint8_t imr[2];
+    uint16_t real_imr;
 
-    /* While a VCPI client owns the CPU the virtual line is dead, see
-       vtmr_pre_vcpi(): route every tick to vip[timer].orig_irq instead. */
-    if (kvm_vcpi_active())
+    if (VTMR_DISABLED)
         return 1;
+    imr[0] = port_inb(0x21);
+    imr[1] = port_inb(0xa1);
+    real_imr = (imr[1] << 8) | imr[0];
     return ((imr[0] & 4) || !!(real_imr & (1 << vip[timer].irq)));
 }
 
 static void vtmr_smi(void *arg)
 {
     int timer;
-    uint16_t pirr;
-
-    vtmr_check_vcpi();
-    pirr = port_inw(VTMR_VPEND_PORT);
+    uint16_t pirr = port_inw(VTMR_VPEND_PORT);
 
     while ((timer = find_bit(pirr)) != -1) {
         int masked = vtmr_is_masked(timer);
