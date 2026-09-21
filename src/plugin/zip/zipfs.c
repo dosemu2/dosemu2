@@ -76,6 +76,7 @@ struct zipfs {
   struct zip_node *tree;
   char *ovl;            // overlay dir for this archive, with a trailing slash
   int ovl_made;         // the dir is known to exist
+  int id_fd;            // the stamp, held shared while this mount lives
   int log_fd;           // the directory log, -1 until there is one
   int next_id;          // the next overlay id to hand out
 };
@@ -503,6 +504,30 @@ static void ovl_id_write(struct zipfs *zfs)
   free(path);
 }
 
+/*
+ * The stamp doubles as the overlay's presence lock: every mount holds it
+ * shared for as long as it lives, so a mount that can take it exclusive
+ * knows it is the only one left and may tidy up behind everybody.
+ */
+static void ovl_id_hold(struct zipfs *zfs)
+{
+  char *path;
+
+  if (zfs->id_fd != -1)
+    return;
+  path = ovl_id_name(zfs);
+  if (!path)
+    return;
+  zfs->id_fd = open(path, O_RDONLY | O_CLOEXEC);
+  if (zfs->id_fd != -1 && flock(zfs->id_fd, LOCK_SH | LOCK_NB) == -1) {
+    /* somebody has it exclusive, i.e. is tidying up right now; without
+     * the shared lock we simply do not tidy up ourselves later */
+    close(zfs->id_fd);
+    zfs->id_fd = -1;
+  }
+  free(path);
+}
+
 /* both levels, and the trailing slash has to go for mkdir() */
 static int ovl_make_dir(struct zipfs *zfs)
 {
@@ -531,6 +556,7 @@ static int ovl_make_dir(struct zipfs *zfs)
     goto out;
   zfs->ovl_made = 1;
   ovl_id_write(zfs);
+  ovl_id_hold(zfs);
   ret = 0;
 out:
   if (ret)
@@ -757,6 +783,7 @@ static int map_append_trunc(struct ext_map *m, off_t len)
  * ever has to be found and edited. A record that does not parse ends
  * the replay, since anything after it has lost its place.
  */
+#define LOG_NAME "dir.log"
 #define LOG_HDR_LEN 8
 #define LOG_MAX_NAME 4096
 /*
@@ -776,7 +803,7 @@ static int log_open(struct zipfs *zfs, int create)
     return zfs->log_fd;
   if (create && ovl_make_dir(zfs) != 0)
     return -1;
-  if (asprintf(&path, "%sdir.log", zfs->ovl) == -1)
+  if (asprintf(&path, "%s" LOG_NAME, zfs->ovl) == -1)
     return -1;
   zfs->log_fd = open(path, flags, S_IRUSR | S_IWUSR);
   if (zfs->log_fd == -1 && (create || errno != ENOENT))
@@ -2091,6 +2118,7 @@ static int zip_mount(vfs_fs_t *fs, const char *path)
    * writes to leaves nothing behind */
   zfs->ovl = ovl_path_for(zfs->root);
   zfs->log_fd = -1;
+  zfs->id_fd = -1;
 
   if (build_tree(zfs) != 0) {
     error("zip: cannot index %s\n", path);
@@ -2104,6 +2132,7 @@ static int zip_mount(vfs_fs_t *fs, const char *path)
   }
 
   zfs->arc_id = arc_fingerprint(zfs->za);
+  ovl_id_hold(zfs);
   if (!ovl_id_ok(zfs)) {
     node_free(zfs->tree);
     zip_close(zfs->za);
@@ -2124,6 +2153,96 @@ static int zip_mount(vfs_fs_t *fs, const char *path)
   return 0;
 }
 
+/* the file's length, or -1 if it is not there */
+static off_t ovl_len(const char *dir, const char *name)
+{
+  struct stat sb;
+  char *path;
+  off_t ret = -1;
+
+  if (asprintf(&path, "%s%s", dir, name) == -1)
+    return -1;
+  if (stat(path, &sb) == 0)
+    ret = sb.st_size;
+  free(path);
+  return ret;
+}
+
+static void ovl_unlink(const char *dir, const char *name)
+{
+  char *path;
+
+  if (asprintf(&path, "%s%s", dir, name) == -1)
+    return;
+  if (unlink(path) == -1 && errno != ENOENT)
+    error("zip: cannot remove %s: %s\n", path, strerror(errno));
+  free(path);
+}
+
+/*
+ * What the overlay has to show for itself once nobody is using it.
+ *
+ * A chunk file is made whenever an entry needs a host file to carry
+ * kernel locks, whether or not anything is ever written to it, so an
+ * archive that was only read from - but locked, as DOS programs do -
+ * used to leave a sparse file the size of the entry behind for good. A
+ * chunk whose map is empty owns no byte of its entry and is exactly
+ * that: nothing to lose by removing it.
+ *
+ * Only the last mount does this, which is what the shared stamp lock
+ * establishes. Another instance may have the same chunk file open to
+ * lock against us, and removing it under them would leave the two of
+ * them locking different inodes and neither of them wiser.
+ */
+static void ovl_prune(struct zipfs *zfs)
+{
+  struct dirent *de;
+  char *dir;
+  DIR *d;
+  int left = 0;
+
+  if (!zfs->ovl)
+    return;
+  d = opendir(zfs->ovl);
+  if (!d)
+    return;
+  while ((de = readdir(d))) {
+    const char *n = de->d_name;
+    int len = strlen(n);
+    char *map;
+
+    if (!strcmp(n, ".") || !strcmp(n, ".."))
+      continue;
+    if (!strcmp(n, "id") || !strcmp(n, LOG_NAME))
+      continue;
+    if (len > 4 && !strcmp(n + len - 4, ".map"))
+      continue;                 // dealt with along with its chunk
+    if (asprintf(&map, "%s.map", n) == -1)
+      continue;
+    if (ovl_len(zfs->ovl, map) > 0)
+      left++;                   // the overlay owns part of this entry
+    else {
+      ovl_unlink(zfs->ovl, map);
+      ovl_unlink(zfs->ovl, n);
+    }
+    free(map);
+  }
+  closedir(d);
+
+  /* and the bookkeeping itself, once it is all that is left and it
+   * records nothing either */
+  if (left || ovl_len(zfs->ovl, LOG_NAME) > 0)
+    return;
+  ovl_unlink(zfs->ovl, LOG_NAME);
+  ovl_unlink(zfs->ovl, "id");
+  dir = strdup(zfs->ovl);
+  if (dir) {
+    dir[strlen(dir) - 1] = '\0';       // rmdir wants no trailing slash
+    rmdir(dir);
+    free(dir);
+  }
+}
+
 static void zip_umount(vfs_fs_t *fs)
 {
   struct zipfs *zfs = fs->priv;
@@ -2135,6 +2254,12 @@ static void zip_umount(vfs_fs_t *fs)
   zip_close(zfs->za);
   if (zfs->log_fd != -1)
     close(zfs->log_fd);
+  /* granted only if no other mount holds the stamp, i.e. we are last */
+  if (zfs->id_fd != -1) {
+    if (flock(zfs->id_fd, LOCK_EX | LOCK_NB) == 0)
+      ovl_prune(zfs);
+    close(zfs->id_fd);
+  }
   free(zfs->ovl);
   free(zfs->root);
   free(zfs);

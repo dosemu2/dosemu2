@@ -471,3 +471,69 @@ int main(void) {
                      "the old overlay was applied to the new archive")
     # Refusing the mount is what that costs: the drive is not there.
     self.assertIn("archive drive not found", results)
+
+
+def zip_overlay_lock_only(self):
+    """Locking without writing leaves nothing behind."""
+    ovl_isolate(self)
+    archive, _ = mkziparchive(self)
+
+    # An entry gets a chunk file as soon as it needs a host file to carry
+    # kernel locks, so a DOS program that only locks - which they do to
+    # read shared data - used to leave a sparse file the size of the entry
+    # in the overlay for good.
+    self.mkexe_with_djgpp("ovllock", FINDDRIVE + r"""
+#include <dpmi.h>
+#include <string.h>
+
+static int region(int f, int ax)
+{
+  __dpmi_regs r;
+
+  memset(&r, 0, sizeof(r));
+  r.x.ax = ax;
+  r.x.bx = f;
+  r.x.cx = 0;
+  r.x.dx = 0;
+  r.x.si = 0;
+  r.x.di = 8;
+  __dpmi_int(0x21, &r);
+  return (r.x.flags & 1) ? -1 : 0;
+}
+
+int main(void) {
+  int f;
+
+  if (find_drive())
+    return 3;
+  f = open(onarchive(ENTRY), O_RDONLY | O_BINARY);
+  if (f < 0) {
+    printf("open failed\n");
+    return 2;
+  }
+  if (region(f, 0x5c00)) {
+    printf("lock failed\n");
+    close(f);
+    return 2;
+  }
+  if (region(f, 0x5c01)) {
+    printf("unlock failed\n");
+    close(f);
+    return 2;
+  }
+  close(f);
+  printf("locked and unlocked\n");
+  return 0;
+}
+""", extraargs=defines(["-DENTRY=\"%s\"" % STORED]))
+
+    results = runovl(self, archive, "ovllock")[0]
+
+    self.assertNotIn("archive drive not found", results)
+    self.assertNotIn("failed", results)
+    self.assertIn("locked and unlocked", results)
+
+    tmpdir = self.imagedir / "ziptmp"
+    left = sorted(str(p.relative_to(tmpdir)) for p in tmpdir.rglob("*")
+                  if p.is_file())
+    self.assertEqual([], left, "a read-only session left an overlay behind")

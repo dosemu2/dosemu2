@@ -72,7 +72,8 @@ from func_truename import (mfs_truename_ufs_lfn, mfs_truename_ufs_sfn, mfs_truen
 from func_zip_backend import zip_read, zip_dir_listing, zip_write_refused
 from func_zip_overlay import (zip_overlay_write, zip_overlay_persist, zip_overlay_create,
                               zip_overlay_delete, zip_overlay_deflated,
-                              zip_overlay_rewrite, zip_overlay_swapped_archive)
+                              zip_overlay_rewrite, zip_overlay_swapped_archive,
+                              zip_overlay_lock_only)
 
 from func_ndis import ndis_mac_driver
 from func_network import network_mtcp
@@ -155,6 +156,11 @@ class OurTestCase(BaseTestCase):
     def test_zip_overlay_swapped_archive(self):
         """ZIP overlay is refused for a different archive"""
         zip_overlay_swapped_archive(self)
+
+    @mark(['mfstest', 'ziptest'])
+    def test_zip_overlay_lock_only(self):
+        """ZIP locking without writing leaves nothing"""
+        zip_overlay_lock_only(self)
 
     @mark(['mfstest', 'sfntest'])
     def test_mfs_sfn_directory_create(self):
