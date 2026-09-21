@@ -272,6 +272,121 @@ static void test_dtables(void)
     TEST_DT_REG("str");
 }
 
+/* 0f 31 and 0f a2. Both hand back numbers that belong to the machine -
+ * a cycle counter and a feature word - so the value cannot go in the
+ * reference file any more than a gdt base could. What can go in is
+ * everything around the value: that the counter moves forward, that it
+ * lands in both halves of edx:eax, that neither instruction disturbs
+ * the flags, that cpuid gives the same answer twice for the same leaf,
+ * and that the feature bits a client actually branches on are set. */
+
+#define RDTSC(hi, lo)\
+    asm volatile("rdtsc" : "=d" (hi), "=a" (lo) :: "memory")
+
+static void test_rdtsc(void)
+{
+    unsigned int h1, l1, h2, l2;
+    unsigned int seeded_hi = 0xdeadbeef, seeded_lo = 0xdeadbeef;
+    long flags_in, flags_out;
+
+    /* both halves are written: the seed is a value the counter cannot
+     * plausibly hold, so surviving it means the half was not written */
+    asm volatile("rdtsc" : "+d" (seeded_hi), "+a" (seeded_lo) :: "memory");
+    printf("%-8s edx=%s eax=%s\n", "rdtsc",
+           seeded_hi != 0xdeadbeef ? "written" : "kept",
+           seeded_lo != 0xdeadbeef ? "written" : "kept");
+
+    /* the counter moves forward and never backward */
+    RDTSC(h1, l1);
+    RDTSC(h2, l2);
+    printf("%-8s monotonic=%s\n", "rdtsc",
+           (h2 > h1 || (h2 == h1 && l2 >= l1)) ? "yes" : "no");
+
+    /* and it leaves the flags alone */
+    asm volatile("pushf\n\t"
+                 "andl $~0x8d5, (%%esp)\n\t"   /* clear the arith flags */
+                 "orl  $0x0c5, (%%esp)\n\t"    /* CF PF ZF SF set, OF/AF clear */
+                 "popf\n\t"
+                 "pushf\n\t"
+                 "popl %0\n\t"
+                 "rdtsc\n\t"
+                 "pushf\n\t"
+                 "popl %1\n\t"
+                 : "=r" (flags_in), "=r" (flags_out) :: "eax", "edx", "cc");
+    printf("%-8s flags=%s\n", "rdtsc",
+           (flags_in & 0x8d5) == (flags_out & 0x8d5) ? "kept" : "clobbered");
+}
+
+#define CPUID(leaf, a, b, c, d)\
+    asm volatile("cpuid" : "=a" (a), "=b" (b), "=c" (c), "=d" (d)\
+                 : "0" (leaf) : "memory")
+
+static void test_cpuid_writes(unsigned int leaf)
+{
+    unsigned int a0, b0, c0, d0, a1, b1, c1, d1;
+
+    a0 = leaf; b0 = c0 = d0 = 0x00000000;
+    asm volatile("cpuid" : "+a" (a0), "+b" (b0), "+c" (c0), "+d" (d0)
+                 :: "memory");
+    a1 = leaf; b1 = c1 = d1 = 0xffffffff;
+    asm volatile("cpuid" : "+a" (a1), "+b" (b1), "+c" (c1), "+d" (d1)
+                 :: "memory");
+    printf("%-8s leaf %08x written=%c%c%c%c\n", "cpuid", leaf,
+           a0 == a1 ? 'a' : '.', b0 == b1 ? 'b' : '.',
+           c0 == c1 ? 'c' : '.', d0 == d1 ? 'd' : '.');
+}
+
+static void test_cpuid(void)
+{
+    unsigned int a1, b1, c1, d1, a2, b2, c2, d2;
+    unsigned char vendor[13];
+    int i, printable;
+
+    /* the same leaf twice gives the same answer */
+    CPUID(0, a1, b1, c1, d1);
+    CPUID(0, a2, b2, c2, d2);
+    printf("%-8s leaf0 stable=%s maxleaf>=1=%s\n", "cpuid",
+           (a1 == a2 && b1 == b2 && c1 == c2 && d1 == d2) ? "yes" : "no",
+           a1 >= 1 ? "yes" : "no");
+
+    /* the vendor string is twelve characters, in ebx, edx, ecx, and
+     * the string itself differs from machine to machine while being
+     * printable ascii on all of them */
+    memcpy(vendor + 0, &b1, 4);
+    memcpy(vendor + 4, &d1, 4);
+    memcpy(vendor + 8, &c1, 4);
+    vendor[12] = '\0';
+    printable = 1;
+    for (i = 0; i < 12; i++)
+	if (vendor[i] < 0x20 || vendor[i] > 0x7e)
+	    printable = 0;
+    printf("%-8s vendor=%s\n", "cpuid", printable ? "printable" : "not-ascii");
+
+    /* The feature bits a dos client actually branches on. Only the four
+     * that must be set wherever this test can run at all are printed:
+     * the rest of the word is a property of the machine. */
+    CPUID(1, a1, b1, c1, d1);
+    printf("%-8s leaf1 fpu=%d tsc=%d cx8=%d cmov=%d\n", "cpuid",
+           !!(d1 & (1 << 0)), !!(d1 & (1 << 4)),
+           !!(d1 & (1 << 8)), !!(d1 & (1 << 15)));
+
+    /* Every leaf writes all four registers, including a leaf the
+     * processor does not implement: an out of range leaf returns
+     * defined values, it never hands the input back. Run each leaf
+     * from two seeds and report which registers were written, the
+     * same way the descriptor table stores are checked, so that no
+     * machine specific value has to be printed. Leaf 1 is left out:
+     * its ebx carries the initial apic id, which changes if the run
+     * moves to another core between the two reads, and its edx is
+     * already known to be written from the feature bits above. The
+     * mark for eax is not a signal: eax carries the leaf in, so it
+     * holds the same value in both runs whether or not the
+     * instruction wrote it. Read ebx, ecx and edx. */
+    test_cpuid_writes(0x00000000);
+    test_cpuid_writes(0x00000002);
+    test_cpuid_writes(0x80000000);
+}
+
 static void test_optable(void)
 {
     test_bitops_imm();
@@ -284,4 +399,6 @@ static void test_optable(void)
     test_farith_int(3.0);
     test_farith_int(-1.5);
     test_dtables();
+    test_rdtsc();
+    test_cpuid();
 }

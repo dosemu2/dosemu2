@@ -4662,6 +4662,15 @@ smsww    mem=ww..
 smsw     reg high16=written low16=written
 sldt     reg high16=written low16=written
 str      reg high16=written low16=written
+rdtsc    edx=written eax=written
+rdtsc    monotonic=yes
+rdtsc    flags=kept
+cpuid    leaf0 stable=yes maxleaf>=1=yes
+cpuid    vendor=printable
+cpuid    leaf1 fpu=1 tsc=1 cx8=1 cmov=1
+cpuid    leaf 00000000 written=abcd
+cpuid    leaf 00000002 written=abcd
+cpuid    leaf 80000000 written=abcd
 daa        A=12340503 R=12340509 CCIN=0010 CC=0014
 daa        A=12340506 R=1234050c CCIN=0010 CC=0014
 daa        A=12340507 R=1234050d CCIN=0010 CC=0010
