@@ -197,7 +197,7 @@ int main(void) {
 
 
 def zip_write_refused(self):
-    """The read-only backend refuses to open an entry for writing."""
+    """A read-only mount refuses to open an entry for writing."""
     archive, _ = mkziparchive(self)
     before = (self.imagedir / ARCHIVE).read_bytes()
 
@@ -222,7 +222,7 @@ int main(void) {
 }
 """ % STORED, extraargs=["-DMARKER=\"%s\"" % MARKER])
 
-    results = runzip(self, archive, "zipwrite")
+    results = runzip(self, archive + ":r", "zipwrite")
 
     self.assertNotIn("archive drive not found", results)
     self.assertNotIn("open succeeded", results)
