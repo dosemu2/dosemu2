@@ -1,7 +1,12 @@
 from common_framework import DOSEMU_CONF_DEFAULT
 
-# The iret half of this rule only shows up where the host emulates the
-# instruction, which the CPU emulator does not need it to.
+# Both halves of this rule are about frames the HOST builds or reads at the
+# client's SS:ESP, so both pin the DPMI backend rather than taking whatever
+# the machine offers. Under KVM the two instructions never reach the host at
+# all: a vector the client hooked gets a direct IDT gate in the monitor
+# (kvm_set_idt()), so the CPU itself delivers the interrupt and raises the
+# #SS, and there is nothing here to check.
+EMU_CONF = DOSEMU_CONF_DEFAULT + '$_cpu_vm_dpmi = "emulated"\n'
 NATIVE_CONF = DOSEMU_CONF_DEFAULT + '$_cpu_vm_dpmi = "native"\n'
 
 BATCHFILE = """\
@@ -207,8 +212,7 @@ msgapi      db "FAIL: dpmi call failed", 13, 10, "$"
 sig:        times SIGW dw 0
 """)
 
-    results = self.runDosemu("testit.bat", config=DOSEMU_CONF_DEFAULT,
-                             timeout=20)
+    results = self.runDosemu("testit.bat", config=EMU_CONF, timeout=20)
 
     self.assertNotIn("FAIL:", results)
     self.assertIn("Test OK", results)
