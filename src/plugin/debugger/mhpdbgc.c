@@ -911,6 +911,8 @@ static void mhp_tracec(int argc, char *argv[])
  * memory is there.  A read through process_vm_readv() on ourselves answers
  * EFAULT instead of raising a signal, and it goes through the very pointer
  * READ_BYTE would use.  One probe per page finds where the memory ends. */
+static int no_peek;
+
 static unsigned int addr_readable_len(dosaddr_t addr, unsigned int len)
 {
   unsigned char c;
@@ -923,11 +925,23 @@ static unsigned int addr_readable_len(dosaddr_t addr, unsigned int len)
     return 0;
   if (main_pool.size - addr < len)	/* however much of it is there */
     len = main_pool.size - addr;
+  if (no_peek)
+    return len;
   end = addr + len;
   for (a = addr; ; a = next) {
     riov.iov_base = LINEAR2UNIX(a);
-    if (process_vm_readv(getpid(), &liov, 1, &riov, 1, 0) != 1)
+    if (process_vm_readv(getpid(), &liov, 1, &riov, 1, 0) != 1) {
+      if (errno != EFAULT) {
+        /* seccomp can take the call away from us - docker's default profile
+         * does, without CAP_SYS_PTRACE - and then it says nothing about any
+         * address.  Say so once and go back to trusting the pool size. */
+        no_peek = 1;
+        mhp_printf("cannot check addresses: process_vm_readv: %s\n",
+                   strerror(errno));
+        return len;
+      }
       return a - addr;
+    }
     next = (a | (pgsz - 1)) + 1;
     if (!next || next >= end)		/* the rest is in this page */
       return len;
