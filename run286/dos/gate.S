@@ -43,6 +43,8 @@ _ne_enter:
     movl 24(%ebp), %ebx			/* sp */
     movl 28(%ebp), %esi			/* ds */
     movl %eax, %es
+    movl 36(%ebp), %eax			/* ax: the environment selector */
+    movl 40(%ebp), %ecx			/* cx: size of the data segment */
     /* from here on our own DS is gone; everything is read through %cs: */
     movl %esi, %ds
     movl %edx, %ss

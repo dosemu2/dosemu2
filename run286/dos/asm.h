@@ -19,7 +19,7 @@
 
 /* Switch to the program's 16bit stack and jump to its entry point. Returns
  * only once the program asks to terminate, with its exit code. */
-int ASMFUNC ne_enter(int cs, int ip, int ss, int sp, int ds, int es);
+int ASMFUNC ne_enter(int cs, int ip, int ss, int sp, int ds, int es, int ax, int cx);
 
 /* Called from the int 0x66 handler when the program calls an import. The
  * index is in run286_import_idx; a nonzero return unwinds ne_enter(). */

@@ -16,6 +16,7 @@
 #include <sys/farptr.h>
 #include "neload.h"
 #include "asm.h"
+#include "run286.h"
 
 /* access rights for a 16bit, DPL 3, present segment */
 #define AR_CODE16	0x00fa		/* code, readable */
@@ -24,11 +25,13 @@
 #define GATE_INT	0x66		/* free vector the stubs go through */
 #define STUB_SIZE	8		/* one import stub, see make_stub() */
 #define MAX_IMPORTS	1024
+#define SEG_STRIDE	0x10000		/* linear room reserved per segment */
 
 struct import {
     char mod[9];
     char name[64];		/* empty when imported by ordinal */
     uint16_t ord;
+    const struct api_fn *fn;	/* NULL while unimplemented */
 };
 
 struct seg_info {
@@ -44,6 +47,8 @@ struct dos_ldr {
     __dpmi_meminfo mem;
     uint16_t base_sel;
     unsigned nstub;		/* imports we could not resolve yet */
+    unsigned ncall;		/* API calls served so far */
+    int trace;
     /* the 16bit segment holding one stub per import */
     __dpmi_meminfo stub_mem;
     uint16_t stub_code_sel;	/* what the program far-calls into */
@@ -81,22 +86,32 @@ static int make_stub(struct dos_ldr *l, const char *mod, const char *name,
 	uint16_t ord, struct ne_far *a)
 {
     unsigned n = l->nstub;
+    struct import *im = &l->imp[n];
     uint32_t off;
 
     if (n >= MAX_IMPORTS)
 	return -1;
-    snprintf(l->imp[n].mod, sizeof(l->imp[n].mod), "%s", mod ?: "?");
-    snprintf(l->imp[n].name, sizeof(l->imp[n].name), "%s", name ?: "");
-    l->imp[n].ord = ord;
+    snprintf(im->mod, sizeof(im->mod), "%s", mod ?: "?");
+    snprintf(im->name, sizeof(im->name), "%s", name ?: "");
+    im->ord = ord;
+    if (name && !strcmp(im->mod, "PHAPI"))
+	im->fn = phapi_lookup(name);
+    else if (!name && !strcmp(im->mod, "DOSCALLS"))
+	im->fn = doscalls_lookup(ord);
 
     off = n * STUB_SIZE;
-    /* mov ax,n; int GATE_INT; retf; nop */
+    /* mov ax,n; int GATE_INT; retf [args] */
     _farpokeb(l->stub_data_sel, off + 0, 0xb8);
     _farpokew(l->stub_data_sel, off + 1, n);
     _farpokeb(l->stub_data_sel, off + 3, 0xcd);
     _farpokeb(l->stub_data_sel, off + 4, GATE_INT);
-    _farpokeb(l->stub_data_sel, off + 5, 0xcb);
-    _farpokew(l->stub_data_sel, off + 6, 0x9090);
+    if (im->fn && im->fn->args) {
+	_farpokeb(l->stub_data_sel, off + 5, 0xca);
+	_farpokew(l->stub_data_sel, off + 6, im->fn->args);
+    } else {
+	_farpokeb(l->stub_data_sel, off + 5, 0xcb);
+	_farpokew(l->stub_data_sel, off + 6, 0x9090);
+    }
 
     a->sel = l->stub_code_sel;
     a->off = off;
@@ -116,11 +131,14 @@ static int dos_resolve_name(void *ctx, const char *mod, const char *name,
     return make_stub(ctx, mod, name, 0, a);
 }
 
-/* Called from gate_entry once the program enters a stub. */
+/* Called from gate_entry once the program enters a stub. Returns nonzero to
+ * unwind ne_enter() instead of resuming the program. */
 int ASMCFUNC run286_import(void)
 {
     unsigned n = gate_index;
     const struct import *im;
+    struct call c;
+    uint16_t rc;
 
     if (n >= ldr.nstub) {
 	printf("run286: bogus import index %u\n", n);
@@ -128,14 +146,57 @@ int ASMCFUNC run286_import(void)
 	return 1;
     }
     im = &ldr.imp[n];
-    if (im->name[0])
-	printf("run286: first import call: %s.%s, from %04x:%04x\n",
-		im->mod, im->name, gate_cli_ss, gate_cli_esp);
-    else
-	printf("run286: first import call: %s.%u, from %04x:%04x\n",
-		im->mod, im->ord, gate_cli_ss, gate_cli_esp);
-    gate_exit_code = 0;
-    return 1;			/* nothing is implemented yet, so stop here */
+    if (!im->fn) {
+	if (im->name[0])
+	    printf("run286: unimplemented %s.%s, called from %04x:%04x\n",
+		    im->mod, im->name, gate_cli_ss, gate_cli_esp);
+	else
+	    printf("run286: unimplemented %s.%u, called from %04x:%04x\n",
+		    im->mod, im->ord, gate_cli_ss, gate_cli_esp);
+	gate_exit_code = 1;
+	return 1;
+    }
+
+    c.ss = gate_cli_ss;
+    c.sp = gate_cli_esp;
+    rc = im->fn->fn(&c);
+    ldr.ncall++;
+    if (ldr.trace)
+	printf("run286: %s.%s%u(%04x %04x %04x %04x %04x) = %u\n", im->mod,
+		im->name[0] ? im->name : "#", im->ord, call_argw(&c, 0),
+		call_argw(&c, 2), call_argw(&c, 4), call_argw(&c, 6),
+		call_argw(&c, 8), rc);
+    /* the result goes back in AX, which gate_entry pops off the program's
+     * own stack on the way out */
+    _farpokew(c.ss, c.sp + CALL_EAX, rc);
+    return 0;
+}
+
+/*
+ * An NE program is entered with AX holding a selector for its environment
+ * segment, BX the offset of the command line in it and CX the size of the
+ * automatic data segment. BioForge stores AX straight into its PSP and
+ * then walks the strings, so the environment has to be a real one: a list
+ * of NUL terminated strings, an empty string to end it, a word of 1 and
+ * the program's own path.
+ */
+static uint16_t env_init(const char *path)
+{
+    static const char vars[] = "PATH=\0";
+    int sel, para, off;
+
+    para = __dpmi_allocate_dos_memory(16, &sel);
+    if (para == -1)
+	return 0;
+    for (off = 0; off < (int)sizeof(vars); off++)
+	_farpokeb(sel, off, vars[off]);
+    _farpokew(sel, off, 1);
+    off += 2;
+    while (*path)
+	_farpokeb(sel, off++, *path++);
+    _farpokeb(sel, off++, 0);
+    _farpokeb(sel, off, 0);		/* an empty command line after it */
+    return sel;
 }
 
 static int stub_seg_init(struct dos_ldr *l, unsigned nimp)
@@ -223,14 +284,31 @@ static char *read_cfg(char *buf)
     return buf[0] ? buf : NULL;
 }
 
+/* second line of RUN286.CFG, if any, turns tracing on */
+static int read_cfg_trace(void)
+{
+    FILE *f = fopen("RUN286.CFG", "r");
+    char buf[128];
+    int n = 0;
+
+    if (!f)
+	return 0;
+    while (fgets(buf, sizeof(buf), f))
+	n++;
+    fclose(f);
+    return n > 1;
+}
+
 static int load_segments(struct dos_ldr *l, const uint8_t *file)
 {
     const struct ne_image *ne = l->ne;
     unsigned long total = 0, off;
     int i;
 
-    for (i = 0; i < ne->cseg; i++)
-	total += (ne->seg[i].minalloc + 15) & ~15UL;
+    /* A 16bit selector cannot reach past 64K, so give every segment that
+     * much room: DosReallocSeg() then only ever moves a limit, and nothing
+     * the program holds a pointer into has to be copied anywhere. */
+    total = (unsigned long)ne->cseg * SEG_STRIDE;
 
     l->mem.size = total;
     if (__dpmi_allocate_memory(&l->mem) == -1) {
@@ -254,7 +332,7 @@ static int load_segments(struct dos_ldr *l, const uint8_t *file)
 	si->size = sg->minalloc;
 	si->lin = l->mem.address + off;
 	si->sel = l->base_sel + i * 8;
-	off += (sg->minalloc + 15) & ~15UL;
+	off += SEG_STRIDE;
 
 	/* everything is a writable data segment while we fill it in */
 	if (__dpmi_set_segment_base_address(si->sel, si->lin) == -1 ||
@@ -326,6 +404,7 @@ int main(int argc, char **argv)
 	return 2;
     }
 
+    l->trace = getenv("RUN286_TRACE") != NULL || read_cfg_trace();
     printf("run286: loading %s\n", path);
     file = slurp(path, &size);
     if (!file) {
@@ -385,8 +464,10 @@ int main(int argc, char **argv)
     fflush(stdout);
     rc = ne_enter(l->seg[entry_seg - 1].sel, ne.csip & 0xffff,
 	    l->seg[ss_seg - 1].sel, sp,
-	    l->seg[ne.autodata - 1].sel, l->seg[ne.autodata - 1].sel);
-    printf("run286: back from the program, rc %d\n", rc);
+	    l->seg[ne.autodata - 1].sel, l->seg[ne.autodata - 1].sel,
+	    env_init(path), l->seg[ne.autodata - 1].size);
+    printf("run286: back from the program after %u API calls, rc %d\n",
+	    l->ncall, rc);
     ne_free(&ne);
     return 0;
 }

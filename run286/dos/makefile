@@ -1,6 +1,6 @@
 # dj64 build of the DOS-side loader. Run `make` here with dj64dev installed.
 VPATH = ..
-SOURCES = dosmain.c neexe.c neload.c thunks_p.c thunks_a.c thunks_c.c
+SOURCES = dosmain.c phapi.c doscalls.c neexe.c neload.c thunks_p.c thunks_a.c thunks_c.c
 AS_SOURCES = gate.S
 TGT = run286
 
