@@ -7,6 +7,14 @@
 #ifndef RUN286_ASM_H
 #define RUN286_ASM_H
 
+/* one stub per interrupt vector the program hooks, with a 16bit stack to
+ * run its handler on, as a 286 extender would have given it */
+#define INT_SLOTS 12
+#define INT_SLOT_SIZE 8
+#define INT_STACK_LEN 0x1000		/* per vector, so they cannot nest
+					 * onto each other */
+#define INT_STACK_SHIFT 12
+
 /* one stub per processor exception, and a stack to report one on */
 #define EXC_SLOTS 0x20
 #define EXC_SLOT_SIZE 8

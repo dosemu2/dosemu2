@@ -718,6 +718,9 @@ int main(int argc, char **argv)
 	trc("run286: no THUNK_16_32x, DOS calls from the program may "
 		"get a stray high half of edx\n");
     hook_exceptions();
+    /* what a handler of the program's would have found in DS and ES had
+     * it interrupted the program rather than us */
+    int_ds = l->seg[ne.autodata - 1].sel;
     trc("run286: entering %04x:%04x, stack %04x:%04x, ds %04x\n",
 	    l->seg[entry_seg - 1].sel, (unsigned)(ne.csip & 0xffff),
 	    l->seg[ss_seg - 1].sel, sp, l->seg[ne.autodata - 1].sel);

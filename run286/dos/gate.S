@@ -150,6 +150,88 @@ _gate_entry:
     lret
 
 /*
+ * One stub per hooked interrupt. The host enters these in our bitness,
+ * on whatever stack was current, which is not what a 16bit handler was
+ * written for: when the interrupt lands while we are in the gate, that
+ * stack is our own 32bit one, and the handler then pushes at ESP far
+ * above any 16bit segment. A 286 extender hands its client a 16bit
+ * stack, so do the same.
+ */
+.global _int_stubs
+_int_stubs:
+.set int_n, 0
+.rept INT_SLOTS
+    pushl $int_n
+    jmp _int_common
+    .balign INT_SLOT_SIZE
+.set int_n, int_n + 1
+.endr
+
+_int_common:
+    pushal
+    pushl %ds
+    pushl %es
+    pushl %fs
+    pushl %gs
+    movl %cs:_gate_ds32, %eax
+    movl %eax, %ds
+    /* the flags the host pushed, which the handler's iret will want */
+    movl 60(%esp), %ebx
+    /* which vector: the stub said so, just under the host's frame */
+    movl 48(%esp), %ecx
+    /* where we are now, to come back to */
+    movl %esp, %edx
+    xorl %eax, %eax
+    movw %ss, %ax
+    /*
+     * A 16bit stack of our own, as the extender would have given it.
+     * Each vector gets its own piece of it: one interrupt arrives while
+     * another's handler runs, and that handler has by then moved to a
+     * stack of its own, so there is no way to tell from SS that ours is
+     * already in use.
+     */
+    movl %ecx, %ebp
+    shll $INT_STACK_SHIFT, %ebp
+    movl _int_stk_esp, %esi
+    subl %ebp, %esi
+    movl _int_stk_ss, %ebp
+    movw %bp, %ss
+    movl %esi, %esp
+    pushl %edx				/* the stack we came from */
+    pushl %eax
+    /* the frame the program's handler will iret from */
+    pushw %bx
+    pushw _int_ret_sel
+    pushw $0
+    /* and the segments it would have seen had it interrupted the
+     * program rather than us */
+    movl _int_ds, %eax
+    movl %eax, %ds
+    movl %eax, %es
+    ljmpw *%cs:_int_target(, %ecx, 4)
+
+/*
+ * Where the program's handler irets to, in a 16bit segment of its own so
+ * that a 16bit iret lands on it. Puts back the stack we came from and
+ * returns to the host.
+ */
+.code16
+.global _int_ret16
+_int_ret16:
+    popl %eax				/* the stack we came from */
+    popl %edx
+    movw %ax, %ss
+    movl %edx, %esp
+    popl %gs
+    popl %fs
+    popl %es
+    popl %ds
+    popal
+    addl $4, %esp			/* the number the stub pushed */
+    iretl
+.code32
+
+/*
  * One stub per exception vector, so the handler knows which one it was.
  * The host enters these as a 32bit DPMI exception handler, with the
  * return address, the error code and the faulting frame on the stack it
@@ -237,6 +319,21 @@ _gate_exc_stk:
 _gate_exc_stk_esp: .long 0
 .global _gate_exc_stk_ss
 _gate_exc_stk_ss: .long 0
+_int_stk:
+.global _int_stk_esp
+_int_stk_esp:	.long 0
+.global _int_stk_ss
+_int_stk_ss:	.long 0
+.global _int_ret_sel
+_int_ret_sel:	.long 0			/* 16bit cs holding _int_ret16 */
+.global _int_ds
+_int_ds:	.long 0			/* the program's own DGROUP */
+.global _int_target
+_int_target:				/* offset, selector, per vector */
+.rept INT_SLOTS
+.word 0
+.word 0
+.endr
 .global _gate_thunk_err
 _gate_thunk_err: .long 0
 _gate_thunk_name: .asciz "THUNK_16_32x"
@@ -252,6 +349,16 @@ _gate_stack:
 .balign 16
 .global _gate_stack_end
 _gate_stack_end:
+
+.balign 16
+.global _int_stack
+_int_stack:
+.rept INT_SLOTS * INT_STACK_LEN
+.byte 0
+.endr
+.balign 16
+.global _int_stack_end
+_int_stack_end:
 
 .balign 16
 .global _exc_stack

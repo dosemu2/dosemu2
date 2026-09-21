@@ -13,6 +13,8 @@
 #include <stdlib.h>
 #include <dpmi.h>
 #include <sys/farptr.h>
+#include <sys/segments.h>
+#include "asm.h"
 #include "run286.h"
 
 /* the error codes these functions return in AX */
@@ -495,102 +497,80 @@ static uint16_t dos_real_far_call(struct call *c)
  * handler. The program's iret lands on a 16bit stub holding nothing but a
  * 66 CF, which is iretd, and that returns the host's own frame.
  */
-#define THUNK_SLOTS	48
-#define THUNK_SLOT_SIZE	32
-#define THUNK_RET_OFF	0		/* the shared 66 CF, before the slots */
-#define THUNK_BASE	THUNK_SLOT_SIZE
+/*
+ * The program's interrupt handlers are 16bit code written for a 286
+ * extender, and the host enters a protected mode handler in our bitness,
+ * on whatever stack was current. When the interrupt lands while we are
+ * inside the gate that is our own 32bit stack, and a handler that pushes
+ * at ESP then writes far outside any segment it knows about. So put our
+ * own stub on the vector: it moves onto a 16bit stack of ours, builds the
+ * iret frame the handler expects, and gives it back the segments it would
+ * have seen had it interrupted the program rather than us.
+ */
+static uint32_t int_saved[INT_SLOTS];
+static unsigned int_used;
 
-static __dpmi_meminfo thunk_mem;
-static uint16_t thunk_code32_sel;	/* what goes on the vector */
-static uint16_t thunk_code16_sel;	/* the stub the program irets to */
-static uint16_t thunk_data_sel;		/* how we write the bytes */
-static uint32_t thunk_target[THUNK_SLOTS];
-static unsigned thunk_used;
-
-static int thunk_init(void)
+static int int_init(void)
 {
     uint16_t sel;
+    unsigned int ds_base;
 
-    if (thunk_code32_sel)
+    if (int_ret_sel)
 	return 0;
-    thunk_mem.size = THUNK_BASE + THUNK_SLOTS * THUNK_SLOT_SIZE;
-    if (__dpmi_allocate_memory(&thunk_mem) == -1)
+    if (__dpmi_get_segment_base_address(_my_ds(), &ds_base) == -1)
 	return -1;
-    sel = __dpmi_allocate_ldt_descriptors(3);
+    sel = __dpmi_allocate_ldt_descriptors(2);
     if (sel == (uint16_t)-1)
 	return -1;
-    if (__dpmi_set_segment_base_address(sel, thunk_mem.address) == -1 ||
-	    __dpmi_set_segment_limit(sel, thunk_mem.size - 1) == -1 ||
-	    __dpmi_set_descriptor_access_rights(sel, AR_CODE32) == -1 ||
-	    __dpmi_set_segment_base_address(sel + 8, thunk_mem.address) == -1 ||
-	    __dpmi_set_segment_limit(sel + 8, thunk_mem.size - 1) == -1 ||
-	    __dpmi_set_descriptor_access_rights(sel + 8, AR_CODE16) == -1 ||
-	    __dpmi_set_segment_base_address(sel + 16, thunk_mem.address) == -1 ||
-	    __dpmi_set_segment_limit(sel + 16, thunk_mem.size - 1) == -1 ||
-	    __dpmi_set_descriptor_access_rights(sel + 16, AR_DATA16) == -1)
+    if (__dpmi_set_segment_base_address(sel, ds_base + int_stack) == -1 ||
+	    __dpmi_set_segment_limit(sel,
+		INT_SLOTS * INT_STACK_LEN - 1) == -1 ||
+	    __dpmi_set_descriptor_access_rights(sel, AR_DATA16) == -1 ||
+	    __dpmi_set_segment_base_address(sel + 8, ds_base + int_ret16) == -1 ||
+	    __dpmi_set_segment_limit(sel + 8, 0xfff) == -1 ||
+	    __dpmi_set_descriptor_access_rights(sel + 8, AR_CODE16) == -1)
 	return -1;
-    thunk_code32_sel = sel;
-    thunk_code16_sel = sel + 8;
-    thunk_data_sel = sel + 16;
-    _farpokeb(thunk_data_sel, THUNK_RET_OFF, 0x66);	/* iretd */
-    _farpokeb(thunk_data_sel, THUNK_RET_OFF + 1, 0xcf);
+    int_stk_ss = sel;
+    int_stk_esp = INT_SLOTS * INT_STACK_LEN;
+    int_ret_sel = sel + 8;
     if (run286_trace)
-	trc("run286: thunks at %#lx, %u bytes, sel %04x/%04x/%04x\n",
-		(unsigned long)thunk_mem.address, thunk_mem.size,
-		thunk_code32_sel, thunk_code16_sel, thunk_data_sel);
+	trc("run286: handler stack %04x, return stub %04x:0\n", sel, sel + 8);
     return 0;
 }
 
 /*
- * Give back the address to put on the vector, or the handler itself if we
- * cannot build a thunk: better a handler that may not return than none.
+ * Put our stub on the vector in *pm, or the program's handler itself if
+ * we cannot build one: better a handler that may not return than none.
+ * The stub lives in our own 32bit segment, so its offset does not fit in
+ * the 16:16 form the program's arguments use and the address has to be
+ * carried whole.
  */
-static uint32_t thunk_for(uint32_t protfn)
+static void thunk_for(__dpmi_paddr *pm, uint32_t protfn)
 {
-    unsigned i, off;
+    unsigned i;
 
-    if (thunk_init() != 0)
-	return protfn;
-    for (i = 0; i < thunk_used; i++) {
-	if (thunk_target[i] == protfn)
-	    return ((uint32_t)thunk_code32_sel << 16) |
-		    (THUNK_BASE + i * THUNK_SLOT_SIZE);
+    pm->selector = protfn >> 16;
+    pm->offset32 = protfn & 0xffff;
+    if (int_init() != 0)
+	return;
+    for (i = 0; i < int_used; i++) {
+	if (int_saved[i] == protfn)
+	    break;
     }
-    if (thunk_used == THUNK_SLOTS)
-	return protfn;
-    i = thunk_used++;
-    thunk_target[i] = protfn;
-    off = THUNK_BASE + i * THUNK_SLOT_SIZE;
-
-    /* pushw 8(%esp) - the low half of the eflags the host pushed */
-    _farpokeb(thunk_data_sel, off++, 0x66);
-    _farpokeb(thunk_data_sel, off++, 0xff);
-    _farpokeb(thunk_data_sel, off++, 0x74);
-    _farpokeb(thunk_data_sel, off++, 0x24);
-    _farpokeb(thunk_data_sel, off++, 0x08);
-    /* pushw $thunk_code16_sel - the cs the program irets to */
-    _farpokeb(thunk_data_sel, off++, 0x66);
-    _farpokeb(thunk_data_sel, off++, 0x68);
-    _farpokew(thunk_data_sel, off, thunk_code16_sel);
-    off += 2;
-    /* pushw $THUNK_RET_OFF - and the ip */
-    _farpokeb(thunk_data_sel, off++, 0x66);
-    _farpokeb(thunk_data_sel, off++, 0x68);
-    _farpokew(thunk_data_sel, off, THUNK_RET_OFF);
-    off += 2;
-    if (run286_trace)
-	trc("run286:   thunk %u at %04x:%04x -> %04x:%04x\n", i,
-		thunk_code32_sel, THUNK_BASE + i * THUNK_SLOT_SIZE,
-		(uint16_t)(protfn >> 16), (uint16_t)protfn);
-    /* ljmpw $sel:$off - into the program's handler */
-    _farpokeb(thunk_data_sel, off++, 0x66);
-    _farpokeb(thunk_data_sel, off++, 0xea);
-    _farpokew(thunk_data_sel, off, protfn & 0xffff);
-    off += 2;
-    _farpokew(thunk_data_sel, off, protfn >> 16);
-
-    return ((uint32_t)thunk_code32_sel << 16) |
-	    (THUNK_BASE + i * THUNK_SLOT_SIZE);
+    if (i == int_used) {
+	if (int_used == INT_SLOTS)
+	    return;
+	int_used++;
+	int_saved[i] = protfn;
+	int_target[i * 2] = protfn & 0xffff;
+	int_target[i * 2 + 1] = protfn >> 16;
+	if (run286_trace)
+	    trc("run286:   vector stub %u at %04x:%08x -> %04x:%04x\n", i,
+		    (uint16_t)gate_cs32, int_stubs + i * INT_SLOT_SIZE,
+		    (uint16_t)(protfn >> 16), (uint16_t)protfn);
+    }
+    pm->selector = gate_cs32;
+    pm->offset32 = int_stubs + i * INT_SLOT_SIZE;
 }
 
 static uint16_t dos_set_pass_to_prot_vec(struct call *c)
@@ -607,9 +587,7 @@ static uint16_t dos_set_pass_to_prot_vec(struct call *c)
 	return ERROR_INVALID_PARAMETER;
     call_setd(oldprotp, ((uint32_t)pm.selector << 16) | (pm.offset32 & 0xffff));
     call_setd(oldrealp, ((uint32_t)rm.segment << 16) | rm.offset16);
-    protfn = thunk_for(protfn);
-    pm.selector = protfn >> 16;
-    pm.offset32 = protfn & 0xffff;
+    thunk_for(&pm, protfn);
     if (__dpmi_set_protected_mode_interrupt_vector(intno, &pm) == -1)
 	return ERROR_INVALID_PARAMETER;
     return 0;
@@ -640,9 +618,7 @@ static uint16_t dos_set_real_prot_vec(struct call *c)
 	return ERROR_INVALID_PARAMETER;
     call_setd(oldprotp, ((uint32_t)pm.selector << 16) | (pm.offset32 & 0xffff));
     call_setd(oldrealp, ((uint32_t)rm.segment << 16) | rm.offset16);
-    protfn = thunk_for(protfn);
-    pm.selector = protfn >> 16;
-    pm.offset32 = protfn & 0xffff;
+    thunk_for(&pm, protfn);
     rm.segment = realfn >> 16;
     rm.offset16 = realfn & 0xffff;
     if (__dpmi_set_protected_mode_interrupt_vector(intno, &pm) == -1 ||

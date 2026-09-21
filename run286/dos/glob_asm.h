@@ -17,5 +17,14 @@ __ASM(unsigned, gate_exc_ss) SEMIC		/* stack the exception came on */
 __ASM(unsigned, gate_exc_esp) SEMIC
 __ASM(unsigned, gate_exc_stk_esp) SEMIC		/* our exception stack */
 __ASM(unsigned, gate_exc_stk_ss) SEMIC
+__ASM(unsigned, int_stk_esp) SEMIC		/* the handlers' 16bit stack */
+__ASM(unsigned, int_stk_ss) SEMIC
+__ASM(unsigned, int_ret_sel) SEMIC		/* 16bit cs holding int_ret16 */
+__ASM(unsigned, int_ds) SEMIC			/* the program's own DGROUP */
+__ASM_ARR(uint16_t, int_target, 32) SEMIC	/* INT_SLOTS pairs */
+__ASM_FUNC(int_stubs) SEMIC			/* one entry per hooked vector */
+__ASM_FUNC(int_ret16) SEMIC
+__ASM_FUNC(int_stack) SEMIC
+__ASM_FUNC(int_stack_end) SEMIC
 __ASM_FUNC(exc_stubs) SEMIC			/* one entry per exception */
 __ASM_FUNC(exc_stack_end) SEMIC
