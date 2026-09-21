@@ -143,10 +143,14 @@
 #define XMS_SIZE ((unsigned)(config.xms_size << 10))
 /* Physical pages handed out by VCPI AX=DE06h.  They sit right below the XMS
  * window so that they stay under the 16M the ISA DMA controller can reach;
- * without $_vcpi = (on) the window is empty and the layout is unchanged. */
-#define VCPI_POOL_PAGES 16	/* EMS pages of 16K */
-#define VCPI_POOL_SIZE ((unsigned)(config.vcpi && config.ems_size ? \
-    VCPI_POOL_PAGES * (16 * 1024) : 0))
+ * without $_vcpi = (on) the window is empty and the layout is unchanged.
+ *
+ * The pool is as large as EMS itself.  A VCPI manager that installs itself
+ * over dosemu2 - JEMM does - asks for the physical address of every page of
+ * its own handle rather than of a DMA buffer alone, so a client can end up
+ * pinning all of EMS, and a pool that is a fixed fraction of it always runs
+ * out somewhere in the middle of the install. */
+#define VCPI_POOL_SIZE ((unsigned)(config.vcpi ? (config.ems_size << 10) : 0))
 /* ext mem is counted from 1M and the HMA is its first 64K, so it ends at
  * LOWMEM_SIZE + EXTMEM_SIZE, and the pool starts there */
 #define vcpi_pool_base (LOWMEM_SIZE + EXTMEM_SIZE)
