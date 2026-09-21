@@ -63,7 +63,10 @@ start:
 	lea ecx, [edx + 1000h]	; the page the signature goes in
 	or ecx, 7
 	mov [es:8], ecx		; and 00402000 is table entry 2
-	mov dword [es:0Ch], 200007h	; 00403000 lands in extended memory
+	mov dword [es:10h], 200007h	; 00404000 lands in extended memory
+				; entry 3 stays absent, so 00403000 is a hole
+				; an instruction at the end of 00402000 can
+				; run into
 
 	mov ax, bp
 	add ax, 200h
@@ -73,6 +76,11 @@ start:
 	mov cx, siglen
 	rep movsb
 
+	; a three byte instruction whose last byte is on the next page,
+	; which the tables say is not there
+	mov word [es:0FFEh], 458Bh
+	mov byte [es:1000h], 08h
+
 	int3			; the debugger takes over here
 
 	mov dx, msg
@@ -80,7 +88,10 @@ start:
 	int 21h
 	mov ax, 4C00h
 	int 21h
-sig:	db "PAGEDOK!"
+	; 48 is 'dec eax' in 32bit code, not a REX.W prefix, and the two
+	; that follow must name 32bit registers
+sig:	db 48h, 8Bh, 03h, 8Bh, 45h, 08h
+	db "PAGEDOK!"
 siglen	equ $ - sig
 msg:	db "PAGED OK",13,10,'$'
 """
@@ -442,13 +453,14 @@ class OurTestCase(BaseTestCase):
             out.append("miss=" + self.dbgCmd("pgt 800000"))
             self.dbgCmd("mode 1")
             out.append("dump=" + self.dbgCmd("d 402000 16"))
-            out.append("dis=" + self.dbgCmd("u 402000 4"))
+            out.append("dis=" + self.dbgCmd("u 402000 6"))
+            out.append("split=" + self.dbgCmd("u 402ffe 4"))
             # a page the table says nothing about, and a page directory
             # that points off the end of memory, must be reported and not
             # followed
             out.append("hole=" + self.dbgCmd("d 401000 16"))
             # a page above the first megabyte is memory dosemu maps too
-            out.append("high=" + self.dbgCmd("d 403000 16"))
+            out.append("high=" + self.dbgCmd("d 404000 16"))
             out.append("wild=" + self.dbgCmd("pgt 402000 fff00000"))
             out.append("off=" + self.dbgCmd("pgdir off"))
             return " || ".join(out)
@@ -471,11 +483,17 @@ class OurTestCase(BaseTestCase):
         dump = results.split("dump=")[1].split(" || ")[0]
         self.assertIn("50 41 47 45 44 4F 4B 21", dump)
 
-        # 'u' reads through the tables too: 50 41 47 45 is push ax, inc cx,
-        # inc di, inc bp
+        # 'u' reads through the tables too, and the code is the client's,
+        # so 48 is 'dec eax' and the operands name 32bit registers
         dis = results.split("dis=")[1].split(" || ")[0]
-        self.assertRegex(dis, r"(?i)00402000: 50\s+push", dis)
-        self.assertRegex(dis, r"(?i)00402003: 45\s+inc", dis)
+        self.assertRegex(dis, r"(?i)00402000: 48\s+dec\s+eax", dis)
+        self.assertRegex(dis, r"(?i)00402001: 8B03\s+mov\s+eax,\[ebx\]", dis)
+        self.assertRegex(dis, r"(?i)00402003: 8B4508\s+mov\s+eax,\[ebp\+0*8\]",
+                         dis)
+
+        # an instruction whose tail is on a page the tables do not have
+        split = results.split("split=")[1].split(" || ")[0]
+        self.assertIn("runs into an unmapped page", split)
 
         hole = results.split("hole=")[1].split(" || ")[0]
         self.assertRegex(hole, r"(-- ){16}", hole)

@@ -380,8 +380,9 @@ prefixing  a `0'.
 		  page tables themselves are read with the same care, so a
 		  directory that points into nowhere is reported rather than
 		  followed. Only <emphasis>u</emphasis> and
-		  <emphasis>d</emphasis> translate: breakpoints and the
-		  register dumps are unaffected.
+		  <emphasis>d</emphasis> translate: <emphasis>m</emphasis>
+		  still writes at the physical address it is given, and
+		  breakpoints and the register dumps are unaffected too.
 </para>
 </listitem></varlistentry>
 <varlistentry>

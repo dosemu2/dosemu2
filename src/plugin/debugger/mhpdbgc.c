@@ -972,7 +972,7 @@ static int phys_to_dosaddr(unsigned pa, int len, dosaddr_t *va)
 
   if (pa + len < pa)            /* a table entry can name the very top */
     return 0;
-  v = get_hardware_ram(pa, len);
+  v = physaddr_to_dosaddr(pa, len);
   if (v == (dosaddr_t)-1 || v + len > main_pool.size)
     return 0;
   *va = v;
@@ -1054,14 +1054,16 @@ static void mhp_pgdir(int argc, char *argv[])
     mhp_printf("no page directory, 'u' and 'd' take addresses as physical\n");
 }
 
-static void print_pgent(const char *name, unsigned int ent)
+/* the CPU keeps no dirty bit in a directory entry that names a page table,
+ * so whatever bit 6 holds there says nothing */
+static void print_pgent(const char *name, unsigned int ent, int has_dirty)
 {
   mhp_printf("  %s %08x  %s %s %s%s%s\n", name, ent,
              ent & PG_P ? "present" : "not present",
              ent & PG_RW ? "rw" : "ro",
              ent & PG_US ? "user" : "supervisor",
              ent & PG_A ? " accessed" : "",
-             ent & PG_D ? " dirty" : "");
+             has_dirty && (ent & PG_D) ? " dirty" : "");
 }
 
 static void mhp_pgtrans(int argc, char *argv[])
@@ -1095,15 +1097,16 @@ static void mhp_pgtrans(int argc, char *argv[])
   ok = pgdir_walk(lin, &phys, &pde, &pte, &why);
   mhp_printf("\nlinear %08x through page directory %08x\n", lin, pgdir_base);
   if (pde)
-    print_pgent("PDE", pde);
+    print_pgent("PDE", pde, !!(pde & PG_PS));
   if (pte)
-    print_pgent("PTE", pte);
+    print_pgent("PTE", pte, 1);
   if (!ok) {
     mhp_printf("  %s\n", why);
     return;
   }
   if (pde & PG_PS)
-    mhp_printf("  4M page\n");
+    mhp_printf("  4M page, if the client set CR4.PSE - without it the CPU\n"
+               "  ignores this bit and the address is not what is shown\n");
   if (!phys_to_dosaddr(phys, 1, &va)) {
     mhp_printf("  physical %08x, which is not memory dosemu can read\n",
                phys);
@@ -1194,8 +1197,8 @@ static void mhp_dump(int argc, char *argv[])
           c = UNIX_READ_BYTE((uintptr_t)buf + i2);
         else
           c = mhp_peek(buf + i2, xlat);
-        if (c < 0) {
-          mhp_printf("%c", ' ');
+        if (c < 0) {       /* a space here would read as a real one */
+          mhp_printf("%c", '-');
           continue;
         }
         c &= 0x7F;
@@ -1849,7 +1852,7 @@ static void mhp_disasm(int argc, char *argv[])
   unsigned int limit;
   int segmented = (linmode == 0);
   int xlat;
-  unsigned char pgbuf[16];
+  unsigned char pgbuf[16 + 16];	/* what is decoded, plus a tail to stop in */
   const char *s;
 
   if (argc > 1) {
@@ -1898,7 +1901,7 @@ static void mhp_disasm(int argc, char *argv[])
   if (linmode == 2) {
     if (seg != 0 || limit != 0xFFFFFFFF)
       seekval += (uintptr_t)mem_base;
-    def_size |= 4;
+    def_size |= 4 | 8;		/* dosemu's own code, so x86-64 */
   }
   xlat = pgdir_on && !(def_size & 4);
   rc = 0;
@@ -1919,7 +1922,7 @@ static void mhp_disasm(int argc, char *argv[])
 
       /* the pages behind two halves of one instruction need not be next
        * to each other, so decode out of a buffer we gathered ourselves */
-      for (got = 0; got < (int)sizeof(pgbuf); got++) {
+      for (got = 0; got < 16; got++) {
         int b = mhp_peek(buf + bytesdone + got, 1);
 
         if (b < 0)
@@ -1930,6 +1933,8 @@ static void mhp_disasm(int argc, char *argv[])
         mhp_printf("%08x: <not mapped>\n", seekval + bytesdone);
         break;
       }
+      /* dis8086 does not take a length, and a run of prefixes walks it on
+       * byte by byte, so leave it a tail of zeroes to stop in */
       memset(pgbuf + got, 0, sizeof(pgbuf) - got);
       rc = dis_8086((uintptr_t)pgbuf, frmtbuf, def_size | 4, &ref,
                     (uintptr_t)pgbuf - (off + bytesdone));
