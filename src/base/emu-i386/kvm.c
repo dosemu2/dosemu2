@@ -187,11 +187,13 @@ static struct monitor {
     Descriptor ldt[LDT_ENTRIES];             /* 404000 */
     unsigned char code[256 * 32 + PAGE_SIZE];         /* 414000 */
     /* 414000 IDT exception 0 code start
-       414010 IDT exception 1 code start
+       414020 IDT exception 1 code start
        .... ....
-       414ff0 IDT exception 0xff code start
-       415000 IDT common code start
-       415024 IDT common code end
+       415fe0 IDT exception 0xff code start
+       416000 IDT common code start
+       416013 IDT common code hlt
+       41602e VCPI mode switch stub start
+       416112 code end
     */
     unsigned char vcpi_data[PAGE_SIZE];
     unsigned char kvm_tss[3*PAGE_SIZE];
