@@ -1282,10 +1282,9 @@ int Fp87_illegal_op(int exop, int reg)
 		break;
 
 //	5E	DE 11011nnn	5E.1 = FCOMPP, others undefined
+	case 0x5e:
 		if (reg==1) goto fp_ok;
 		break;
-
-	case 0x5e:
 
 //	61	D9 11100nnn     0,1,4,5 valid, others undefined
 	case 0x61:
