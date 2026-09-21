@@ -72,6 +72,10 @@
 #include "spice_SDL.h"
 
 #define SPICE_DEFAULT_PORT 5930
+/* The size the display channel is published at before the guest has drawn
+ * anything.  The first frame replaces it, usually within a few ms. */
+#define SPICE_INIT_WIDTH 720
+#define SPICE_INIT_HEIGHT 400
 
 static SDLSpice_Server *server;
 static SDLSpice_Display *display;
@@ -502,6 +506,15 @@ int spice_sdl_init(void)
         warn("spice: no audio channel, continuing without sound\n");
 
     spice_on = 1;
+
+    /* Publish the display channel before anyone can link.  Spice sends the
+     * channel list once, when a client links, and never mentions a channel
+     * that appeared afterwards, so a viewer started alongside dosemu2 --
+     * which is the normal way to start one -- would get a session with no
+     * display in it and stay blank until it reconnected. */
+    spice_sdl_set_size(SPICE_INIT_WIDTH, SPICE_INIT_HEIGHT,
+                       SDL_PIXELFORMAT_XRGB8888);
+
     c_printf("SPICE: listening on %s:%d\n", cfg.addr ?: "*", cfg.port);
     return 1;
 }
