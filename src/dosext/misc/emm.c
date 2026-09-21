@@ -63,6 +63,7 @@
 #include "hlt.h"
 #include "pic.h"
 #include "kvm.h"
+#include "coopth.h"
 
 #define Addr_8086(x,y)  MK_FP32((x),(y) & 0xffff)
 #define Addr(s,x,y)     Addr_8086(((s)->x), ((s)->y))
@@ -2123,6 +2124,13 @@ static void vcpi_interface(struct vm86_regs *state)
     E_printf("VCPI: switch to PM, client cs:eip=%04x:%08x, cr3=%08x\n",
 	     READ_WORD(state->esi + 0x14), READ_DWORD(state->esi + 0x10),
 	     READ_DWORD(state->esi));
+    /* DE0Ch is one-way: the client does not come back to the instruction
+       after its "int 67h", it continues in protected mode and returns to
+       v86 wherever it likes, through the protected-mode DE0Ch.  So the
+       int 67h thread has to be let go of here, or it sits attached to a
+       v86 return that never happens and the next DE0Ch stacks another one
+       on top of it, five deep and out of recursion depth. */
+    coopth_leave();
     /* Does not return here: the monitor jumps to the client's entry point
        and we are next called when it comes back through AX=DE0Ch. */
     kvm_vcpi_pm_switch(state->esi);
