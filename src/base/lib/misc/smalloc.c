@@ -245,25 +245,55 @@ static struct memnode *find_mn_at(struct mempool *mp, dosaddr_t ptr)
   return NULL;
 }
 
-static struct memnode *smfind_free_area(struct mempool *mp, size_t size)
+/* how far into an area its first aligned address lies; align is a mask */
+static size_t align_delta(dosaddr_t addr, size_t align)
+{
+  return ((addr | align) - addr + 1) & align;
+}
+
+/*
+ * What an aligned allocation needs of an area is size bytes from the
+ * first aligned address in it, which is size + align only where the
+ * area begins unaligned. Asking every area for size + align turns down
+ * one that begins aligned and is exactly the right size: the pool then
+ * reports free space that no aligned request can ever reach, and a
+ * program that sized its request by that number is told there is no
+ * memory. Measure each area by what it can really give.
+ */
+static struct memnode *smfind_free_area(struct mempool *mp, size_t align,
+    size_t size)
 {
   struct memnode *mn;
   for (mn = &mp->mn; mn; mn = mn->next) {
-    if (!mn->used && mn->size >= size)
+    if (!mn->used && mn->size >= size + align_delta(mn->mem_area, align))
       return mn;
   }
   return NULL;
 }
 
+/*
+ * The top down form puts the block at the end of the area rather than
+ * the start, so what it needs is that the aligned address it would pick
+ * still lies inside: the same question as above asked from the other
+ * end, and the same answer it was not getting.
+ */
 static struct memnode *smfind_free_area_topdown(struct mempool *mp,
-    dosaddr_t top, size_t size)
+    dosaddr_t top, size_t align, size_t size)
 {
   struct memnode *mn;
   struct memnode *mn1 = NULL;
   for (mn = &mp->mn; mn; mn = mn->next) {
+    dosaddr_t min_top;
     if (top != (dosaddr_t)-1 && mn->mem_area + size > top)
       break;
-    if (!mn->used && mn->size >= size)
+    if (mn->used || mn->size < size)
+      continue;
+    min_top = mn->mem_area + mn->size;
+    if (top != (dosaddr_t)-1)
+      min_top = _min(min_top, top);
+    if (min_top < size)
+      continue;
+    if (((min_top - size) & ~align) >= mn->mem_area)
       mn1 = mn;
   }
   return mn1;
@@ -321,14 +351,14 @@ static struct memnode *sm_alloc_aligned(struct mempool *mp, size_t align,
   /* power of 2 align */
   assert(__builtin_popcount(align) == 1);
   align--;
-  if (!(mn = smfind_free_area(mp, size + align))) {
-    do_smerror(oom_pr(mp, size + align), mp,
+  if (!(mn = smfind_free_area(mp, align, size))) {
+    do_smerror(oom_pr(mp, size), mp,
 	    "SMALLOC: Out Of Memory on alloc, requested=%zu\n", size);
     return NULL;
   }
   /* insert small node to align the start */
   iptr = mn->mem_area;
-  delta = ((iptr | align) - iptr + 1) & align;
+  delta = align_delta(iptr, align);
   if (delta) {
     mntruncate(mn, delta);
     mn = mn->next;
@@ -364,8 +394,8 @@ static struct memnode *sm_alloc_aligned_topdown(struct mempool *mp,
   /* power of 2 align */
   assert(__builtin_popcount(align) == 1);
   align--;
-  if (!(mn = smfind_free_area_topdown(mp, top, size + align))) {
-    do_smerror(oom_pr(mp, size + align), mp,
+  if (!(mn = smfind_free_area_topdown(mp, top, align, size))) {
+    do_smerror(oom_pr(mp, size), mp,
 	    "SMALLOC: Out Of Memory on alloc, requested=%zu\n", size);
     return NULL;
   }
