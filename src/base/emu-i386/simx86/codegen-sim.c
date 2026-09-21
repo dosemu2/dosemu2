@@ -63,6 +63,7 @@
 #include <stdarg.h>
 #include <string.h>
 #include "port.h"
+#include "timers.h"
 #include "emu86.h"
 #include "dos2linux.h"
 #include "vgaemu.h"
@@ -2615,20 +2616,13 @@ static unsigned int Gen_sim(IGen *IG, unsigned int *pmem_ref)
 		SET_CF(cy);
 		} break;
 
-	case O_RDTSC: {		// don't trust this one
-#if 0
-		hitimer_u t0, t1;
+	case O_RDTSC: {
+		hitimer_u t;
 		GTRACE0("O_RDTSC");
-		t0.td = GETTSC();
-		if (eTimeCorrect >= 0) {
-			t1.td = t0.td - TheCPU.EMUtime;
-			TheCPU.EMUtime = t1.td;
-		}
-		CPULONG(Ofs_EAX) = t0.t.tl;
-		CPULONG(Ofs_EDX) = t0.t.th;
-#else
-		error("rdtsc not implemented\n");
-#endif
+		/* the host counter, as the jit hands the client */
+		t.td = GETTSC();
+		CPULONG(Ofs_EAX) = t.t.tl;
+		CPULONG(Ofs_EDX) = t.t.th;
 		}
 		break;
 
