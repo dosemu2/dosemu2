@@ -228,6 +228,7 @@ typedef struct {
 //
 extern unsigned char e_ofsseg(int ofs);
 //
+int call_gate(unsigned int *selp, unsigned int *eipp, int *modep);
 int SetSegProt_check(int ofs, unsigned long sel);
 void SetSegProt_set(int ofs, unsigned long sel);
 void SetSegProt(int ofs, unsigned long sel);

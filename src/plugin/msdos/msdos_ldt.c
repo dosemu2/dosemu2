@@ -393,6 +393,13 @@ static void direct_ldt_write(cpuctx_t *scp, int offset,
   D_printf("\n");
   if (lp[5] & 0x10) {
     SetDescriptor(selector, (unsigned int *)lp);
+  } else if ((lp[5] & 0x97) == 0x84 && !SetGateDescriptor(selector, lp)) {
+    /* A call gate is a descriptor with S=0 that is neither a free list
+     * entry nor rubbish: the client means it, and a 286|DOS-Extender puts
+     * the entry points of its library in such gates. Keeping it costs
+     * nothing where the cpu is emulated; where it is not, the branch below
+     * still stores the entry as not-present, as before. */
+    D_printf("DPMI: call gate kept at %#x\n", selector);
   } else {
     u_char lp1[LDT_ENTRY_SIZE];
     D_printf("DPMI: Invalid descriptor, freeing\n");

@@ -240,6 +240,10 @@ extern int SpecPrejits;
 #define CBW		0x98u
 #define CWD		0x99u
 #define CALLl		0x9au
+/* not an x86 opcode: a second Sim_helper step after a protected mode far
+ * call, so that a call gate can name the entry point the instruction does
+ * not carry. Kept out of the one-byte and two-byte opcode ranges. */
+#define CALLl_GATE	0x1000u
 #define oWAIT		0x9bu
 #define PUSHF		0x9cu
 #define POPF		0x9du
