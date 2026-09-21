@@ -534,6 +534,10 @@ static int thunk_init(void)
     thunk_data_sel = sel + 16;
     _farpokeb(thunk_data_sel, THUNK_RET_OFF, 0x66);	/* iretd */
     _farpokeb(thunk_data_sel, THUNK_RET_OFF + 1, 0xcf);
+    if (run286_trace)
+	trc("run286: thunks at %#lx, %u bytes, sel %04x/%04x/%04x\n",
+		(unsigned long)thunk_mem.address, thunk_mem.size,
+		thunk_code32_sel, thunk_code16_sel, thunk_data_sel);
     return 0;
 }
 
@@ -574,6 +578,10 @@ static uint32_t thunk_for(uint32_t protfn)
     _farpokeb(thunk_data_sel, off++, 0x68);
     _farpokew(thunk_data_sel, off, THUNK_RET_OFF);
     off += 2;
+    if (run286_trace)
+	trc("run286:   thunk %u at %04x:%04x -> %04x:%04x\n", i,
+		thunk_code32_sel, THUNK_BASE + i * THUNK_SLOT_SIZE,
+		(uint16_t)(protfn >> 16), (uint16_t)protfn);
     /* ljmpw $sel:$off - into the program's handler */
     _farpokeb(thunk_data_sel, off++, 0x66);
     _farpokeb(thunk_data_sel, off++, 0xea);

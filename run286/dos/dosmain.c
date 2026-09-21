@@ -201,6 +201,70 @@ static void report_trap(struct call *c, int exception)
     }
 }
 
+/*
+ * Take the processor exceptions the program has not asked for. Without
+ * this the host reflects them to whatever dj64 put there, which quietly
+ * ends the process: the program disappears mid-frame with nothing said.
+ * The ones a program hooks itself are left alone, and so are the two the
+ * loader needs for itself.
+ */
+static void hook_exceptions(void)
+{
+    unsigned i;
+
+    for (i = 0; i < EXC_SLOTS; i++) {
+	__dpmi_paddr pm;
+
+	if (i == 1 || i == 3)		/* the debugger's own */
+	    continue;
+	if (__dpmi_get_processor_exception_handler_vector(i, &pm) == -1)
+	    continue;
+	pm.selector = gate_cs32;
+	pm.offset32 = exc_stubs + i * EXC_SLOT_SIZE;
+	__dpmi_set_processor_exception_handler_vector(i, &pm);
+    }
+}
+
+/*
+ * Called from _exc_common with our own stack under us. gate_exc_ss:esp
+ * points at the two registers the stub saved, then the number it pushed,
+ * then what the host put there: the address to return to, the error code
+ * and the frame that faulted.
+ */
+void ASMCFUNC run286_exception(void)
+{
+    unsigned ss = gate_exc_ss;
+    unsigned sp = gate_exc_esp;
+    unsigned n = _farpeekl(ss, sp + 32);
+    unsigned err = _farpeekl(ss, sp + 44);
+    unsigned eip = _farpeekl(ss, sp + 48);
+    unsigned cs = _farpeekl(ss, sp + 52);
+    unsigned fl = _farpeekl(ss, sp + 56);
+    unsigned esp = _farpeekl(ss, sp + 60);
+    unsigned fss = _farpeekl(ss, sp + 64);
+    char code[48];
+    char *p = code;
+    unsigned i;
+
+    trc("run286: exception %#x at %04x:%08x, error %#x, flags %#x\n",
+	    n, (uint16_t)cs, eip, err, fl);
+    trc("run286:   its stack %04x:%08x, ours %04x:%08x, calls served %u\n",
+	    (uint16_t)fss, esp, (uint16_t)ss, sp, ldr.ncall);
+    /* pushal order, from the lowest address up */
+    trc("run286:   edi %08x esi %08x ebp %08x ebx %08x\n",
+	    _farpeekl(ss, sp), _farpeekl(ss, sp + 4), _farpeekl(ss, sp + 8),
+	    _farpeekl(ss, sp + 16));
+    trc("run286:   edx %08x ecx %08x eax %08x\n", _farpeekl(ss, sp + 20),
+	    _farpeekl(ss, sp + 24), _farpeekl(ss, sp + 28));
+    for (i = 0; i < 12; i++)
+	p += sprintf(p, "%02x ", _farpeekb(cs, eip + i));
+    trc("run286:   code at the fault: %s\n", code);
+    for (i = 0, p = code; i < 8; i++)
+	p += sprintf(p, "%04x ", _farpeekw(fss, esp + i * 2));
+    trc("run286:   its stack holds: %s\n", code);
+    gate_exit_code = 1;
+}
+
 /* Called from gate_entry once the program enters a stub. Returns nonzero to
  * unwind ne_enter() instead of resuming the program. */
 int ASMCFUNC run286_import(void)
@@ -327,6 +391,8 @@ static int stub_seg_init(struct dos_ldr *l, unsigned nimp)
     gate_ds32 = _my_ds();
     gate_stk_ss = _my_ds();
     gate_stk_esp = gate_stack_end;
+    gate_exc_stk_ss = _my_ds();
+    gate_exc_stk_esp = exc_stack_end;
     h.selector = _my_cs();
     h.offset32 = gate_entry;
     if (__dpmi_set_protected_mode_interrupt_vector(GATE_INT, &h) == -1) {
@@ -626,6 +692,7 @@ int main(int argc, char **argv)
     if (gate_thunk_err)
 	trc("run286: no THUNK_16_32x, DOS calls from the program may "
 		"get a stray high half of edx\n");
+    hook_exceptions();
     trc("run286: entering %04x:%04x, stack %04x:%04x, ds %04x\n",
 	    l->seg[entry_seg - 1].sel, (unsigned)(ne.csip & 0xffff),
 	    l->seg[ss_seg - 1].sel, sp, l->seg[ne.autodata - 1].sel);

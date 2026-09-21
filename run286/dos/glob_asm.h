@@ -12,3 +12,10 @@ __ASM_ARR(uint16_t, gate_idt, 4) SEMIC		/* sidt output */
 __ASM(unsigned, gate_ldt_sel) SEMIC		/* sldt output */
 __ASM(unsigned, gate_ldt_alias) SEMIC		/* int 2Fh AX=1688h */
 __ASM(unsigned, gate_thunk_err) SEMIC		/* THUNK_16_32x refused? */
+__ASM(unsigned, gate_cs32) SEMIC		/* our own 32bit CS */
+__ASM(unsigned, gate_exc_ss) SEMIC		/* stack the exception came on */
+__ASM(unsigned, gate_exc_esp) SEMIC
+__ASM(unsigned, gate_exc_stk_esp) SEMIC		/* our exception stack */
+__ASM(unsigned, gate_exc_stk_ss) SEMIC
+__ASM_FUNC(exc_stubs) SEMIC			/* one entry per exception */
+__ASM_FUNC(exc_stack_end) SEMIC

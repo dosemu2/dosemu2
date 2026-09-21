@@ -7,6 +7,11 @@
 #ifndef RUN286_ASM_H
 #define RUN286_ASM_H
 
+/* one stub per processor exception, and a stack to report one on */
+#define EXC_SLOTS 0x20
+#define EXC_SLOT_SIZE 8
+#define EXC_STACK_LEN 0x2000
+
 #ifndef __ASSEMBLER__
 #ifdef DJ64
 #include <dj64/asm_inc.h>
@@ -25,6 +30,10 @@ int ASMFUNC ne_enter(int cs, int ip, int ss, int sp, int ds, int es, int ax, int
 /* Called from the int 0x66 handler when the program calls an import. The
  * index is in run286_import_idx; a nonzero return unwinds ne_enter(). */
 int ASMCFUNC run286_import(void);
+
+/* Called from _exc_common when the program, or we, take a processor
+ * exception. Says what happened and does not come back. */
+void ASMCFUNC run286_exception(void);
 
 #else
 

@@ -68,6 +68,9 @@ _desc_probe:
     sgdt _gate_gdt
     sidt _gate_idt
     sldt _gate_ldt_sel
+    xorl %eax, %eax
+    movw %cs, %ax
+    movl %eax, _gate_cs32
     movl $0x1688, %eax
     xorl %ebx, %ebx
     int $0x2f
@@ -146,6 +149,43 @@ _gate_entry:
     popl %ebp
     lret
 
+/*
+ * One stub per exception vector, so the handler knows which one it was.
+ * The host enters these as a 32bit DPMI exception handler, with the
+ * return address, the error code and the faulting frame on the stack it
+ * chose; we do not return, we report and unwind ne_enter().
+ */
+.global _exc_stubs
+_exc_stubs:
+.set exc_n, 0
+.rept EXC_SLOTS
+    pushl $exc_n
+    jmp _exc_common
+    .balign EXC_SLOT_SIZE
+.set exc_n, exc_n + 1
+.endr
+
+_exc_common:
+    pushal
+    movl %cs:_gate_ds32, %edx
+    movl %edx, %ds
+    movl %edx, %es
+    movl %esp, _gate_exc_esp
+    xorl %edx, %edx
+    movw %ss, %dx
+    movl %edx, _gate_exc_ss
+    /* a stack of our own: the one that faulted is not to be trusted */
+    lss _gate_exc_stk, %esp
+    call _run286_exception
+    /* there is no going back to a program that faulted */
+    lss _gate_ret, %esp
+    movl _gate_exit_code, %eax
+    popl %edi
+    popl %esi
+    popl %ebx
+    popl %ebp
+    lret
+
 .data
 
 /* read through %cs: from code that no longer has our DS, so it has to live
@@ -182,6 +222,17 @@ _gate_idt:	.word 0
 _gate_ldt_sel:	.long 0
 .global _gate_ldt_alias
 _gate_ldt_alias: .long 0
+.global _gate_cs32
+_gate_cs32:	.long 0
+.global _gate_exc_ss
+_gate_exc_ss:	.long 0
+.global _gate_exc_esp
+_gate_exc_esp:	.long 0
+_gate_exc_stk:
+.global _gate_exc_stk_esp
+_gate_exc_stk_esp: .long 0
+.global _gate_exc_stk_ss
+_gate_exc_stk_ss: .long 0
 .global _gate_thunk_err
 _gate_thunk_err: .long 0
 _gate_thunk_name: .asciz "THUNK_16_32x"
@@ -197,3 +248,13 @@ _gate_stack:
 .balign 16
 .global _gate_stack_end
 _gate_stack_end:
+
+.balign 16
+.global _exc_stack
+_exc_stack:
+.rept EXC_STACK_LEN
+.byte 0
+.endr
+.balign 16
+.global _exc_stack_end
+_exc_stack_end:
