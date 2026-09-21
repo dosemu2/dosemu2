@@ -3480,6 +3480,18 @@ stack_return_from_vm86:
 				     also FCMOVcc and F(U)COMI(P) */
 				  CPUID_FEATURE_CMOV;
 			}
+			else {
+				/* A leaf we do not implement still has to
+				 * answer in all four registers. Leaving them
+				 * alone hands the caller its own input back,
+				 * which reads as a valid answer: a client
+				 * asking 0x80000000 for the brand string is
+				 * told the highest extended leaf is
+				 * 0x80000000 and then reads ebx, ecx and edx
+				 * that we never wrote. Zero says plainly
+				 * that there is nothing here. */
+				rEAX = rEBX = rECX = rEDX = 0;
+			}
 			break;
 /*1c7*/	case 0x1c7: { /* Code Extension 23 - 01=CMPXCHG8B mem */
 			uint64_t edxeax, m;
