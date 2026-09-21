@@ -2381,6 +2381,36 @@ static void mhp_regs(int argc, char *argv[])
   mhp_cmd("u * 1");
 }
 
+static void mhp_kvm(int argc, char *argv[])
+{
+  static const char *const segname[6] = {"CS", "SS", "DS", "ES", "FS", "GS"};
+  struct kvm_vcpu_state st;
+  int i;
+
+  if (kvm_get_vcpu_state(&st) < 0) {
+    mhp_printf("no KVM vCPU to ask\n");
+    return;
+  }
+
+  mhp_printf("\nEAX: %08x EBX: %08x ECX: %08x EDX: %08x\n",
+             st.eax, st.ebx, st.ecx, st.edx);
+  mhp_printf("ESI: %08x EDI: %08x EBP: %08x ESP: %08x\n",
+             st.esi, st.edi, st.ebp, st.esp);
+  mhp_printf("EIP: %08x EFLAGS: %08x\n", st.eip, st.eflags);
+  for (i = 0; i < 6; i++)
+    mhp_printf("%s: %04x base %08x limit %08x %s dpl %d%s\n",
+               segname[i], st.seg[i].sel, st.seg[i].base, st.seg[i].limit,
+               st.seg[i].db ? "32bit" : "16bit", st.seg[i].dpl,
+               st.seg[i].present ? "" : " (not present)");
+  mhp_printf("CR0: %08x CR2: %08x CR3: %08x CR4: %08x\n",
+             st.cr0, st.cr2, st.cr3, st.cr4);
+  mhp_printf("GDTR: %08x limit %04x   IDTR: %08x limit %04x\n",
+             st.gdt.base, st.gdt.limit, st.idt.base, st.idt.limit);
+  mhp_printf("TR: %04x base %08x limit %08x   LDTR: %04x base %08x limit %08x\n",
+             st.tr.sel, st.tr.base, st.tr.limit,
+             st.ldt.sel, st.ldt.base, st.ldt.limit);
+}
+
 static void mhp_regs32(int argc, char *argv[])
 {
   reg32 ^= 1;
@@ -3045,6 +3075,7 @@ static const struct cmd_db cmdtab[] = {
   {"ti",            mhp_trace},
   {"tc",            mhp_tracec},
   {"r32",           mhp_regs32},
+  {"kvm",           mhp_kvm},
   {"bp",            mhp_bp},
   {"bc",            mhp_bc},
   {"bl",            mhp_bl},

@@ -380,6 +380,28 @@ wether a DPMI-client is active (in_dpmi).
 </para>
 </listitem></varlistentry>
 <varlistentry>
+<term>kvm</term>
+<listitem>
+<para>
+		  dump the vCPU as KVM itself has it: the general registers,
+		  each segment with its base, limit and size, CR0/CR2/CR3/CR4,
+		  and GDTR, IDTR, TR and LDTR.
+</para>
+<para>
+		  This is not the same thing as <emphasis>r</emphasis>. The
+		  registers <emphasis>r</emphasis> shows are the ones DOSEMU
+		  keeps for the task it is running, and while a client runs
+		  with page tables and descriptor tables of its own - a VCPI
+		  client in ring 0, say - those hold the context of whoever
+		  handed it the CPU, not the context the CPU is really in.
+		  The control and descriptor table registers are not reachable
+		  any other way.
+</para>
+<para>
+		  Only useful when DOSEMU runs on KVM; it says so otherwise.
+</para>
+</listitem></varlistentry>
+<varlistentry>
 <term>bp addr</term>
 <listitem>
 <para>

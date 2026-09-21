@@ -1337,6 +1337,66 @@ static int kvm_post_run(struct vm86_regs *regs, struct kvm_regs *kregs)
   return 1;
 }
 
+/* What KVM itself has for the vCPU, which is not the same thing as
+ * monitor->regs: while a client runs with its own page tables and
+ * descriptor tables, those hold the context of whoever handed it the CPU. */
+int kvm_get_vcpu_state(struct kvm_vcpu_state *st)
+{
+  struct kvm_regs kregs;
+  struct kvm_sregs sr;
+  struct kvm_segment *segs[6];
+  int i;
+
+  if (vcpufd <= 0)
+    return -1;
+  if (ioctl(vcpufd, KVM_GET_REGS, &kregs) == -1)
+    return -1;
+  if (ioctl(vcpufd, KVM_GET_SREGS, &sr) == -1)
+    return -1;
+
+  st->eax = kregs.rax;
+  st->ebx = kregs.rbx;
+  st->ecx = kregs.rcx;
+  st->edx = kregs.rdx;
+  st->esi = kregs.rsi;
+  st->edi = kregs.rdi;
+  st->ebp = kregs.rbp;
+  st->esp = kregs.rsp;
+  st->eip = kregs.rip;
+  st->eflags = kregs.rflags;
+
+  segs[0] = &sr.cs;
+  segs[1] = &sr.ss;
+  segs[2] = &sr.ds;
+  segs[3] = &sr.es;
+  segs[4] = &sr.fs;
+  segs[5] = &sr.gs;
+  for (i = 0; i < 6; i++) {
+    st->seg[i].sel = segs[i]->selector;
+    st->seg[i].base = segs[i]->base;
+    st->seg[i].limit = segs[i]->limit;
+    st->seg[i].db = segs[i]->db;
+    st->seg[i].dpl = segs[i]->dpl;
+    st->seg[i].present = segs[i]->present;
+  }
+
+  st->cr0 = sr.cr0;
+  st->cr2 = sr.cr2;
+  st->cr3 = sr.cr3;
+  st->cr4 = sr.cr4;
+  st->gdt.base = sr.gdt.base;
+  st->gdt.limit = sr.gdt.limit;
+  st->idt.base = sr.idt.base;
+  st->idt.limit = sr.idt.limit;
+  st->tr.sel = sr.tr.selector;
+  st->tr.base = sr.tr.base;
+  st->tr.limit = sr.tr.limit;
+  st->ldt.sel = sr.ldt.selector;
+  st->ldt.base = sr.ldt.base;
+  st->ldt.limit = sr.ldt.limit;
+  return 0;
+}
+
 static void process_pending_mmio(void)
 {
   struct kvm_coalesced_mmio_ring *mr = MMIO_RING(run);
