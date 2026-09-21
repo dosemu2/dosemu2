@@ -60,6 +60,7 @@
 #include "bios_sym.h"
 #include "misc/dis8086.h"
 #include "misc/smalloc.h"
+#include "mapping/mapping.h"
 #include "dos2linux.h"
 #include "coopth.h"
 #include "kvm.h"
@@ -959,28 +960,36 @@ static void mhp_tracec(int argc, char *argv[])
 #define PG_D    0x040
 #define PG_PS   0x080
 
-/* A page table we did not build can name any address at all, and reading
- * past the DOS memory dosemu mapped takes the whole process down, so check
- * first.  main_pool spans exactly that memory: conventional, the HMA,
- * extended memory, XMS and DPMI alike. */
-static int phys_reachable(dosaddr_t addr, int len)
+/* What a client's page tables hold are physical addresses, and above the HMA
+ * dosemu does not keep memory where a client thinks it is: extended memory
+ * and everything cut from it, the VCPI pool included, live at a virtual
+ * address of dosemu's own choosing.  get_hardware_ram() is that translation,
+ * and it fails for an address dosemu has no memory for at all - which a
+ * table we did not build is free to name. */
+static int phys_to_dosaddr(unsigned pa, int len, dosaddr_t *va)
 {
-  if (addr + len < addr)        /* a table entry can name the very top */
+  dosaddr_t v;
+
+  if (pa + len < pa)            /* a table entry can name the very top */
     return 0;
-  return addr + len <= main_pool.size;
+  v = get_hardware_ram(pa, len);
+  if (v == (dosaddr_t)-1 || v + len > main_pool.size)
+    return 0;
+  *va = v;
+  return 1;
 }
 
 /* One 32 bit walk of the selected page directory.  On failure *why tells
  * what stopped it; *pde and *pte hold whatever was read before that. */
-static int pgdir_walk(dosaddr_t lin, dosaddr_t *phys, unsigned int *pde,
+static int pgdir_walk(dosaddr_t lin, unsigned int *phys, unsigned int *pde,
     unsigned int *pte, const char **why)
 {
   dosaddr_t ent;
 
   *pde = 0;
   *pte = 0;
-  ent = (pgdir_base & 0xfffff000) + ((lin >> 22) << 2);
-  if (!phys_reachable(ent, 4)) {
+  if (!phys_to_dosaddr((pgdir_base & 0xfffff000) + ((lin >> 22) << 2), 4,
+                       &ent)) {
     *why = "page directory is not in memory dosemu can read";
     return 0;
   }
@@ -993,8 +1002,8 @@ static int pgdir_walk(dosaddr_t lin, dosaddr_t *phys, unsigned int *pde,
     *phys = (*pde & 0xffc00000) | (lin & 0x3fffff);
     return 1;
   }
-  ent = (*pde & 0xfffff000) + (((lin >> 12) & 0x3ff) << 2);
-  if (!phys_reachable(ent, 4)) {
+  if (!phys_to_dosaddr((*pde & 0xfffff000) + (((lin >> 12) & 0x3ff) << 2), 4,
+                       &ent)) {
     *why = "page table is not in memory dosemu can read";
     return 0;
   }
@@ -1010,17 +1019,17 @@ static int pgdir_walk(dosaddr_t lin, dosaddr_t *phys, unsigned int *pde,
 /* -1 rather than a fault, so the caller can print that much and carry on */
 static int mhp_peek(dosaddr_t addr, int xlat)
 {
-  dosaddr_t phys = addr;
-  unsigned int pde, pte;
+  unsigned int phys, pde, pte;
+  dosaddr_t va;
   const char *why;
 
   if (!xlat)
     return READ_BYTE(addr);
   if (!pgdir_walk(addr, &phys, &pde, &pte, &why))
     return -1;
-  if (!phys_reachable(phys, 1))
+  if (!phys_to_dosaddr(phys, 1, &va))
     return -1;
-  return READ_BYTE(phys);
+  return READ_BYTE(va);
 }
 
 static void mhp_pgdir(int argc, char *argv[])
@@ -1057,8 +1066,8 @@ static void print_pgent(const char *name, unsigned int ent)
 
 static void mhp_pgtrans(int argc, char *argv[])
 {
-  unsigned int lin, pde, pte;
-  dosaddr_t phys;
+  unsigned int lin, pde, pte, phys;
+  dosaddr_t va;
   const char *why;
   int ok;
 
@@ -1095,8 +1104,15 @@ static void mhp_pgtrans(int argc, char *argv[])
   }
   if (pde & PG_PS)
     mhp_printf("  4M page\n");
-  mhp_printf("  physical %08x%s\n", phys,
-             phys_reachable(phys, 1) ? "" : " (not memory dosemu can read)");
+  if (!phys_to_dosaddr(phys, 1, &va)) {
+    mhp_printf("  physical %08x, which is not memory dosemu can read\n",
+               phys);
+    return;
+  }
+  mhp_printf("  physical %08x", phys);
+  if (va != phys)   /* dosemu keeps it elsewhere, and 'd' wants that address */
+    mhp_printf(", which dosemu holds at %08x", va);
+  mhp_printf("\n");
 }
 
 static void mhp_dump(int argc, char *argv[])
