@@ -1764,6 +1764,12 @@ static int get_value(char *s, unsigned long *v)
     len--;
     s[len] = 0;
     t = (int)(tt - wl) << 1;
+    /* a register may not be suffixed, but one was accepted here before the
+     * lookup above existed, so keep taking it */
+    if (decode_symreg(s, &symreg, &t)) {
+      *v = mhp_getreg(symreg);
+      return t;
+    }
   } else {
     t = V_NONE;
   }
