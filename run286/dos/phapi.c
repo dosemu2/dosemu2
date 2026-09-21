@@ -508,7 +508,35 @@ static uint16_t dos_real_far_call(struct call *c)
  * have seen had it interrupted the program rather than us.
  */
 static uint32_t int_saved[INT_SLOTS];
+static uint16_t int_vec[INT_SLOTS];
 static unsigned int_used;
+
+/*
+ * What is on each vector we hooked, right now. The counters say how many
+ * interrupts each of our stubs took; when the host says it called a
+ * protected mode handler and our count for that vector stays at zero, the
+ * question is whether the vector still holds our stub, and only the host
+ * can answer it.
+ */
+void dump_hooked_vectors(void)
+{
+    unsigned i;
+
+    for (i = 0; i < int_used; i++) {
+	__dpmi_paddr pm;
+	uint32_t want = int_stubs + i * INT_SLOT_SIZE;
+
+	if (__dpmi_get_protected_mode_interrupt_vector(int_vec[i], &pm) == -1) {
+	    trc("run286:   int %#04x: cannot read its vector\n", int_vec[i]);
+	    continue;
+	}
+	trc("run286:   int %#04x: slot %u, vector %04x:%08x, our stub %04x:%08x%s\n",
+		int_vec[i], i, pm.selector, pm.offset32,
+		(uint16_t)gate_cs32, want,
+		(pm.selector == (uint16_t)gate_cs32 && pm.offset32 == want) ?
+		"" : "  <-- NOT OURS");
+    }
+}
 
 static int int_init(void)
 {
@@ -581,6 +609,7 @@ static uint16_t dos_set_pass_to_prot_vec(struct call *c)
     uint16_t intno = call_argw(c, 12);
     __dpmi_paddr pm;
     __dpmi_raddr rm;
+    unsigned i;
 
     if (__dpmi_get_protected_mode_interrupt_vector(intno, &pm) == -1 ||
 	    __dpmi_get_real_mode_interrupt_vector(intno, &rm) == -1)
@@ -590,6 +619,12 @@ static uint16_t dos_set_pass_to_prot_vec(struct call *c)
     thunk_for(&pm, protfn);
     if (__dpmi_set_protected_mode_interrupt_vector(intno, &pm) == -1)
 	return ERROR_INVALID_PARAMETER;
+    for (i = 0; i < int_used; i++) {
+	if (int_saved[i] == protfn) {
+	    int_vec[i] = intno;
+	    break;
+	}
+    }
     return 0;
 }
 

@@ -43,7 +43,8 @@ struct api_fn {
 /* The linear address of the LDT, as dosemu2 hands it out for int 2Fh
  * AX=1688h, and its size. Origin's wrapper writes descriptors straight
  * into the table it finds through sgdt, so this is where they have to go. */
-extern int run286_trace;		/* the API trace is on */
+extern int run286_trace;
+void dump_hooked_vectors(void);	/* what is on each vector we hooked */		/* the API trace is on */
 void trc(const char *fmt, ...);		/* where that trace goes */
 
 extern uint32_t ldt_lin;
