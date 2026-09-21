@@ -13,6 +13,7 @@
 #include <stdlib.h>
 #include <dpmi.h>
 #include <sys/farptr.h>
+#include <go32.h>
 #include <sys/segments.h>
 #include "asm.h"
 #include "run286.h"
@@ -452,6 +453,43 @@ static uint16_t dos_real_intr(struct call *c)
  * caller's own registers and gives them back, which is how BioForge drives
  * its real mode routines.
  */
+/*
+ * The games spend whole runs calling one real mode routine over and over:
+ * BioForge sits in its menu doing nothing else 37 times a second. What that
+ * routine is is not in the image - it was copied into a real mode segment at
+ * startup - so print its first bytes the first time each target is called,
+ * and what it answered the first few times. Once per target, because the
+ * point is to name the routine, not to fill the log with the loop.
+ */
+static void trace_real_target(uint32_t fn, const __dpmi_regs *r, int done)
+{
+    static uint32_t seen[8];
+    static unsigned nseen, ncalls[8];
+    unsigned i;
+
+    for (i = 0; i < nseen; i++) {
+	if (seen[i] == fn)
+	    break;
+    }
+    if (i == nseen) {
+	char buf[3 * 32 + 1], *p = buf;
+	unsigned j;
+
+	if (nseen == sizeof(seen) / sizeof(seen[0]))
+	    return;
+	seen[nseen++] = fn;
+	for (j = 0; j < 32; j++)
+	    p += sprintf(p, "%02x ",
+		    _farpeekb(_dos_ds, ((fn >> 16) << 4) + (fn & 0xffff) + j));
+	trc("run286:   real %04x:%04x code: %s\n", (uint16_t)(fn >> 16),
+		(uint16_t)fn, buf);
+    }
+    if (done && ncalls[i]++ < 4)
+	trc("run286:   real %04x:%04x returned ax %04x bx %04x cx %04x "
+		"dx %04x flags %04x\n", (uint16_t)(fn >> 16), (uint16_t)fn,
+		r->x.ax, r->x.bx, r->x.cx, r->x.dx, r->x.flags);
+}
+
 static uint16_t dos_real_far_call(struct call *c)
 {
     uint32_t fn = call_argd(c, 0);
@@ -459,6 +497,8 @@ static uint16_t dos_real_far_call(struct call *c)
     uint16_t sel = call_argw(c, 6);
     __dpmi_regs r;
 
+    if (run286_trace)
+	trace_real_target(fn, NULL, 0);
     if (sel)
 	realregs_get(sel, off, &r);
     else
@@ -468,6 +508,8 @@ static uint16_t dos_real_far_call(struct call *c)
     r.x.ip = fn & 0xffff;
     if (__dpmi_simulate_real_mode_procedure_retf(&r) == -1)
 	return ERROR_INVALID_PARAMETER;
+    if (run286_trace)
+	trace_real_target(fn, &r, 1);
     if (sel)
 	realregs_put(sel, off, &r);
     else
