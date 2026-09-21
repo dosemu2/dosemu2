@@ -300,7 +300,9 @@ static void revect_helper(int stk_offs)
 	    break;
 	}
 	entry = int_handlers[inum].unrevect_function(SREG(es), LWORD(edi));
-	if (!entry.segment) {
+	/* the failure return is a zeroed far_t, so both halves must be
+	 * checked: with BIOSSEG 0 a good entry has segment 0 too. */
+	if (!entry.segment && !entry.offset) {
 	    CARRY;
 	    break;
 	}
