@@ -930,8 +930,14 @@ static void kvm_set_readonly(dosaddr_t base, dosaddr_t size)
 {
 #if USE_RO
   struct kvm_userspace_memory_region *p = kvm_get_memory_region(base, size);
-  void *addr = (void *)((uintptr_t)(p->userspace_addr +
-				    (base - p->guest_phys_addr)));
+  void *addr;
+
+  /* only a full-KVM setup is guaranteed a slot for every address, which is
+   * why our caller checks the same lookup before it uses the result */
+  if (!p)
+    return;
+  addr = (void *)((uintptr_t)(p->userspace_addr +
+			      (base - p->guest_phys_addr)));
   do_munmap_kvm(base, size);
   mmap_kvm_no_overlap(base, addr, size, KVM_MEM_READONLY);
 #endif
