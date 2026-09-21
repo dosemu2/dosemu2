@@ -54,11 +54,19 @@ add_apt_repository()
 # the PPA index therefore surfaces a minute and a half later, as
 # mk-build-deps failing to install fdpp-build-deps or as a dependency on
 # thunk-gen that cannot be satisfied, which reads like a packaging problem
-# and is not one.  Retry while an index is missing, and otherwise answer
-# exactly as the bare call would: a fetch error that does not clear is
-# carried on with, as apt intends, while a failure of another kind -- a
-# held dpkg lock, a sources.list that does not parse -- keeps its non-zero
-# status and stops the script on its own step.
+# and is not one -- or, in the packaged build, as an install that quietly
+# takes whatever the Ubuntu archive happens to hold under that name.  So
+# retry, and after the third attempt stop the script.
+#
+# Only an Err: on a Launchpad host counts, because a runner carries a dozen
+# sources this build has nothing to do with, and a 503 on one of those must
+# not fail a build that would otherwise pass.  Every Launchpad source here
+# is one the script added a moment ago and is about to install from.
+#
+# A failure of another kind -- a held dpkg lock, a sources.list that does
+# not parse -- prints no Err: line at all and keeps its own non-zero status,
+# so it stops the script on its own step instead of being retried as if it
+# were the network.
 apt_update()
 {
   attempt=1
@@ -66,16 +74,17 @@ apt_update()
     status=0
     out="$(sudo apt-get update -q 2>&1)" || status=$?
     printf '%s\n' "${out}"
-    if ! printf '%s\n' "${out}" | grep -q '^Err:' ; then
+    if ! printf '%s\n' "${out}" | grep -Eq '^Err:.*launchpad' ; then
       return ${status}
     fi
     if [ ${attempt} -ge 3 ] ; then
-      echo "apt-get update: attempt ${attempt} still reports a fetch error," \
-        "going on with the indexes we have" >&2
-      return ${status}
+      echo "apt-get update: attempt ${attempt} still could not fetch a PPA" \
+        "index, giving up rather than installing whatever else answers to" \
+        "these package names" >&2
+      return 1
     fi
     delay=$((attempt * 15))
-    echo "apt-get update: attempt ${attempt} could not fetch an index," \
+    echo "apt-get update: attempt ${attempt} could not fetch a PPA index," \
       "retrying in ${delay}s" >&2
     sleep ${delay}
     attempt=$((attempt + 1))
