@@ -797,6 +797,17 @@ static int map_append_trunc(struct ext_map *m, off_t len)
  * creating again is three records and ends up right, and no record
  * ever has to be found and edited. A record that does not parse ends
  * the replay, since anything after it has lost its place.
+ *
+ * The replay happens at mount and nowhere else, on purpose. The extent
+ * maps are read again whenever they are looked at, so two instances do
+ * see each other's writes to entries that already exist; names are the
+ * exception, and a create or a delete by one is not seen by the other
+ * until it mounts the archive afresh. Reading the log as we go would
+ * mean the tree changing under an operation that has already taken a
+ * node out of it - a delete arriving between the lookup in
+ * zip_fs_unlink() and its own log record would free that node under
+ * the caller - so it needs the node's lifetime rethought first, and
+ * that is more than this wants to be.
  */
 #define LOG_NAME "dir.log"
 #define LOG_HDR_LEN 8
