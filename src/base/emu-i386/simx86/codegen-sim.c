@@ -304,6 +304,18 @@ static void FlagSync_RFL (uint32_t flg)
 	RFL.res = (!(flg & EFLAGS_ZF)) << 8;
 }
 
+/* The FPU simulator lives in its own file but FCMOVcc reads the CC flags
+ * and F(U)COMI(P) writes them, so it needs a way in and out of RFL. */
+uint32_t sim_get_cc_flags(void)
+{
+	return FlagSync_All();
+}
+
+void sim_set_cc_flags(uint32_t flg)
+{
+	FlagSync_RFL(flg & EFLAGS_CC);
+}
+
 /////////////////////////////////////////////////////////////////////////////
 
 void InitGen_sim(void)
@@ -3459,11 +3471,14 @@ stack_return_from_vm86:
 				/* family 5, model 2, stepping 12 =
 				   Pentium 133-200MHz (no MMX) */
 				rEAX = 0x052c; rEBX = rECX = 0;
-				/* 0x1bf */
+				/* 0x81bf */
 				rEDX = CPUID_FEATURE_FPU | CPUID_FEATURE_VME |
 				  CPUID_FEATURE_DBGE | CPUID_FEATURE_PGSZE |
 				  CPUID_FEATURE_TSC  | CPUID_FEATURE_MSR |
-				  CPUID_FEATURE_MCK  | CPUID_FEATURE_CPMX;
+				  CPUID_FEATURE_MCK  | CPUID_FEATURE_CPMX |
+				  /* CMOVcc, and with the FPU bit above it
+				     also FCMOVcc and F(U)COMI(P) */
+				  CPUID_FEATURE_CMOV;
 			}
 			break;
 /*1c7*/	case 0x1c7: { /* Code Extension 23 - 01=CMPXCHG8B mem */

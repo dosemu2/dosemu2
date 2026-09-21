@@ -681,10 +681,69 @@ fcom00:			TheCPU.fpus &= ~(FPUS_C0 | FPUS_C2 | FPUS_C3);
 		if (exop>=0x6a) INCFSPP;
 		break;
 
-//	73	DB 11000nnn	FCOMI	st(0),st(n)
-//	77	DF 11000nnn	FCOMIP	st(0),st(n)
+/*6b*/	case 0x6b:
+/*6f*/	case 0x6f:
+/*73*/	case 0x73:
+/*77*/	case 0x77: {
 //	6B	DB 11101nnn	FUCOMI	st(0),st(n)
 //	6F	DF 11101nnn	FUCOMIP	st(0),st(n)
+//	73	DB 11110nnn	FCOMI	st(0),st(n)
+//	77	DF 11110nnn	FCOMIP	st(0),st(n)
+		uint32_t flg = 0;
+		WFR0 = *ST0;
+		WFR1 = *STn(reg);
+		/* unlike FCOM this reports in ZF/PF/CF, and clears OF/SF/AF */
+		if (exop & 0x08) {	/* the FUCOMI forms */
+		    if (isnan(WFR0) || isnan(WFR1)) /* avoids FE_INVALID for QNaN */
+			flg = EFLAGS_ZF | EFLAGS_PF | EFLAGS_CF;
+		    else if (WFR0 < WFR1)
+			flg = EFLAGS_CF;
+			else if (WFR0 == WFR1)
+			    flg = EFLAGS_ZF;
+		}
+		else {
+		    if (WFR0 < WFR1)
+			flg = EFLAGS_CF;
+			else if (WFR0 == WFR1)
+			    flg = EFLAGS_ZF;
+			else if (WFR0 > WFR1);	/* do nothing */
+			else /* not comparable */
+			    flg = EFLAGS_ZF | EFLAGS_PF | EFLAGS_CF;
+		}
+		sim_set_cc_flags(flg);
+		if (exop & 0x04) INCFSPP;	/* the DF forms pop */
+		}
+		break;
+
+/*42*/	case 0x42:
+/*43*/	case 0x43:
+/*4a*/	case 0x4a:
+/*4b*/	case 0x4b:
+/*52*/	case 0x52:
+/*53*/	case 0x53:
+/*5a*/	case 0x5a:
+/*5b*/	case 0x5b: {
+//	42	DA 11000nnn	FCMOVB	st(0),st(n)
+//	43	DB 11000nnn	FCMOVNB	st(0),st(n)
+//	4A	DA 11001nnn	FCMOVE	st(0),st(n)
+//	4B	DB 11001nnn	FCMOVNE	st(0),st(n)
+//	52	DA 11010nnn	FCMOVBE	st(0),st(n)
+//	53	DB 11010nnn	FCMOVNBE st(0),st(n)
+//	5A	DA 11011nnn	FCMOVU	st(0),st(n)
+//	5B	DB 11011nnn	FCMOVNU	st(0),st(n)
+		uint32_t flg = sim_get_cc_flags();
+		int cond;
+		switch (exop & 0x18) {
+		   case 0x00: cond = (flg & EFLAGS_CF) != 0; break;
+		   case 0x08: cond = (flg & EFLAGS_ZF) != 0; break;
+		   case 0x10: cond = (flg & (EFLAGS_CF|EFLAGS_ZF)) != 0; break;
+		   default:   cond = (flg & EFLAGS_PF) != 0; break;
+		}
+		/* the DB forms are the negated DA ones */
+		if (exop & 1) cond = !cond;
+		if (cond) *ST0 = *STn(reg);
+		}
+		break;
 
 /*5e*/	case 0x5e: if (reg==1) {
 //	5E.1	DE 11011001	FCOMPP
@@ -1261,24 +1320,11 @@ int Fp87_illegal_op(int exop, int reg)
 //	2D	DD xx101nnn	undefined
 //	33	DB xx110nnn	undefined
 	case 0x23: case 0x2d: case 0x33:
-
-//	42	DA 11000nnn	FCMOVB	st(0),st(n) (CPUID)
-//	43	DB 11000nnn	FCMOVNB	st(0),st(n) (CPUID)
-//	4A	DA 11001nnn	FCMOVE	st(0),st(n) (CPUID)
-//	4B	DB 11001nnn	FCMOVNE	st(0),st(n) (CPUID)
-	case 0x42: case 0x43: case 0x4a: case 0x4b:
 		break;
 
 //	51	D9 11010nnn	51.0=FNOP, others undefined
 /*51*/	case 0x51:
 		if (reg==0) goto fp_ok;
-		break;
-
-//	52	DA 11010nnn	FCMOVBE	st(0),st(n) (CPUID)
-//	53	DB 11010nnn	FCMOVNBE st(0),st(n) (CPUID)
-//	5A	DA 11011nnn	FCMOVU	st(0),st(n) (CPUID)
-//	5B	DB 11011nnn	FCMOVNU	st(0),st(n) (CPUID)
-	case 0x52: case 0x53: case 0x5a: case 0x5b:
 		break;
 
 //	5E	DE 11011nnn	5E.1 = FCOMPP, others undefined
@@ -1322,21 +1368,11 @@ int Fp87_illegal_op(int exop, int reg)
 		if (reg==1) goto fp_ok;
 		break;
 
-//	6B	DB 11101nnn	FUCOMI (CPUID)
-//	6F	DF 11101nnn	FUCOMIP (CPUID)
-	case 0x6b: case 0x6f:
-
 //	72	DA 11110nnn	undefined
 /*72*/	case 0x72:
 
-//	73	DB 11110nnn	FCOMI (CPUID)
-/*73*/	case 0x73:
-
 //	75	DD 11110nnn	undefined
 /*75*/	case 0x75:
-
-//	77	DF 11110nnn	FCOMIP (CPUID)
-/*77*/	case 0x77:
 
 //	7A	DA 11111nnn	undefined
 //	7B	DB 11111nnn	undefined
