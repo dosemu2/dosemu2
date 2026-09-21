@@ -14,6 +14,7 @@ void vtmr_register_latch(int timer, int (*handler)(void));
 void vtmr_set_tweaked(int timer, int on, unsigned flags);
 
 int vtmr_pre_irq_dpmi(uint8_t *imr);
+void vtmr_pre_vcpi(void);
 void vtmr_post_irq_dpmi(int masked);
 int vrtc_pre_irq_dpmi(uint8_t *imr);
 void vrtc_post_irq_dpmi(int masked);
