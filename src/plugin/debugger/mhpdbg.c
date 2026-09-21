@@ -363,6 +363,7 @@ static void mhp_poll(void)
 
     mhp_printf("%s", mhp_banner);
   }
+  mhp_watch_poll();
   if (mhpdbgc.want_to_stop) {
     mhpdbgc.stopped = 1;
     mhpdbgc.want_to_stop = 0;

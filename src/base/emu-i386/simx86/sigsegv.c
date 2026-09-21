@@ -49,6 +49,7 @@
 #include "memory.h"
 #include "priv.h"
 #include "mapping/mapping.h"
+#include "mhpdbg.h"
 
 int InCompiledCode;
 
@@ -281,6 +282,22 @@ static int e_emu_pagefault(sigcontext_t *scp, int pmode)
 {
     if (InCompiledCode) {
 	dosaddr_t cr2 = EMUADDR_REL(LINP(_scp_cr2));
+	/* A debugger watchpoint takes write permission off the client's view
+	 * of a page, so a watched write lands here.  Only an address the user
+	 * named is taken out of turn like this, and bpw refuses the pages
+	 * vgaemu and the ROM checker own, so nothing below has a claim on it.
+	 * A write merely in the same page is a different matter: protection
+	 * is by page while a watch is by byte, so that one is offered to the
+	 * whole chain first and only picked up at the end. */
+	int w = mhp_watch_fault(_scp_cr2, _scp_err,
+				FindPC_X((unsigned char *)_scp_rip), 1);
+	if (w == 2) {
+	    /* Leave the node at the instruction that faulted rather than
+	     * after it, so that the debugger stops with the client's own
+	     * cs:ip on the write and the old contents still in memory. */
+	    TheCPU.err = EXCP_GOBACK;
+	    return e_return_from_jit(scp, 1);
+	}
 	if (e_vgaemu_fault(scp, cr2) == 1)
 	    return 1;
 
@@ -289,6 +306,8 @@ static int e_emu_pagefault(sigcontext_t *scp, int pmode)
 	/* use CPatch for LDT page faults, which should not fail */
 	if (msdos_ldt_access(cr2) && Cpatch(scp))
 	    return 1;
+	if (w)
+	    return 1;			/* a write next door to a watch */
 	TheCPU.scp_err = _scp_err;
 	TheCPU.err = EXCP0E_PAGE;
 	TheCPU.cr[2] = cr2;
@@ -339,6 +358,12 @@ int e_emu_fault(sigcontext_t *scp, int in_vm86)
     if (_scp_trapno == 0x0e) {
       /* cases 1, 2, 3 */
       if ((in_vm86 || EMU_DPMI()) && e_emu_pagefault(scp, !in_vm86))
+        return 1;
+      /* Not everything the client executes is compiled: the interpreter
+       * runs what the jit hands back to it, and a write from there is a
+       * watchpoint's before it is anybody's bug.  There is no node to
+       * return from, so the write is let through and reported after it. */
+      if (mhp_watch_fault(_scp_cr2, _scp_err, 0, 0))
         return 1;
       /* case 5, any jit, bug */
       if (e_handle_pagefault(EMUADDR_REL(LINP(_scp_cr2)), _scp_err, scp)) {

@@ -397,6 +397,47 @@ the mode that was when you defined the breakpoint.
 </para>
 </listitem></varlistentry>
 <varlistentry>
+<term>bpw [addr [len]]</term>
+<listitem>
+<para>
+     Stop when the client writes to the <emphasis>len</emphasis> bytes at
+     <emphasis>addr</emphasis>, which defaults to one byte. The address is
+     read the same way <emphasis>bp</emphasis> reads it. With no arguments
+     the watchpoints set so far are listed.
+</para>
+<para>
+     When the write comes from compiled code the client is stopped on the
+     instruction that is about to write, so the registers and the
+     disassembly say who does it and with what; the memory still holds what
+     it held before, and one <emphasis>t</emphasis> lets the write happen.
+     Not everything is compiled, though, and a write the interpreter makes
+     cannot be stopped on: there the report says the write has already
+     happened and shows what is there now. The report says which of the two
+     it is.
+</para>
+<para>
+<emphasis>NOTE:</emphasis> this works by taking write permission away from
+the mapping the client runs on, which only the CPU emulator's jit can
+report back, so it is refused when the client runs on KVM or natively. Only
+DOS memory up to the end of the HMA can be watched, and not the video
+emulation's aperture or ROM, which are protected already and for other
+reasons.
+</para>
+<para>
+     The protection is by page while the watch is by byte, so a write to a
+     neighbour in the same page faults too. Such a write is let through,
+     but the page stays unprotected until the next poll, which is driven by
+     the timer tick. A write to the watched bytes in that window is missed.
+</para>
+</listitem></varlistentry>
+<varlistentry>
+<term>bcw [watchp.No.]</term>
+<listitem>
+<para>
+     Clear a watchpoint, or all of them when given no number.
+</para>
+</listitem></varlistentry>
+<varlistentry>
 <term>bpint xx</term>
 <listitem>
 <para>

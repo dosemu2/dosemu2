@@ -62,6 +62,9 @@
 #include "dos2linux.h"
 #include "coopth.h"
 #include "kvm.h"
+#include "cpu-emu.h"
+#include "mapping/mapping.h"
+#include "vgaemu.h"
 #include "Asm/ldt.h"
 
 #define MHP_PRIVATE
@@ -754,6 +757,7 @@ static void mhp_go(int argc, char *argv[])
     dpmi_mhp_setTF(0);
     clear_TF();
     mhp_bpset();
+    mhp_watch_set();
     restart_cputime(1);
   }
 }
@@ -2011,6 +2015,346 @@ static int bp_exists(unsigned int seekval)
   return 0;
 }
 
+/* Write watchpoints.
+ *
+ * dosemu keeps two mappings of the same DOS memory: mem_base, which is what
+ * the client's own accesses go through, and lowmem_base, which is dosemu's
+ * private view and is deliberately left unprotected (see memory.h) so that
+ * dosemu's own writes are never trapped.  Taking write permission away from
+ * the first one therefore catches the client and nothing else, which is
+ * exactly what a watchpoint wants.
+ *
+ * Protection is by page while a watch is by byte, so a write next door in
+ * the same page faults too.  Such a fault is let through and the page is
+ * armed again at the next poll; only a write inside the watched range stops.
+ */
+#define MAXWP 4
+/* mem_base and jit_base both alias the whole of memsize (init.c), so this
+ * is not a mapping boundary; it is just as far as a watch is any use.  The
+ * client's own memory above the HMA is DPMI memory, which comes and goes
+ * under the watch and is not what the reports this was written for ask
+ * about. */
+#define WP_LIMIT (LOWMEM_SIZE + HMASIZE)
+
+static struct {
+  dosaddr_t addr;
+  unsigned int len;
+  int is_valid;
+} wptab[MAXWP];
+
+static int wp_armed;		/* the pages are write protected right now */
+static int wp_rearm;		/* a fault took the protection off */
+static struct {
+  int num;			/* the watch that was hit, -1 for none */
+  dosaddr_t addr;
+  unsigned int pc;		/* linear address of the writing insn, 0 unknown */
+  int before;			/* stopped on the write, not after it */
+  unsigned char old[8];
+  unsigned int olen;
+} wp_last = { .num = -1 };
+
+static void wp_page_range(int i, dosaddr_t *start, size_t *len)
+{
+  dosaddr_t pgsz = HOST_PAGE_SIZE;
+  dosaddr_t a = wptab[i].addr & ~(pgsz - 1);
+  dosaddr_t e = (wptab[i].addr + wptab[i].len + pgsz - 1) & ~(pgsz - 1);
+
+  *start = a;
+  *len = e - a;
+}
+
+/* What a page should go back to once we stop holding it read only.  bpw
+ * refuses ROM and the pages vgaemu tracks, so the only other owner left is
+ * the CPU emulator, which protects a page that holds translated code.
+ * Asked per page, because that is what the answer is a property of: a
+ * watch can span two pages and only one of them hold code. */
+static int wp_prot_of(dosaddr_t page)
+{
+  return e_querymprot(page) ? (PROT_READ | _PROT_EXEC) : PROT_RWX;
+}
+
+/* Called with on == 0 from the fault handler, so nothing that is not
+ * signal safe belongs on that side of it. */
+static void wp_protect(int on)
+{
+  int i;
+
+  for (i = 0; i < MAXWP; i++) {
+    dosaddr_t start, a;
+    size_t len;
+
+    if (!wptab[i].is_valid)
+      continue;
+    wp_page_range(i, &start, &len);
+    for (a = start; a < start + len; a += HOST_PAGE_SIZE) {
+      if (on) {
+        /* Between the last time this page was armed and now, the client
+         * has written to it with the protection off, and the CPU emulator
+         * saw nothing of that write.  Drop what it translated from here
+         * before shutting the door again, or it would go on running code
+         * that no longer matches the memory. */
+        e_invalidate_page_full(a);
+      }
+      mprotect_mapping(MAPPING_LOWMEM, a, HOST_PAGE_SIZE,
+                       on ? (PROT_READ | _PROT_EXEC) : wp_prot_of(a));
+    }
+  }
+  wp_armed = on;
+  wp_rearm = 0;
+}
+
+static int wp_count(void)
+{
+  int i, n = 0;
+
+  for (i = 0; i < MAXWP; i++)
+    n += wptab[i].is_valid;
+  return n;
+}
+
+static int wp_find(dosaddr_t addr)
+{
+  int i;
+
+  for (i = 0; i < MAXWP; i++) {
+    if (wptab[i].is_valid && addr >= wptab[i].addr &&
+        addr < wptab[i].addr + wptab[i].len)
+      return i;
+  }
+  return -1;
+}
+
+static int wp_find_page(dosaddr_t addr)
+{
+  int i;
+
+  for (i = 0; i < MAXWP; i++) {
+    dosaddr_t start;
+    size_t len;
+
+    if (!wptab[i].is_valid)
+      continue;
+    wp_page_range(i, &start, &len);
+    if (addr >= start && addr < start + len)
+      return i;
+  }
+  return -1;
+}
+
+/* Called from the fault handler, so nothing is printed from here.  The
+ * answer is 0 when the fault is not a watchpoint's, 1 when it is a write
+ * elsewhere in a watched page, and 2 when it is a write to watched bytes;
+ * only the last of those is claimed ahead of everybody else's protections.
+ *
+ * The client reaches DOS memory through more than one mapping of it - the
+ * jit has its own - and which one a fault came through depends on who was
+ * running.  Rather than ask, try the address against each base: a watch is
+ * at most a few bytes inside the first megabyte, and the bases are nowhere
+ * near each other, so only one of the two can land in a watched range. */
+int mhp_watch_fault(uintptr_t cr2, unsigned int err, unsigned int pc,
+                    int before)
+{
+  const unsigned char *p = (const unsigned char *)cr2;
+  const unsigned char *bases[2];
+  dosaddr_t addr = 0;
+  int i, num = -1, page = -1;
+
+  /* before mem_base and jit_base, which assert when there is no mapping */
+  if (!wp_armed || !(err & 2))		/* not ours, or not a write */
+    return 0;
+  bases[0] = mem_base;
+  bases[1] = jit_base;
+  for (i = 0; i < 2; i++) {
+    ptrdiff_t off;
+
+    /* in full width: truncating first turns a wild address into a
+     * plausible one, and one in a million of them lands in a watch */
+    if (p < bases[i])
+      continue;
+    off = p - bases[i];
+    if (off >= (ptrdiff_t)WP_LIMIT)
+      continue;
+    addr = off;
+    if ((num = wp_find(addr)) != -1)
+      break;
+    if (page == -1)
+      page = wp_find_page(addr);
+  }
+  if (num == -1 && page == -1)
+    return 0;				/* nobody's business of ours */
+  wp_protect(0);
+  wp_rearm = 1;
+  if (num == -1)
+    /* the protection is by page and the watch is by byte, so this is a
+     * write next door.  It has been let through; say nothing about it. */
+    return 1;
+  if (wp_last.num == -1) {
+    unsigned int j;
+
+    wp_last.num = num;
+    wp_last.addr = addr;
+    wp_last.pc = pc;
+    wp_last.before = before;
+    wp_last.olen = _min(wptab[num].len, (unsigned int)sizeof(wp_last.old));
+    for (j = 0; j < wp_last.olen; j++)
+      wp_last.old[j] = READ_BYTE(wptab[num].addr + j);
+  }
+  return 2;				/* stop on this one */
+}
+
+/* called from mhp_poll(), outside of any signal handler */
+void mhp_watch_poll(void)
+{
+  if (wp_last.num >= 0) {
+    unsigned int i;
+
+    /* Out of compiled code the client can be stopped on the very
+     * instruction that writes, and then the old contents are still there.
+     * Out of the interpreter it cannot, so the write has already happened
+     * by the time anyone reads this; say which of the two it was rather
+     * than let the reader guess. */
+    mhp_printf("\nwatchpoint %d: %08x %s", wp_last.num, wp_last.addr,
+               wp_last.before ? "about to be written" : "has been written");
+    if (wp_last.pc)
+      mhp_printf(" from %08x", wp_last.pc);
+    mhp_printf("%s", wp_last.before ? ", it holds" : ", it now holds");
+    for (i = 0; i < wp_last.olen; i++)
+      mhp_printf(" %02x", wp_last.before ? wp_last.old[i] :
+                 READ_BYTE(wptab[wp_last.num].addr + i));
+    mhp_printf("\n");
+    wp_last.num = -1;
+    mhpdbgc.want_to_stop = 1;
+    return;
+  }
+  if (wp_rearm && !mhpdbgc.stopped)
+    wp_protect(1);
+}
+
+/* Arming is left to the next poll rather than done here: the client is
+ * stopped on the very instruction that is about to write, so protecting
+ * the page now would only fault on it again and never let it through. */
+void mhp_watch_set(void)
+{
+  if (wp_count() && !wp_armed)
+    wp_rearm = 1;
+}
+
+/* the debugger terminal is going away: the client must not be left running
+ * into protected pages with nobody to report them to */
+void mhp_watch_clr(void)
+{
+  int i;
+
+  if (wp_armed)
+    wp_protect(0);
+  for (i = 0; i < MAXWP; i++)
+    wptab[i].is_valid = 0;
+  wp_last.num = -1;
+  wp_rearm = 0;
+}
+
+static void mhp_bpw(int argc, char *argv[])
+{
+  dosaddr_t seekval, pg_start, pg_end, a;
+  unsigned int seg, off, limit, len = 1;
+  int i;
+
+  if (argc < 2) {
+    mhp_printf("Watchpoints:\n");
+    for (i = 0; i < MAXWP; i++) {
+      if (wptab[i].is_valid)
+        mhp_printf("%d: %08x %u\n", i, wptab[i].addr, wptab[i].len);
+    }
+    return;
+  }
+  if (!check_for_stopped())
+    return;
+  /* The client is caught by taking write permission off the mapping it
+   * runs on, and only the CPU emulator's jit turns the resulting fault
+   * back into something to report.  KVM does not even take it, as its
+   * protections live in the VM's own page tables, and native DPMI would
+   * carry it to the generic handler, so don't arm one there. */
+  if (!IS_EMU_JIT() || (IN_DPMI ? !EMU_DPMI() : !EMU_V86())) {
+    mhp_printf("Only works where the CPU emulator's jit runs the client, "
+               "and it does not here\n");
+    return;
+  }
+  if (!mhp_getadr(argv[1], &seekval, &seg, &off, &limit, IN_DPMI)) {
+    mhp_printf("Invalid ADDR\n");
+    return;
+  }
+  if (argc > 2 && (!getval_ui(argv[2], 0, &len) || !len)) {
+    mhp_printf("Invalid size '%s'\n", argv[2]);
+    return;
+  }
+  if (seekval + len > WP_LIMIT || seekval + len < seekval) {
+    mhp_printf("Only DOS memory up to %08x can be watched\n", WP_LIMIT);
+    return;
+  }
+  /* A page these own is already write protected, by them and for their own
+   * purposes, and taking the protection off on a fault - which is what a
+   * watch does - would lose them the writes they exist to catch.  The test
+   * is over whole pages because that is the unit the protection goes on. */
+  pg_start = seekval & ~(dosaddr_t)(HOST_PAGE_SIZE - 1);
+  pg_end = (seekval + len + HOST_PAGE_SIZE - 1) & ~(dosaddr_t)(HOST_PAGE_SIZE - 1);
+  for (a = pg_start; a < pg_end; a += HOST_PAGE_SIZE) {
+    if (vga_write_access(a)) {
+      mhp_printf("%08x is in the video emulation's aperture, cannot watch "
+                 "it\n", a);
+      return;
+    }
+    if (memcheck_is_rom(a)) {
+      mhp_printf("%08x is in ROM, which is not written to\n", a);
+      return;
+    }
+  }
+  for (i = 0; i < MAXWP; i++) {
+    if (!wptab[i].is_valid) {
+      wptab[i].addr = seekval;
+      wptab[i].len = len;
+      wptab[i].is_valid = 1;
+      mhp_printf("Watchpoint %d set at %08x, %u byte%s\n", i, seekval, len,
+                 len == 1 ? "" : "s");
+      return;
+    }
+  }
+  mhp_printf("Watchpoint table full, nothing done\n");
+}
+
+static void mhp_bcw(int argc, char *argv[])
+{
+  unsigned int num;
+  int i;
+
+  if (!wp_count()) {
+    mhp_printf("No watchpoints set\n");
+    return;
+  }
+  /* The protection is taken off every page before the table changes,
+   * since wp_page_range() of a cleared entry says nothing.  Whatever is
+   * left over is then asked to be armed again at the next poll; without
+   * that the other watchpoints stay silently dead until the next go. */
+  wp_protect(0);
+  if (argc < 2) {
+    for (i = 0; i < MAXWP; i++)
+      wptab[i].is_valid = 0;
+    wp_last.num = -1;
+    mhp_printf("All watchpoints cleared\n");
+    return;
+  }
+  if (!getval_ui(argv[1], 0, &num) || num >= MAXWP ||
+      !wptab[num].is_valid) {
+    mhp_printf("Invalid watchpoint number\n");
+    mhp_watch_set();
+    return;
+  }
+  wptab[num].is_valid = 0;
+  if (wp_last.num == (int)num)
+    wp_last.num = -1;
+  mhp_watch_set();
+  mhp_printf("Watchpoint %u cleared\n", num);
+}
+
 int mhp_setbp(unsigned int seekval)
 {
   int i1;
@@ -2057,6 +2401,7 @@ void mhp_clear_all_bp(void)
   int i1;
 
   mhp_bpclr();
+  mhp_watch_clr();
   trapped_bp = -1;
   trace_bp = 0;
   for (i1 = 0; i1 < MAXBP; i1++) {
@@ -3100,6 +3445,8 @@ static const struct cmd_db cmdtab[] = {
   {"tc",            mhp_tracec},
   {"r32",           mhp_regs32},
   {"bp",            mhp_bp},
+  {"bpw",           mhp_bpw},
+  {"bcw",           mhp_bcw},
   {"bc",            mhp_bc},
   {"bl",            mhp_bl},
   {"bpint",         mhp_bpint},
