@@ -154,14 +154,58 @@ static void xms_unmap(cpuctx_t *scp, unsigned handle, dosaddr_t va)
     *scp = sa;
 }
 
+/* a near pointer into a client's segment, checked against its limit */
+static void *clnt_seg_adr(unsigned short sel, unsigned int offs,
+	unsigned int len, int is_32)
+{
+    uint64_t lim;
+
+    if (!ValidAndUsedSelector(sel))
+        return NULL;
+    lim = GetSegmentLimit(sel);
+    if (!is_32)
+        offs &= 0xffff;
+    if ((uint64_t)offs + len > lim + 1)
+        return NULL;
+    return SEL_ADR_CLNT(sel, offs, is_32);
+}
+
+/* With handle 0 a 32-bit client passes a near pointer into its DS. That
+ * is an extension: the XMS spec puts a real mode seg:ofs there, which
+ * such a client can't use. A 16-bit client has no 32-bit offsets, so
+ * for it the upper half is a selector - and when it is not one, the
+ * client means the segment of the spec, which is not ours to resolve:
+ * the call goes to the real mode driver like any other. */
+static int clnt_adr_is_pm(unsigned short handle, unsigned int offs, int is_32)
+{
+    if (handle != 0)
+        return 1;
+    return (is_32 || ValidAndUsedSelector(offs >> 16));
+}
+
+static void *clnt_xms_adr(unsigned short sel, unsigned int offs,
+	unsigned int len, int is_32)
+{
+    if (is_32)
+        return clnt_seg_adr(sel, offs, len, is_32);
+    return clnt_seg_adr(offs >> 16, offs, len, 0);
+}
+
 static void xmshlp_thr(void *arg)
 {
     cpuctx_t *scp = arg;
     int is_32 = msdos_is_32();
 
     if (_HI_(ax) == 0x0b) {
-        struct EMM *e = SEL_ADR_CLNT(_ds_, _esi_, is_32);
-        if (e->SourceHandle == 0 || e->DestHandle == 0) {
+        struct EMM *e = clnt_seg_adr(_ds_, _esi_, sizeof(*e), is_32);
+        if (!e) {
+            _LWORD(eax) = 0;
+            _LWORD(ebx) = 0xa7;
+            return;
+        }
+        if ((e->SourceHandle == 0 || e->DestHandle == 0) &&
+                clnt_adr_is_pm(e->SourceHandle, e->SourceOffset, is_32) &&
+                clnt_adr_is_pm(e->DestHandle, e->DestOffset, is_32)) {
             dosaddr_t src = -1, dst = -1;
             unsigned char *s = NULL, *d = NULL;
             if (e->SourceHandle != 0) {
@@ -170,7 +214,7 @@ static void xmshlp_thr(void *arg)
                 if (src != (dosaddr_t)-1)
                     s = LINEAR2UNIX(src + e->SourceOffset);
             } else {
-                s = SEL_ADR_CLNT(_ds_, e->SourceOffset, is_32);
+                s = clnt_xms_adr(_ds_, e->SourceOffset, e->Length, is_32);
             }
             if (!s) {
                 _LWORD(eax) = 0;
@@ -182,7 +226,7 @@ static void xmshlp_thr(void *arg)
                 if (dst != (dosaddr_t)-1)
                     d = LINEAR2UNIX(dst + e->DestOffset);
             } else {
-                d = SEL_ADR_CLNT(_ds_, e->DestOffset, is_32);
+                d = clnt_xms_adr(_ds_, e->DestOffset, e->Length, is_32);
             }
             if (!d) {
                 _LWORD(eax) = 0;
