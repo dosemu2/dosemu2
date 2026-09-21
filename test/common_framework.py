@@ -752,7 +752,8 @@ class BaseTestCase(object):
         return ret
 
     def runDosemuRaw(self, xargs, config=DOSEMU_CONF_DEFAULT, rows=25, cols=80,
-                     until=None, settle=1, timeout=None, env=None):
+                     until=None, settle=1, timeout=None, env=None,
+                     interact=None):
         """Run dosemu2 under a pty and hand back every byte it wrote.
 
         For tests that are about what reaches the terminal rather than
@@ -769,6 +770,11 @@ class BaseTestCase(object):
         program; the run is then given `settle` seconds and ended with
         SIGTERM, so that whatever the backend writes on the way out is
         captured too.
+
+        `interact` is called with the master side of the pty once the
+        marker has been seen, for a test that has to type at the running
+        DOS program; what it reads there is its own, and does not appear
+        in the bytes handed back.
         """
         default_timeout = int(environ.get("DEFAULT_TIMEOUT", '15'))
         if timeout is None:
@@ -826,6 +832,8 @@ class BaseTestCase(object):
         try:
             drain(deadline)
             sleep(settle)
+            if interact is not None:
+                interact(fd)
             kill(pid, signal.SIGTERM)
             drain(monotonic() + 10)
         finally:
