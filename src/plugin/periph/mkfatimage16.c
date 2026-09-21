@@ -564,15 +564,23 @@ int main(int argc, char *argv[])
   /* Size the image and close */
   if (outfile != stdout) {
     if (total_file_size) {
-      /* we need padding,
-       * but doing it this way it will make holes on an ext2-fs,
-       * hence the _actual_ disk usage will not be greater.
+      /* a file system that has holes gives this away: the size is the
+       * disk's, the blocks are only the ones we wrote. ftruncate() is
+       * what says that exactly - seeking past the end and writing a
+       * byte allocates the block that byte lands in, and it can only
+       * ever make the file longer, so an image that overran its own
+       * geometry stayed overrun.
        */
       if (!raw)
         total_file_size += sizeof(*header);
 
-      fseek(outfile, total_file_size - 1, SEEK_SET);
-      fwrite("", 1, 1, outfile);
+      if (fflush(outfile) != 0 ||
+          ftruncate(fileno(outfile), total_file_size) != 0) {
+        fprintf(stderr, "Error: cannot size the image to %ld bytes: %s\n",
+                total_file_size, strerror(errno));
+        fclose(outfile);
+        return 1;
+      }
     }
     fclose(outfile);
   }
