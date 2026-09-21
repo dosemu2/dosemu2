@@ -8,7 +8,12 @@ extern "C" {
 #endif
 
 #include "bios_offsets.h"
-#define DOSEMU_BIOS_SIZE() (bios_f000_end - bios_data_start + 1)
+/* bios_f000_end is the label just past the last byte of the image, so the
+ * size is the plain difference.  The stray +1 that used to be here went
+ * unnoticed while the BIOS sat at 0xf000, where the extra byte fell off the
+ * end of the first megabyte; it reserves a whole granule of somebody else's
+ * memory as soon as the BIOS is anywhere else. */
+#define DOSEMU_BIOS_SIZE() (bios_f000_end - bios_data_start)
 
 /*
  * symbols to access BIOS-data with meaningful names, not just addresses,
