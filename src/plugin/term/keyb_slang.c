@@ -1265,6 +1265,127 @@ static int get_modifiers(void)
 
 #define THE_TIMEOUT 250000L
 
+/*
+ * The kitty keyboard protocol (issue #1379).  Escape arrives as a complete
+ * CSI 27 u, so it needs none of THE_TIMEOUT above.  A terminal that does
+ * not know the protocol answers only the CSI c sent behind the question.
+ */
+#define KITTY_FLAGS 1		/* disambiguate escape codes */
+
+static enum { KITTY_OFF, KITTY_ASKED, KITTY_ON } kitty_mode;
+
+/* the keysym for the key kitty numbered `code' */
+static t_keysym kitty_keysym(unsigned code)
+{
+	switch (code) {
+	case 27:	return DKY_ESC;
+	case 13:	return DKY_RETURN;
+	case 9:		return DKY_TAB;
+	case 127:	return DKY_BKSP;
+	}
+	/* dosemu's own keysyms live in the private use area, where kitty
+	 * numbers the keys that have no character, so drop those */
+	if (code >= ' ' && code < 0xd800)
+		return code;
+	return DKY_VOID;
+}
+
+/*
+ * Eat the CSI sequences the kitty protocol adds: returns the length eaten,
+ * 0 for somebody else's sequence, -1 for an incomplete one.  *sent says a
+ * key reached DOS.
+ */
+static int kitty_get_event(int *sent)
+{
+	const Bit8u *p = keyb_state.kbp;
+	int n = keyb_state.kbcount;
+	int i, priv = 0, sub = 0, npar = 0, slot;
+	unsigned par[3] = { 0, 0, 0 };	/* code, modifiers, event type */
+	unsigned code, mods;
+	unsigned long flags = 0;
+	t_keysym sym;
+
+	*sent = 0;
+	if (n < 2 || p[0] != 27 || p[1] != '[')
+		return 0;
+	i = 2;
+	if (p[i] == '?') {
+		priv = 1;
+		i++;
+	}
+	for (; i < n; i++) {
+		if (isdigit(p[i])) {
+			slot = -1;
+			if (npar == 0 && sub == 0)
+				slot = 0;
+			else if (npar == 1 && sub == 0)
+				slot = 1;
+			else if (npar == 1 && sub == 1)
+				slot = 2;
+			if (slot >= 0)
+				par[slot] = par[slot] * 10 + p[i] - '0';
+			continue;
+		}
+		if (p[i] == ':') {
+			sub++;
+			continue;
+		}
+		if (p[i] == ';') {
+			npar++;
+			sub = 0;
+			continue;
+		}
+		break;
+	}
+	if (i == n)
+		return -1;			/* still arriving */
+	if (p[i] != 'u' && p[i] != 'c')
+		return 0;			/* not one of ours */
+
+	if (priv) {
+		/* the two answers asked for at startup */
+		if (p[i] == 'u') {
+			if (kitty_mode == KITTY_ASKED) {
+				kitty_mode = KITTY_ON;
+				printf("\033[>%du", KITTY_FLAGS);
+				fflush(stdout);
+				k_printf("KBD: kitty keyboard protocol on\n");
+			}
+		} else if (kitty_mode == KITTY_ASKED) {
+			kitty_mode = KITTY_OFF;
+			k_printf("KBD: terminal has no kitty keyboard "
+				 "protocol\n");
+		}
+		return i + 1;
+	}
+	if (p[i] != 'u' || kitty_mode != KITTY_ON)
+		return 0;
+
+	code = par[0];
+	mods = par[1] ? par[1] - 1 : 0;
+	if (par[2] == 3) {
+		/* not asked for, but must not type the key twice */
+		k_printf("KBD: kitty release of %u\n", code);
+		return i + 1;
+	}
+	sym = kitty_keysym(code);
+	if (sym == DKY_VOID) {
+		k_printf("KBD: kitty key %u has nothing to type\n", code);
+		return i + 1;
+	}
+	if (mods & 1)
+		flags |= SHIFT_MASK;
+	if (mods & 2)
+		flags |= ALT_MASK;
+	if (mods & 4)
+		flags |= CTRL_MASK;
+	/* the rest is super, hyper, meta and the lock states: not ours */
+	k_printf("KBD: kitty key %u mods %u\n", code, mods);
+	slang_send_scancode(keyb_state.Shift_Flags | flags, sym);
+	*sent = 1;
+	return i + 1;
+}
+
 static void do_slang_pending(void)
 {
 	if (keyb_state.CharNot_Ready && keyb_state.kbcount) {
@@ -1409,6 +1530,28 @@ static void process_slang_keys(void)
 
 		keyb_state.Keystr_Len = 0;
 		keyb_state.RetNot_Ready = 0;
+
+		if (kitty_mode != KITTY_OFF) {
+			int sent, len = kitty_get_event(&sent);
+
+			if (len < 0) {
+				k_printf("KBD: waiting for the rest of a "
+					 "CSI sequence\n");
+				if (!keyb_state.KeyNot_Ready) {
+					keyb_state.t_start = GETusTIME(0);
+					keyb_state.KeyNot_Ready = 1;
+				}
+				break;
+			}
+			if (len > 0) {
+				keyb_state.KeyNot_Ready = 0;
+				keyb_state.kbcount -= len;
+				keyb_state.kbp += len;
+				if (sent)
+					break;
+				continue;
+			}
+		}
 
 		key = SLang_do_key(keyb_state.The_Normal_KeyMap, getkey_callback);
 		slang_set_error(0);
@@ -1687,6 +1830,13 @@ static int slang_keyb_init(void)
 
 	/* Enable cursor keys (DECCKM) */
 	printf("\033[?1h\r");
+
+	if (!keyb_state.pc_scancode_mode) {
+		/* ask for the kitty flags, with a DA request as the "no" */
+		printf("\033[?u\033[c");
+		kitty_mode = KITTY_ASKED;
+	}
+	fflush(stdout);
 	k_printf("KBD: slang_keyb_init() ok\n");
 	return TRUE;
 }
@@ -1701,6 +1851,10 @@ static void slang_keyb_close(void)
 	}
 	term_close();
 	cleanup_charset_state(&keyb_state.translate_state);
+	if (kitty_mode == KITTY_ON) {
+		printf("\033[<u");
+		kitty_mode = KITTY_OFF;
+	}
 	printf("\033[?1l\r");
 	if (exitstr) printf("%s", exitstr);
 }
