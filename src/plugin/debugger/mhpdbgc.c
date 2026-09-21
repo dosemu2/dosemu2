@@ -1292,11 +1292,14 @@ static void mhp_mcbs(int argc, char *argv[])
   for (seg = READ_WORD(lol - 2), mcb = MK_FP32(seg, 0), uma = 0, hdr = 1;
        mcb->id == 'M' || mcb->id == 'Z';
        seg += (1 + mcb->size), mcb = MK_FP32(seg, 0)) {
+    /* The last block of a chain is a 'Z' and the rest are 'M's, so a
+     * conventional memory that is entirely free is one 'Z' and nothing
+     * else.  Print the header for whatever comes first. */
+    if (hdr) {
+      mhp_printf("\nADDR(%s) PARAS  OWNER\n", uma == 0 ? "LOW" : "UMA");
+      hdr = 0;
+    }
     if (mcb->id == 'M') {
-      if (hdr) {
-        mhp_printf("\nADDR(%s) PARAS  OWNER\n", uma == 0 ? "LOW" : "UMA");
-        hdr = 0;
-      }
       print_mcb(mcb, seg);
 
       /* is this a DOS data segment */
@@ -2825,13 +2828,19 @@ static void mhp_injchar_thr(void *arg)
 
 static void mhp_injchar(int argc, char *argv[])
 {
-  int key;
+  unsigned int key;
+
   if (argc < 2) {
     mhp_printf("missing argument\n");
     return;
   }
-  key = atoi(argv[1]);
-  mhp_printf("injecting %x\n", key);
+  /* atoi() answered 0 for anything it could not read, so "injchar q"
+   * quietly injected a NUL.  int 16h AX=0500 takes scancode:ascii in cx. */
+  if (!getval_ui(argv[1], 0, &key) || key > 0xffff) {
+    mhp_printf("Invalid character code '%s'\n", argv[1]);
+    return;
+  }
+  mhp_printf("injecting %#x\n", key);
   coopth_start(ic_tid, (void *)(uintptr_t)key);
 }
 
@@ -2912,9 +2921,17 @@ static void do_hooksig(int act)
 static void mhp_hookcbrk(int argc, char *argv[])
 {
   int on = 1;
-  if (argc > 1 && strcmp(argv[1], "off") == 0)
-    on = 0;
+
+  if (argc > 1) {
+    if (strcmp(argv[1], "off") == 0)
+      on = 0;
+    else if (strcmp(argv[1], "on") != 0) {
+      mhp_printf("Expected 'on' or 'off', got '%s'\n", argv[1]);
+      return;
+    }
+  }
   do_hookcbrk(on);
+  mhp_printf("^break handler %s\n", on ? "hooked" : "restored");
 }
 
 static void c_nothr_k(int nthr)
