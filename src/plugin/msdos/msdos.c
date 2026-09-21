@@ -94,6 +94,7 @@ struct seg_sel {
 struct msdos_struct {
     int is_32;
     struct pmaddr_s mouseCallBack, PS2mouseCallBack; /* user\'s mouse routine */
+    struct pmaddr_s mouseCallBackPrev;	/* for int33/ax=14 to return */
     far_t XMS_call;
     DPMI_INTDESC prev_fault;
     DPMI_INTDESC prev_pagefault;
@@ -1823,13 +1824,11 @@ int msdos_pre_extender(cpuctx_t *scp,
 		    SET_RMREG(es, 0);
 		    SET_RMLWORD(dx, 0);
 		}
-		if (_LWORD(eax) == 0x14) {
-		    _es = old_callback.selector;
-		    if (MSDOS_CLIENT.is_32)
-			_edx = old_callback.offset;
-		    else
-			_LWORD(edx) = old_callback.offset;
-		}
+		/* The registers we set here do not survive: the helper
+		 * thread saves the client context on entry and restores
+		 * eax..edi and es from it before post_extender() runs.
+		 * So stash the old handler and hand it back there. */
+		MSDOS_CLIENT.mouseCallBackPrev = old_callback;
 	    }
 	    break;
 	default:
@@ -2345,9 +2344,20 @@ int msdos_post_extender(cpuctx_t *scp,
 	switch (ax) {
 	case 0x09:		/* Set Mouse Graphics Cursor */
 	case 0x0c:		/* set call back */
-	case 0x14:		/* swap call back, results already set
-				 * in pre_extender() so here only preserve */
 	    PRESERVE1(edx);
+	    break;
+	case 0x14:{		/* swap call back */
+		/* return the handler this client had installed before,
+		 * not the real mode entry the driver was given and not
+		 * the handler that was just installed */
+		const struct pmaddr_s *prev = &MSDOS_CLIENT.mouseCallBackPrev;
+		PRESERVE1(edx);
+		_es = prev->selector;
+		if (MSDOS_CLIENT.is_32)
+		    _edx = prev->offset;
+		else
+		    _LWORD(edx) = prev->offset;
+	    }
 	    break;
 	case 0x19:		/* Get User Alternate Interrupt Address */
 	    SET_REG(ebx, ConvertSegmentToDescriptor(RMLWORD(bx)));
