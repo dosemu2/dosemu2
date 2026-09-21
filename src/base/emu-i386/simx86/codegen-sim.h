@@ -79,6 +79,9 @@ extern void InitGen_sim(void);
 
 /////////////////////////////////////////////////////////////////////////////
 
+uint32_t sim_get_cc_flags(void);
+void sim_set_cc_flags(uint32_t flg);
+
 uint8_t sim_read_byte(dosaddr_t x);
 uint16_t sim_read_word(dosaddr_t x);
 uint32_t sim_read_dword(dosaddr_t x);

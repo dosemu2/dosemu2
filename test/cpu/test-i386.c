@@ -60,18 +60,15 @@ typedef unsigned long long uint64_t;
 #endif
 //#define LINUX_VM86_IOPL_FIX
 //#define TEST_P4_FLAGS
-/* The integer CMOVcc is emulated by the cpuemu, so it is always tested.
- * FCMOVcc and F(U)COMIcc share its CPUID bit but are not emulated, so
- * TEST_CMOV, which gates the FCMOVcc test, stays as it was. */
+/* The whole CMOVcc family is emulated by the cpuemu, the x87 half as well
+ * as the integer one, so all three are always tested. */
 #define TEST_CMOVCC 1
-#ifdef __SSE__
-#define TEST_SSE
 #define TEST_CMOV  1
 #define TEST_FCOMI 1
+#ifdef __SSE__
+#define TEST_SSE
 #else
 #undef TEST_SSE
-#define TEST_CMOV  0 //1
-#define TEST_FCOMI 0 //1
 #endif
 
 #if defined(__x86_64__)

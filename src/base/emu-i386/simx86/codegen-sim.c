@@ -304,6 +304,18 @@ static void FlagSync_RFL (uint32_t flg)
 	RFL.res = (!(flg & EFLAGS_ZF)) << 8;
 }
 
+/* The FPU simulator lives in its own file but FCMOVcc reads the CC flags
+ * and F(U)COMI(P) writes them, so it needs a way in and out of RFL. */
+uint32_t sim_get_cc_flags(void)
+{
+	return FlagSync_All();
+}
+
+void sim_set_cc_flags(uint32_t flg)
+{
+	FlagSync_RFL(flg & EFLAGS_CC);
+}
+
 /////////////////////////////////////////////////////////////////////////////
 
 void InitGen_sim(void)
