@@ -14,12 +14,18 @@ assembled on the spot and handed to dosemu2 as its command interpreter.
 A second case takes the other direction: it runs a host terminal program
 from DOS through unix.com, so what the program draws crosses a pty, the DOS
 screen and the backend before the same terminal reads it back.
+
+The way in is the same backend turning the terminal's escape sequences back
+into PC scancodes: a third case types at the pty and asks DOS through
+int 16h what it got.
 """
 
 import re
 import unittest
 from shutil import which
 from subprocess import check_output, CalledProcessError, DEVNULL
+
+from time import monotonic, sleep
 
 from common_framework import (BaseTestCase, DOSEMU_CONF_DEFAULT,
                               main, main_setup, mark)
@@ -149,6 +155,144 @@ BG = {0: 40, 1: 44, 2: 42, 3: 46, 4: 41, 5: 45, 6: 43, 7: 47}
 CSI = re.compile(rb"\[([0-9;?]*)([ -/]*)([@-~])")
 OSC = re.compile(rb"\](\d+);([^\x07\x1b]*)(?:\x07|\x1b\\)")
 
+
+KEYS_PROBE = r"""
+; Write down every keystroke int 16h hands over, and nothing else.
+	org	0x100
+	bits	16
+	cpu	386
+
+start:
+	mov	ah, 0x3c		; create the report
+	xor	cx, cx
+	mov	dx, fname
+	int	0x21
+	jc	hang
+	mov	[fh], ax
+
+	mov	si, s_go
+	call	log
+	mov	ah, 0x09		; and on the screen, as the marker
+	mov	dx, s_go_scr
+	int	0x21
+.loop:
+	mov	ah, 0x11		; anything waiting?
+	int	0x16
+	jz	.loop
+	mov	ah, 0x10		; extended read
+	int	0x16
+	push	ax
+	mov	si, s_key
+	call	log
+	pop	ax
+	call	loghex
+	mov	si, s_nl
+	call	log
+	jmp	.loop
+hang:
+	jmp	hang
+
+; si -> an asciiz string to append to the report
+log:
+	push	ax
+	push	bx
+	push	cx
+	push	dx
+	mov	dx, si
+	xor	cx, cx
+.len:
+	cmp	byte [si], 0
+	je	.write
+	inc	si
+	inc	cx
+	jmp	.len
+.write:
+	mov	bx, [fh]
+	mov	ah, 0x40
+	int	0x21
+	pop	dx
+	pop	cx
+	pop	bx
+	pop	ax
+	ret
+
+; ax -> four hex digits in the report
+loghex:
+	push	ax
+	mov	di, hexbuf
+	mov	cx, 4
+	mov	bx, ax
+.digit:
+	rol	bx, 4
+	mov	al, bl
+	and	al, 0x0f
+	add	al, '0'
+	cmp	al, '9'
+	jbe	.store
+	add	al, 7
+.store:
+	mov	[di], al
+	inc	di
+	loop	.digit
+	mov	byte [di], 0
+	mov	si, hexbuf
+	call	log
+	pop	ax
+	ret
+
+fh	dw	0
+fname	db	'C:\KEYS.TXT', 0
+s_go	db	'GO', 13, 10, 0
+s_go_scr db	'GO', 13, 10, '$'
+s_key	db	'key ', 0
+s_nl	db	13, 10, 0
+hexbuf	times 8 db 0
+"""
+
+# How long to leave between the halves of a sequence that is sent in two
+# pieces, comfortably inside the 250ms the backend waits, and how long to
+# leave to make it give up on one.
+SPLIT_GAP = 0.1
+GIVE_UP = 1.2
+# How long a key is given to come out of int 16h, and how long one that
+# must not arrive is watched for.  The first is a ceiling only: the answer
+# is waited for, not slept through.
+ANSWER_WAIT = 1.5
+SILENCE = 0.5
+POLL = 0.02
+
+# name, the pieces to type with the pause after each, what int 16h owes us
+KEYS = [
+    ("F1",          [(b"\x1bOP", 0)],                       [0x3b00]),
+    ("F5",          [(b"\x1b[15~", 0)],                     [0x3f00]),
+    ("F12",         [(b"\x1b[24~", 0)],                     [0x8600]),
+    ("shift-F1",    [(b"\x1b[1;2P", 0)],                    [0x5400]),
+    ("alt-F1",      [(b"\x1b[1;3P", 0)],                    [0x6800]),
+    ("up",          [(b"\x1b[A", 0)],                       [0x48e0]),
+    ("left",        [(b"\x1b[D", 0)],                       [0x4be0]),
+    ("ctrl-left",   [(b"\x1b[1;5D", 0)],                    [0x73e0]),
+    ("home",        [(b"\x1bOH", 0)],                       [0x47e0]),
+    ("delete",      [(b"\x1b[3~", 0)],                      [0x53e0]),
+    ("shift-tab",   [(b"\x1b[Z", 0)],                       [0x0f00]),
+    ("ctrl-a",      [(b"\x01", 0)],                         [0x1e01]),
+    ("escape",      [(b"\x1b", 0)],                         [0x011b]),
+    # arriving in two reads, as over a slow line
+    ("split arrow", [(b"\x1b[", SPLIT_GAP), (b"A", 0)],     [0x48e0]),
+    ("split ctrl",  [(b"\x1b[1", SPLIT_GAP), (b";5D", 0)],  [0x73e0]),
+    # a character the terminal sends as more than one byte
+    ("umlaut",      [(b"\xc3\xa4", 0)],                     [0x0084]),
+    ("line",        [(b"\xe2\x94\x80", 0)],                 [0x00c4]),
+    # a mouse report is the backend's own business, not a keystroke
+    ("mouse",       [(b"\x1b[<35;10;5M", 0)],               []),
+    ("split mouse", [(b"\x1b[<35;11", SPLIT_GAP), (b";6M", 0)], []),
+    # a high byte that never becomes a character gets through as the meta
+    # key a dumb ascii terminal would have meant by it, and the character
+    # typed after it still has to arrive: mbrtowc() keeps what it could not
+    # finish, and the next call must not read it as a continuation
+    ("stray byte",  [(b"\xc3", GIVE_UP)],                   [0x2e00]),
+    ("umlaut after", [(b"\xc3\xa4", 0)],                    [0x0084]),
+    ("after stray", [(b"b", 0)],                            [0x3062]),
+]
 
 class Screen:
     """Just enough of a terminal to tell what ended up in which cell."""
@@ -733,10 +877,132 @@ class TerminalBlinkTestCase(SharedRun, BaseTestCase, unittest.TestCase):
         self.relog()
 
 
+class TerminalKeysTestCase(BaseTestCase, unittest.TestCase):
+    """What int 16h gives DOS for what was typed at the terminal."""
+
+    attrs = {'terminal'}
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.prettyname = "TermKeys"
+        # There is no DOS distribution to unpack
+        cls.tarfile = ""
+        cls.report = None
+        cls.keys = []
+        cls.raw = b""
+        cls.bootlog = ""
+
+    test_0_basic_boot = None
+
+    @mark('terminal')
+    def test_every_sequence_becomes_the_right_key(self):
+        """the terminal's escape sequences turn back into PC scancodes"""
+        got, report = self.type()
+        want = [k for name, pieces, keys in KEYS for k in keys]
+        if got == want:
+            return
+        # The keys arrive in the order they were typed, so the stream is what
+        # the run is judged on: a key the backend hands over a moment late
+        # belongs to the case that typed it, not to the one being typed when
+        # it lands. The per case split is only to say where it went wrong.
+        lines = ["wanted %s" % self.hex(want), "got    %s" % self.hex(got)]
+        lines += ["%s: wanted %s, saw %s"
+                  % (name, self.hex(keys), self.hex(report[name]))
+                  for name, pieces, keys in KEYS if report[name] != keys]
+        self.fail("\n".join(lines))
+
+    def hex(self, keys):
+        return " ".join("%04x" % k for k in keys) or "nothing"
+
+    def relog(self):
+        """Hand this test the logs of the shared run."""
+        self.logfiles['xpt'][1] = "output.log"
+        self.logfiles['xpt'][0].write_bytes(self.__class__.raw)
+        self.logfiles['log'][0].write_text(self.__class__.bootlog)
+
+    def type(self):
+        """Type everything in KEYS once and note what came back.
+
+        Both the whole stream of keys, in the order they arrived, and the
+        split of it per case.
+        """
+        if self.__class__.report is not None:
+            self.relog()
+            return self.__class__.keys, self.__class__.report
+
+        # dosemu2 takes its command interpreter from DOSEMU2_COMCOM_DIR
+        self.mkcom_with_nasm("command", KEYS_PROBE)
+
+        result = self.workdir / "keys.txt"
+        marks = []
+
+        def answered(before):
+            """A whole line has been added to the report since `before`."""
+            data = result.read_bytes()
+            return len(data) > before and data.endswith(b"\r\n")
+
+        def settle(t, before, expect):
+            """Wait for the key to be written down, or for nothing to be.
+
+            A key that is owed is waited for rather than slept over, which
+            is most of what this test used to spend its time on; one that
+            must not arrive has to be watched for the whole window, since
+            there is nothing to wait for.
+            """
+            deadline = monotonic() + (ANSWER_WAIT if expect else SILENCE)
+            while monotonic() < deadline:
+                t.read(POLL)
+                if expect and answered(before):
+                    return
+
+        def typeall(t):
+            if not t.ready:
+                return
+            for name, pieces, want in KEYS:
+                before = len(result.read_bytes())
+                for data, gap in pieces:
+                    t.write(data)
+                    if gap:
+                        sleep(gap)
+                settle(t, before, bool(want))
+                marks.append((name, before))
+            t.read()
+            self.__class__.raw = result.read_bytes()
+
+        # -kt is the slang keyboard, the one that knows escape sequences;
+        # -ks would just pass bytes through
+        self.runDosemuRaw(
+            ("-t", "-kt"), config=CONF, rows=ROWS, cols=COLS,
+            until=b"GO", timeout=RUN_TIMEOUT, interact=typeall,
+            env={"DOSEMU2_COMCOM_DIR": str(self.workdir),
+                 "TERM": TERM, "LC_ALL": "C.UTF-8"})
+
+        self.__class__.bootlog = self.boot_log()
+        if not marks:
+            self.skipTest("the probe never ran; this build may have no "
+                          "terminal plugin")
+
+        data = self.__class__.raw
+
+        def keys_in(text):
+            return [int(l[4:8], 16) for l in text.split("\r\n")
+                    if l.startswith("key ")]
+
+        report = {}
+        for i, (name, before) in enumerate(marks):
+            end = marks[i + 1][1] if i + 1 < len(marks) else len(data)
+            report[name] = keys_in(data[before:end].decode("ascii", "replace"))
+        self.__class__.report = report
+        self.__class__.keys = keys_in(data.decode("ascii", "replace"))
+        return self.__class__.keys, report
+
+
 if __name__ == "__main__":
     cases = [
         TerminalRenderTestCase,
         TerminalHostProgramTestCase,
         TerminalBlinkTestCase,
+        TerminalKeysTestCase,
     ]
     main(main_setup(cases))
