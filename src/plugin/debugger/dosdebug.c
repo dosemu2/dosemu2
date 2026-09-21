@@ -157,6 +157,10 @@ static COMMAND cmds[] = {
    "                  registers. Unlike r, this is the state the CPU is\n"
    "                  really in, which differs while a client runs with page\n"
    "                  and descriptor tables of its own. TR says which it is\n"},
+  {"mon", NULL,
+   "ADDR [SIZE]       dump memory inside the KVM monitor, at the address\n"
+   "                  the guest sees it at. The monitor is DOSEMU's own\n"
+   "                  memory and is not reachable with d\n"},
   {"mode", NULL,
    "0|1|2|d|+d|-d     set mode (0=SEG16, 1=LIN32, 2=UNIX32) for u and d commands\n"},
   {"t", NULL,

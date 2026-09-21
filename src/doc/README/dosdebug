@@ -413,6 +413,26 @@ wether a DPMI-client is active (in_dpmi).
 </para>
 </listitem></varlistentry>
 <varlistentry>
+<term>mon addr [size]</term>
+<listitem>
+<para>
+		  Dump memory inside the KVM monitor, at the address the guest
+		  sees it at - the address a client's page tables point at,
+		  and the one <emphasis>kvm</emphasis> reports for CR3, GDTR
+		  and the rest.
+</para>
+<para>
+		  The monitor is DOSEMU's own memory. It is mapped into the
+		  guest but not into the DOS memory a linear address names,
+		  so <emphasis>d</emphasis> cannot reach it and says so. This
+		  is the way to read what the monitor's own code left behind:
+		  the registers a VCPI client's mode switch saved, say.
+</para>
+<para>
+		  Only useful when DOSEMU runs on KVM; it says so otherwise.
+</para>
+</listitem></varlistentry>
+<varlistentry>
 <term>bp addr</term>
 <listitem>
 <para>

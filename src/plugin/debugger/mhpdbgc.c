@@ -2417,6 +2417,49 @@ static void mhp_kvm(int argc, char *argv[])
              "which is not what TR holds: a client ran with tables of its own");
 }
 
+static void mhp_monitor(int argc, char *argv[])
+{
+  unsigned char buf[256];
+  unsigned int addr, nbytes = 64;
+  int i, i2;
+
+  if (argc < 2) {
+    mhp_printf("Usage: mon <address> [size]\n");
+    return;
+  }
+  if (!getval_ui(argv[1], 16, &addr)) {
+    mhp_printf("Invalid address '%s'\n", argv[1]);
+    return;
+  }
+  if (argc > 2 && (!getval_ui(argv[2], 0, &nbytes) || nbytes == 0 ||
+                   nbytes > sizeof(buf))) {
+    mhp_printf("Invalid size '%s'\n", argv[2]);
+    return;
+  }
+  if (kvm_read_monitor(addr, buf, nbytes) < 0) {
+    mhp_printf("%08x is not inside the KVM monitor\n", addr);
+    return;
+  }
+
+  mhp_printf("\n");
+  for (i = 0; i < nbytes; i++) {
+    if ((i & 0x0f) == 0x00)
+      mhp_printf("%08x ", addr + i);
+    mhp_printf("%02X ", buf[i]);
+    if ((i & 0x0f) == 0x0f || i == nbytes - 1) {
+      for (i2 = i; (i2 & 0x0f) != 0x0f; i2++)
+        mhp_printf("   ");
+      mhp_printf(" ");
+      for (i2 = i & ~0x0f; i2 <= i; i2++) {
+        unsigned char c = buf[i2] & 0x7f;
+
+        mhp_printf("%c", c >= 0x20 ? c : '.');
+      }
+      mhp_printf("\n");
+    }
+  }
+}
+
 static void mhp_regs32(int argc, char *argv[])
 {
   reg32 ^= 1;
@@ -3082,6 +3125,7 @@ static const struct cmd_db cmdtab[] = {
   {"tc",            mhp_tracec},
   {"r32",           mhp_regs32},
   {"kvm",           mhp_kvm},
+  {"mon",           mhp_monitor},
   {"bp",            mhp_bp},
   {"bc",            mhp_bc},
   {"bl",            mhp_bl},

@@ -1340,6 +1340,20 @@ static int kvm_post_run(struct vm86_regs *regs, struct kvm_regs *kregs)
 /* What KVM itself has for the vCPU, which is not the same thing as
  * monitor->regs: while a client runs with its own page tables and
  * descriptor tables, those hold the context of whoever handed it the CPU. */
+/* The monitor is dosemu's own memory, mapped into the guest but not into the
+ * DOS memory a dosaddr_t names, so nothing else can read it.  addr is where
+ * the guest sees it, which is what a client's page tables point at. */
+int kvm_read_monitor(unsigned int addr, void *buf, int len)
+{
+  if (!monitor || len <= 0)
+    return -1;
+  if (addr < MONITOR_DOSADDR || addr - MONITOR_DOSADDR > sizeof(*monitor) ||
+      sizeof(*monitor) - (addr - MONITOR_DOSADDR) < (unsigned)len)
+    return -1;
+  memcpy(buf, (unsigned char *)monitor + (addr - MONITOR_DOSADDR), len);
+  return 0;
+}
+
 int kvm_get_vcpu_state(struct kvm_vcpu_state *st)
 {
   struct kvm_regs kregs;
