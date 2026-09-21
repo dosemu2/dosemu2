@@ -1990,6 +1990,21 @@ void mimic_boot_blk(void)
       }
       break;
   }
+  /* Under JEMM our own low memory block sits at segment 0, inside the first
+   * 64K, and DOS memory starts above it.  Only fdpp is told where that is;
+   * every other kernel is put at 0070:0000 by its own boot sector and grows
+   * straight over us.  Stop here, where the kernel is known, rather than let
+   * it run into our halt blocks a moment later. */
+#ifdef USE_FDPP
+  if (config.jemm && f->sys_type != FDP_D) {
+#else
+  if (config.jemm) {
+#endif
+    error("JEMM needs the fdpp kernel: %s loads over our own low memory.\n"
+          "Boot fdpp, or turn $_jemm off.\n", system_type(f->sys_type));
+    leavedos(23);
+    return;
+  }
   config.boot_dos = f->sys_type;
   c_printf("config.boot_dos set to %" PRIx64 "\n", config.boot_dos);
   c_printf("config.int_hooks set to %i\n", config.int_hooks);
