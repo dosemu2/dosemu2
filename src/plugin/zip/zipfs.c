@@ -839,9 +839,27 @@ static int log_open(struct zipfs *zfs, int create)
   return zfs->log_fd;
 }
 
-/* name2 is only for 'r', and goes after the first name and a NUL */
+/*
+ * An id of LOG_ID_ALLOC asks for the next free overlay id instead of
+ * naming one. It can only be answered under the log's lock, which is
+ * the whole point: next_id is a per-mount counter, so two instances
+ * that both read it and then both create an entry hand out the same
+ * id, and with it the same chunk file - one instance's writes landing
+ * in the other's data. Taken under the lock, from the log itself, that
+ * cannot happen.
+ */
+#define LOG_ID_ALLOC ((unsigned)-1)
+
+/* defined below, beside the rest of the log reading */
+static int log_next_id(struct zipfs *zfs);
+
+/*
+ * name2 is only for 'r', and goes after the first name and a NUL.
+ * idp, when given, takes the id the record was written with, which is
+ * the only way to learn an allocated one.
+ */
 static int log_append(struct zipfs *zfs, int op, unsigned id,
-    const char *name, const char *name2)
+    const char *name, const char *name2, unsigned *idp)
 {
   unsigned char *rec;
   int len1 = strlen(name);
@@ -885,6 +903,13 @@ static int log_append(struct zipfs *zfs, int op, unsigned id,
     free(rec);
     return -1;
   }
+  if (id == LOG_ID_ALLOC) {
+    id = log_next_id(zfs);
+    rec[4] = id & 0xff;
+    rec[5] = (id >> 8) & 0xff;
+    rec[6] = (id >> 16) & 0xff;
+    rec[7] = (id >> 24) & 0xff;
+  }
   ret = write(zfs->log_fd, rec, LOG_HDR_LEN + len);
   if (ret > 0 && ret != LOG_HDR_LEN + len) {
     off_t end = lseek(zfs->log_fd, 0, SEEK_CUR);
@@ -892,6 +917,13 @@ static int log_append(struct zipfs *zfs, int op, unsigned id,
     /* O_APPEND leaves the offset just past what went in */
     if (end >= ret && ftruncate(zfs->log_fd, end - ret) != 0)
       error("zip: cannot undo a short log write: %s\n", strerror(errno));
+  }
+  if (ret == LOG_HDR_LEN + len) {
+    /* ours now, so the next one we take is past it */
+    if ((int)id >= zfs->next_id)
+      zfs->next_id = id + 1;
+    if (idp)
+      *idp = id;
   }
   flock(zfs->log_fd, LOCK_UN);
   free(rec);
@@ -1123,6 +1155,28 @@ static int log_read_rec(struct zipfs *zfs, off_t pos, int *op, unsigned *id,
   *op = hdr[0];
   *id = hdr[4] | (hdr[5] << 8) | (hdr[6] << 16) | ((unsigned)hdr[7] << 24);
   return LOG_HDR_LEN + len;
+}
+
+/*
+ * The lowest overlay id no record has taken yet. next_id counts the
+ * records we have applied; the log may hold more that we have not, so
+ * the tail past the cursor is read as well. Only a create takes an id
+ * out of the sequence - 'a' and 't' keep an attribute and a time in
+ * that field instead.
+ */
+static int log_next_id(struct zipfs *zfs)
+{
+  char name[LOG_MAX_NAME + 1];
+  off_t pos = zfs->log_consumed;
+  int n, op, ret = zfs->next_id;
+  unsigned id;
+
+  while ((n = log_read_rec(zfs, pos, &op, &id, name)) > 0) {
+    if ((op == '+' || op == 'd') && (int)id >= ret)
+      ret = id + 1;
+    pos += n;
+  }
+  return ret;
 }
 
 static void log_catchup(struct zipfs *zfs)
@@ -1514,7 +1568,7 @@ static int node_set_attr(struct zipfs *zfs, struct zip_node *n,
    * setting what is already set says nothing */
   if (attr == n->attr)
     return 0;
-  if (log_append(zfs, 'a', attr, rel, NULL) != 0)
+  if (log_append(zfs, 'a', attr, rel, NULL, NULL) != 0)
     return -1;
   n->attr = attr;
   return 0;
@@ -1765,14 +1819,15 @@ static vfs_file_t *zip_fs_creat(vfs_fs_t *fs, const char *path, int flags,
 
   if (!lookup_fresh(fs, path)) {
     const char *rel = rel_path(fs, path);
+    unsigned id;
 
     if (!rel) {
       errno = ENOENT;
       return NULL;
     }
-    if (log_append(zfs, '+', zfs->next_id, rel, NULL) != 0)
+    if (log_append(zfs, '+', LOG_ID_ALLOC, rel, NULL, &id) != 0)
       return NULL;
-    log_apply(zfs, '+', zfs->next_id, rel);
+    log_apply(zfs, '+', id, rel);
     if (!lookup(fs, path)) {
       errno = EIO;
       return NULL;
@@ -1801,7 +1856,7 @@ static int zip_fs_unlink(vfs_fs_t *fs, const char *path)
     errno = EISDIR;
     return -1;
   }
-  if (log_append(zfs, '-', 0, rel, NULL) != 0)
+  if (log_append(zfs, '-', 0, rel, NULL, NULL) != 0)
     return -1;
   node_unlink(zfs, n);
   return 0;
@@ -1811,6 +1866,7 @@ static int zip_fs_mkdir(vfs_fs_t *fs, const char *path, mode_t mode)
 {
   struct zipfs *zfs = fs->priv;
   const char *rel = rel_path(fs, path);
+  unsigned id;
 
   if (!rel) {
     errno = ENOENT;
@@ -1820,9 +1876,9 @@ static int zip_fs_mkdir(vfs_fs_t *fs, const char *path, mode_t mode)
     errno = EEXIST;
     return -1;
   }
-  if (log_append(zfs, 'd', zfs->next_id, rel, NULL) != 0)
+  if (log_append(zfs, 'd', LOG_ID_ALLOC, rel, NULL, &id) != 0)
     return -1;
-  log_apply(zfs, 'd', zfs->next_id, rel);
+  log_apply(zfs, 'd', id, rel);
   return 0;
 }
 
@@ -1844,7 +1900,7 @@ static int zip_fs_rmdir(vfs_fs_t *fs, const char *path)
     errno = ENOTEMPTY;
     return -1;
   }
-  if (log_append(zfs, '-', 0, rel, NULL) != 0)
+  if (log_append(zfs, '-', 0, rel, NULL, NULL) != 0)
     return -1;
   node_unlink(zfs, n);
   return 0;
@@ -1894,7 +1950,7 @@ static int zip_fs_rename(vfs_fs_t *fs, const char *oldpath, const char *newpath)
     errno = ENOENT;
     return -1;
   }
-  if (log_append(zfs, 'r', 0, from, to) != 0)
+  if (log_append(zfs, 'r', 0, from, to, NULL) != 0)
     return -1;
   node_rename(zfs, from, to);
   return 0;
@@ -1926,7 +1982,7 @@ static int zip_fs_utime(vfs_fs_t *fs, const char *path, time_t atime,
     secs = LOG_MTIME_MAX;
   if (LOG_EPOCH + (time_t)secs == n->mtime)
     return 0;
-  if (log_append(zfs, 't', secs, rel, NULL) != 0)
+  if (log_append(zfs, 't', secs, rel, NULL, NULL) != 0)
     return -1;
   n->mtime = LOG_EPOCH + (time_t)secs;
   return 0;
