@@ -45,6 +45,7 @@ from func_lfs_file_seek_tell import lfs_file_seek_tell
 from func_libi86_testsuite import libi86_create_items
 from func_lredir import mfs_lredir_auto_hdc, mfs_lredir_command, mfs_lredir_command_no_perm
 from func_memory_dpmi_dpmi10_ldt import memory_dpmi_dpmi10_ldt
+from func_memory_dpmi_int16handler import memory_dpmi_int16handler
 from func_memory_dpmi_nullseg import memory_dpmi_nullseg
 from func_memory_dpmi_ecm import (memory_dpmi_ecm_alloc, memory_dpmi_ecm_mini,
                                   memory_dpmi_ecm_modeswitch, memory_dpmi_ecm_psp)
@@ -1024,6 +1025,11 @@ class OurTestCase(BaseTestCase):
     def test_memory_dpmi10_ldt(self):
         """Memory DPMI-1.0 LDT"""
         memory_dpmi_dpmi10_ldt(self)
+
+    @mark(['memtest', 'dpmitest'])
+    def test_memory_dpmi_int16handler(self):
+        """Memory DPMI 16bit interrupt handler"""
+        memory_dpmi_int16handler(self)
 
     @mark(['memtest', 'dpmitest'])
     def test_memory_dpmi_nullseg(self):

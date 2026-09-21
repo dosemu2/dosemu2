@@ -194,6 +194,9 @@ static void make_xretf_frame(cpuctx_t *scp, void *sp,
 	uint32_t cs, uint32_t eip);
 static void make_iret_frame(cpuctx_t *scp, void *sp,
 	uint32_t cs, uint32_t eip);
+static void make_iret_frame_for(cpuctx_t *scp, void *sp,
+	uint32_t cs, uint32_t eip, int handler_32);
+static int handler_is_32(unsigned short sel);
 static void do_pm_int(cpuctx_t *scp, int i);
 static void msdos_set_client(cpuctx_t *scp, int num);
 static int rsp_get_para(void);
@@ -1484,7 +1487,8 @@ static void update_kvm_idt(void)
       kvm_set_idt_default(i);
     else
       kvm_set_idt(i, DPMI_CLIENT.Interrupt_Table[i].selector,
-          DPMI_CLIENT.Interrupt_Table[i].offset, DPMI_CLIENT.is_32, i >= 8);
+          DPMI_CLIENT.Interrupt_Table[i].offset,
+          handler_is_32(DPMI_CLIENT.Interrupt_Table[i].selector), i >= 8);
   }
 }
 
@@ -3402,10 +3406,25 @@ err:
     D_printf("DPMI: dpmi function failed, CF=1\n");
 }
 
-static void make_iret_frame(cpuctx_t *scp, void *sp,
-	uint32_t cs, uint32_t eip)
+/*
+ * A client's own bitness decides the shape of the frames it is given, but
+ * nothing stops it from installing a handler in a segment of the other
+ * width, and a 16bit handler cannot iret off a 32bit frame. A DOS
+ * extender written as a 32bit client does this for every interrupt its
+ * 16bit program hooks. Where the frame is nothing but an iret frame, hand
+ * the handler the one it can return from.
+ */
+static int handler_is_32(unsigned short sel)
 {
-  if (DPMI_CLIENT.is_32) {
+  if (!ValidAndUsedSelector(sel))
+    return DPMI_CLIENT.is_32;
+  return Segments(sel >> 3).is_32;
+}
+
+static void make_iret_frame_for(cpuctx_t *scp, void *sp,
+	uint32_t cs, uint32_t eip, int handler_32)
+{
+  if (handler_32) {
     unsigned int *ssp = sp;
     *--ssp = dpmi_flags_to_stack(_eflags);
     *--ssp = cs;
@@ -3416,8 +3435,17 @@ static void make_iret_frame(cpuctx_t *scp, void *sp,
     *--ssp = dpmi_flags_to_stack(_eflags);
     *--ssp = cs;
     *--ssp = eip;
-    _LWORD(esp) -= 6;
+    if (DPMI_CLIENT.is_32)
+      _esp -= 6;
+    else
+      _LWORD(esp) -= 6;
   }
+}
+
+static void make_iret_frame(cpuctx_t *scp, void *sp,
+	uint32_t cs, uint32_t eip)
+{
+  make_iret_frame_for(scp, sp, cs, eip, DPMI_CLIENT.is_32);
 }
 
 static void make_retf_frame(cpuctx_t *scp, void *sp,
@@ -4176,7 +4204,8 @@ static void run_pm_dos_int(int i)
   }
 
   D_printf("DPMI: Calling protected mode handler for DOS int 0x%02x\n", i);
-  make_iret_frame(scp, sp, dpmi_sel(), ret_eip);
+  make_iret_frame_for(scp, sp, dpmi_sel(), ret_eip,
+      handler_is_32(DPMI_CLIENT.Interrupt_Table[i].selector));
   _cs = DPMI_CLIENT.Interrupt_Table[i].selector;
   _eip = DPMI_CLIENT.Interrupt_Table[i].offset;
   _eflags &= ~(TF | NT | AC);
@@ -4748,7 +4777,8 @@ static void do_default_cpu_exception(cpuctx_t *scp, int trapno)
       cpu_exception_rm(scp, trapno);
       return;
     }
-    make_iret_frame(scp, sp, _cs, _eip);
+    make_iret_frame_for(scp, sp, _cs, _eip,
+        handler_is_32(DPMI_CLIENT.Interrupt_Table[trapno].selector));
     dpmi_cli();
     _eflags &= ~(TF | NT | AC);
     _cs = DPMI_CLIENT.Interrupt_Table[trapno].selector;
@@ -5531,7 +5561,8 @@ static int dpmi_gpf_simple(cpuctx_t *scp, uint8_t *lina, void *sp, int *rv)
         uint32_t eip2 = _eip;
 	if (debug_level('M')>=9)
           D_printf("DPMI: int 0x%x\n", lina[1]);
-	make_iret_frame(scp, sp, _cs, _eip);
+	make_iret_frame_for(scp, sp, _cs, _eip,
+	    handler_is_32(DPMI_CLIENT.Interrupt_Table[inum].selector));
 	if (inum<=7) {
 	  dpmi_cli();
 	}
