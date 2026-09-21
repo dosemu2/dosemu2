@@ -156,6 +156,7 @@ static uint16_t dos_alloc_lin_mem(struct call *c)
     uint32_t linp = call_argd(c, 0);
     uint32_t size = call_argd(c, 4);
     __dpmi_meminfo m = {};
+    __dpmi_free_mem_info mi;
     int i;
 
     for (i = 0; i < MAX_LINMEM; i++) {
@@ -163,6 +164,12 @@ static uint16_t dos_alloc_lin_mem(struct call *c)
 	    break;
     }
     if (i == MAX_LINMEM)
+	return ERROR_NOT_ENOUGH_MEMORY;
+    /* The programs measure memory by asking for ever smaller blocks until
+     * one is granted, so a host that hands out more than it has turns that
+     * into a very long loop. Answer from what DPMI says is left. */
+    if (__dpmi_get_free_memory_information(&mi) == 0 &&
+	    size > mi.largest_available_free_block_in_bytes)
 	return ERROR_NOT_ENOUGH_MEMORY;
     m.size = size;
     if (__dpmi_allocate_memory(&m) == -1)

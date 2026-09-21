@@ -27,13 +27,24 @@
  *
  * Every segment was given 64K of linear room when it was loaded, which is
  * all a 16bit selector can reach, so resizing one is only ever a new
- * limit. Nothing moves, and no pointer the program is holding goes stale. */
+ * limit. Nothing moves, and no pointer the program is holding goes stale.
+ *
+ * Crusader shrinks its stack segment and only then moves SP down into the
+ * smaller one, which works on real hardware because the limit cached in SS
+ * does not change until SS is reloaded. dosemu2 refreshes it at once, so
+ * the return from this very call would fault. The limit is therefore kept
+ * above the stack frame we are standing on; the program asked for a
+ * smaller segment as a courtesy to the extender, and never for a bound. */
 static uint16_t dos_realloc_seg(struct call *c)
 {
     uint16_t sel = call_argw(c, 0);
     uint32_t cbnew = call_argw(c, 2);
 
     if (!cbnew)				/* 0 means a full 64K */
+	cbnew = 0x10000;
+    if (sel == c->ss && cbnew <= c->sp + CALL_ARGS + 0x20)
+	cbnew = c->sp + CALL_ARGS + 0x20;
+    if (cbnew > 0x10000)
 	cbnew = 0x10000;
     if (__dpmi_set_segment_limit(sel, cbnew - 1) == -1)
 	return ERROR_INVALID_PARAMETER;
