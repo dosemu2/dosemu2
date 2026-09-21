@@ -8,6 +8,7 @@ from func_build_freecom import build_freecom
 from func_build_freedos import build_freedos
 from func_build_pcmos import build_pcmos
 from func_cpu_lmsw import cpu_lmsw
+from func_cpu_nop import cpu_nop
 from func_cpu_rdtsc import cpu_rdtsc
 from func_cpu_trap_flag import cpu_trap_flag
 from func_cpu_methods import cpu_create_items
@@ -78,6 +79,16 @@ class EMUTestCase(ppdosgit(OurTestCase, {
     def test_cpu_lmsw_sim(self):
         """CPU LMSW (simulated)"""
         cpu_lmsw(self, 1)
+
+    @mark('cputest')
+    def test_cpu_nop_jit(self):
+        """CPU multi-byte NOP (JIT)"""
+        cpu_nop(self, 0)
+
+    @mark('cputest')
+    def test_cpu_nop_sim(self):
+        """CPU multi-byte NOP (simulated)"""
+        cpu_nop(self, 1)
 
 
 class KVMTestCase(ppdosgit(OurTestCase, {

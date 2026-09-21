@@ -88,6 +88,35 @@ static char R1Tab_l[14] =
 #define INC_WL_PC(m,i)	PC=(PC+(i)+BT24(BitDATA16, m))
 
 /*
+ * Length in bytes of a modrm operand, counting the modrm byte itself.
+ * For instructions that have a modrm operand but never touch it, so
+ * that ModRM() - which would generate an address and, in the
+ * interpreter, check it for overflow - must not be called.
+ */
+static int ModRMLen(unsigned int PC, int mode)
+{
+	unsigned char cab = Fetch(PC);
+	int mod = D_HO(cab), rm = D_LO(cab);
+	int l = 1;
+
+	if (mod == 3)			/* register operand */
+		return l;
+	if (mode & ADDR16) {
+		if (mod == 0)
+			return (rm == 6) ? l + 2 : l;	/* disp16 */
+		return l + (mod == 1 ? 1 : 2);
+	}
+	if (rm == 4) {			/* sib byte */
+		l++;
+		if (mod == 0 && D_LO(Fetch(PC + 1)) == 5)
+			return l + 4;	/* no base, disp32 */
+	}
+	else if (mod == 0)
+		return (rm == 5) ? l + 4 : l;	/* disp32 */
+	return l + (mod == 0 ? 0 : (mod == 1 ? 1 : 4));
+}
+
+/*
  * close any pending instruction in the code cache.
  * P0 is the start of current code cache.
  * PC is the address of the next instruction after the sequence stops.
@@ -2364,7 +2393,15 @@ repag0:
 			/* case 0x0d:	Code Extension 25(AMD-3D) */
 			/* case 0x0e:	FEMMS(K6-3D) */
 			/* case 0x0f:	AMD-3D */
-			/* case 0x10-0x1f:	various V20/MMX instr. */
+			/* case 0x10-0x1e:	various V20/MMX/SSE instr. */
+			case 0x1f: /* multi-byte NOP (P6) */
+				/* The operand is never read, so nothing is
+				 * generated for it and ModRM() must not be
+				 * called: only the length matters. Intel
+				 * reserves the whole group as a NOP, so no
+				 * reg field is rejected here. */
+				PC += 2; PC += ModRMLen(PC, _mode);
+				break;
 			case 0x20:   /* MOVcdrd */ /* Privileged */
 			case 0x22:   /* MOVrdcd */ /* Privileged */
 			case 0x21:   /* MOVddrd */ /* Privileged */
