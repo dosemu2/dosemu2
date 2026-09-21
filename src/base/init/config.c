@@ -1147,9 +1147,13 @@ static void config_post_process(void)
 #endif
     }
     if (config.umb_b0 == -1)
-	config.umb_b0 = config.dumb_video && config.cardtype != CARD_MDA;
-    if (config.umb_b8)
-	config.umb_b8 = config.dumb_video && config.cardtype == CARD_MDA;
+	config.umb_b0 = config.dumb_video;
+    /* On an MDA the text memory sits at 0xb0000 and 0xb8000 is the free
+     * one, so the UMB moves over there on its own. */
+    if (config.cardtype == CARD_MDA) {
+	config.umb_b8 = config.umb_b0;
+	config.umb_b0 = 0;
+    }
 
     /* page-align memory sizes */
     config.ext_mem &= ~3;
