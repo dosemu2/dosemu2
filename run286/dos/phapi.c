@@ -33,14 +33,20 @@ uint32_t call_argd(struct call *c, unsigned off)
 }
 
 /* A far pointer argument is a selector in the high half and an offset in
- * the low one, so it can be poked at directly. */
+ * the low one, so it can be poked at directly. A null pointer means the
+ * caller does not want the value back; BioForge passes one for the old
+ * vectors it is never going to restore. */
 void call_setw(uint32_t fp, uint16_t val)
 {
+    if (!(fp >> 16))
+	return;
     _farpokew(fp >> 16, fp & 0xffff, val);
 }
 
 void call_setd(uint32_t fp, uint32_t val)
 {
+    if (!(fp >> 16))
+	return;
     _farpokel(fp >> 16, fp & 0xffff, val);
 }
 
@@ -477,6 +483,41 @@ static uint16_t dos_set_pass_to_prot_vec(struct call *c)
     return 0;
 }
 
+/*
+ * USHORT DosSetRealProtVec(USHORT intno, PFN protfn, REALPTR realfn,
+ *			    PPFN oldprotp, PREALPTR oldrealp)
+ *
+ * The same, except that the caller also names the real mode handler. Under
+ * DPMI the two vectors are separate, so both get set; BioForge uses this
+ * for its sound card IRQ and passes the vector the host already has as the
+ * real mode half, so an interrupt that arrives in real mode still lands
+ * somewhere sane.
+ */
+static uint16_t dos_set_real_prot_vec(struct call *c)
+{
+    uint32_t oldrealp = call_argd(c, 0);
+    uint32_t oldprotp = call_argd(c, 4);
+    uint32_t realfn = call_argd(c, 8);
+    uint32_t protfn = call_argd(c, 12);
+    uint16_t intno = call_argw(c, 16);
+    __dpmi_paddr pm;
+    __dpmi_raddr rm;
+
+    if (__dpmi_get_protected_mode_interrupt_vector(intno, &pm) == -1 ||
+	    __dpmi_get_real_mode_interrupt_vector(intno, &rm) == -1)
+	return ERROR_INVALID_PARAMETER;
+    call_setd(oldprotp, ((uint32_t)pm.selector << 16) | (pm.offset32 & 0xffff));
+    call_setd(oldrealp, ((uint32_t)rm.segment << 16) | rm.offset16);
+    pm.selector = protfn >> 16;
+    pm.offset32 = protfn & 0xffff;
+    rm.segment = realfn >> 16;
+    rm.offset16 = realfn & 0xffff;
+    if (__dpmi_set_protected_mode_interrupt_vector(intno, &pm) == -1 ||
+	    __dpmi_set_real_mode_interrupt_vector(intno, &rm) == -1)
+	return ERROR_INVALID_PARAMETER;
+    return 0;
+}
+
 /* USHORT DosSetExceptionHandler(USHORT exc, PFN handler, PPFN oldp) */
 static uint16_t dos_set_exception_handler(struct call *c)
 {
@@ -511,6 +552,7 @@ static const struct api_fn phapi[] = {
     { "DOSFREELINMEM",		0, 4,	dos_free_lin_mem },
     { "DOSISPHARLAP",		0, 0,	dos_is_pharlap },
     { "DOSSETPASSTOPROTVEC",	0, 14,	dos_set_pass_to_prot_vec },
+    { "DOSSETREALPROTVEC",	0, 18,	dos_set_real_prot_vec },
     { "DOSSETEXCEPTIONHANDLER",	0, 10,	dos_set_exception_handler },
     { "_DosRealIntr",		0, 0,	dos_real_intr },
     { "_DosRealFarCall",	0, 0,	dos_real_far_call },

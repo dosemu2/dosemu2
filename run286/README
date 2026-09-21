@@ -49,3 +49,14 @@ With its data in place BioForge gets through its whole startup, reads its
 message file and then stops at its own CD check, which wants the pressed
 disc rather than a copy of its files: a directory presented as a CDROM,
 even under the right volume label, does not satisfy it.
+
+BioForge in particular wants the directory its RED.OPT calls Dir= to sit on
+a drive dosemu2 presents as a CDROM, or it stops at its own CD check, and
+it wants GameDir= somewhere writable, since it builds its savegame
+directory there on the way up. With
+
+  $_hostfs_drives = "/path/to/BIOFORGE:c"
+
+and Dir= pointing into that drive it gets through the check, initialises
+its screen, palette, sound, music and both its interrupt handlers, and
+copies its initial game state into GameDir\gamedat.
