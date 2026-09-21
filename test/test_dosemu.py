@@ -57,6 +57,7 @@ from func_memory_hma import (memory_hma_freespace, memory_hma_alloc, memory_hma_
 from func_memory_uma import memory_uma_strategy
 from func_memory_xms import memory_xms
 from func_memory_xms_pages import memory_xms_pages
+from func_mkfatimage import mkfatimage_geometry_conflict
 from func_misc import (create_new_psp, passing_dos_errorlevel_back, passing_environment_variable,
                        systype)
 from func_mfs_directory import mfs_directory_common, mfs_get_current_directory
@@ -1086,6 +1087,21 @@ class OurTestCase(BaseTestCase):
     def test_fat32_img_d_writable(self):
         """FAT32 image file D writable"""
         fat_img_d_writable(self, "32")
+
+    @mark(['imgtest'])
+    def test_mkfatimage_conflict_tracks_kbytes(self):
+        """mkfatimage16 tracks and Kbytes together"""
+        mkfatimage_geometry_conflict(self, "tk")
+
+    @mark(['imgtest'])
+    def test_mkfatimage_conflict_kbytes_tracks(self):
+        """mkfatimage16 Kbytes and tracks together"""
+        mkfatimage_geometry_conflict(self, "kt")
+
+    @mark(['imgtest'])
+    def test_mkfatimage_conflict_kbytes_heads(self):
+        """mkfatimage16 Kbytes and heads together"""
+        mkfatimage_geometry_conflict(self, "kh")
 
     @mark('mfstest')
     def test_mfs_lredir_auto_hdc(self):
