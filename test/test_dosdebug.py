@@ -284,7 +284,8 @@ class OurTestCase(BaseTestCase):
 
         def body(args):
             # bpload puts us on the first instruction of simple.com, whose
-            # layout we know: mov dx (3), mov ah (2), int 21h (2)
+            # layout we know: mov dx (3), mov ah (2), int 21h (2),
+            # mov ax (3)
             self.dbgCmd("bpload")
             self.dbgchild.sendline("g")
             self.dbgchild.expect(["bpload: INT3 caught at"], timeout=40)
@@ -298,6 +299,11 @@ class OurTestCase(BaseTestCase):
                 seg, off, _ = self.dbgRegs(pm=False)
                 steps.append("%s %04x:%04x" % (cmd, seg, off))
             steps.append("insn " + self.dbgInsnAt(seg, off, pm=False))
+            # and 't' steps over the int rather than into it
+            self.dbgchild.sendline("t")
+            self.dbgWaitStop(pm=False, limit=20)
+            seg, off, _ = self.dbgRegs(pm=False)
+            steps.append("t %04x:%04x" % (seg, off))
             return " | ".join(steps)
 
         results = self.runWithDosdebug("testit.bat", body)
@@ -307,6 +313,7 @@ class OurTestCase(BaseTestCase):
         self.assertRegex(results, r"ti [0-9a-f]{4}:0103", results)
         self.assertRegex(results, r"ti [0-9a-f]{4}:0105", results)
         self.assertRegex(results, r"insn .*CD21", results)
+        self.assertRegex(results, r"t [0-9a-f]{4}:0107", results)
 
     def test_dosdebug_step_over_int_pm(self):
         """Dosdebug step over an int in protected mode"""

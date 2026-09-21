@@ -813,6 +813,12 @@ static void trace_handler(Bit16u idx, HLT_ARG(arg))
   trace_stack_pop(&_CS, &_IP);
 }
 
+/* the interrupts the real mode 't' leaves to the trap flag, see below */
+static int traced_over_by_tf(unsigned char num)
+{
+  return num == 0x21 || num == 0x2f || num == 0x28 || num == 0x33;
+}
+
 static void mhp_trace(int argc, char *argv[])
 {
   if (!check_for_stopped())
@@ -832,15 +838,18 @@ static void mhp_trace(int argc, char *argv[])
 
   mhpdbgc.trapip = mhp_getcsip_value();
 
-  /* A plain 't' over an int in protected mode cannot be done with TF:
-   * the handler returns with an iret, which begins executing with TF
-   * already cleared, so the trap fires one instruction past the one we
-   * wanted, and for an int 31h that dosemu serves itself it fires in
-   * dosemu's own stub. Step over it the way 'g' would, with a break-
-   * point on the instruction after the int.
+  /* A plain 't' over an int cannot be done with TF: the handler returns
+   * with an iret, which begins executing with TF already cleared, so the
+   * trap fires one instruction past the one we wanted, and for an int that
+   * dosemu serves itself it fires in dosemu's own stub. Step over it the
+   * way 'g' would, with a breakpoint on the instruction after the int.
+   *
+   * In real mode the hlt block below does the stepping over instead, but
+   * not for the interrupts dosemu revectors for itself, which it leaves to
+   * TF and which therefore need this.
    */
-  if (in_dpmi_pm() && mhpdbgc.trapcmd == 2 &&
-      READ_BYTE(mhpdbgc.trapip) == 0xcd) {
+  if (mhpdbgc.trapcmd == 2 && READ_BYTE(mhpdbgc.trapip) == 0xcd &&
+      (in_dpmi_pm() || traced_over_by_tf(READ_BYTE(mhpdbgc.trapip + 1)))) {
     unsigned int next = mhpdbgc.trapip + 2;
     /* if the user already has a breakpoint there, it stops us just as
      * well, and it is not ours to remove afterwards */
@@ -852,6 +861,7 @@ static void mhp_trace(int argc, char *argv[])
       mhpdbgc.trapcmd = 0;
       mhpdbgc.stopped = 0;
       dpmi_mhp_setTF(0);
+      clear_TF();
       mhp_bpset();
       return;
     }
@@ -887,8 +897,8 @@ static void mhp_trace(int argc, char *argv[])
         break;
       case 0xcd:  // int
         if (mhpdbgc.trapcmd != 1) { // plain 't'
-          if (csp[1] == 0x21 || csp[1] == 0x2f || csp[1] == 0x28 || csp[1] == 0x33)
-            break;
+          if (traced_over_by_tf(csp[1]))
+            break;      /* stepped over with a breakpoint above instead */
           LWORD(eip) += 2;
           trace_stack_push(_CS, _IP);
 
