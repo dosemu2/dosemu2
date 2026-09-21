@@ -416,19 +416,66 @@ the mode that was when you defined the breakpoint.
      it is.
 </para>
 <para>
-<emphasis>NOTE:</emphasis> this works by taking write permission away from
-the mapping the client runs on, which only the CPU emulator's jit can
-report back, so it is refused when the client runs on KVM or natively. Only
-DOS memory up to the end of the HMA can be watched, and not the video
-emulation's aperture or ROM, which are protected already and for other
-reasons.
+<emphasis>NOTE:</emphasis> a watch is armed one of two ways, depending on
+what is running the client, and the two behave differently. Only DOS memory
+up to the end of the HMA can be watched either way, and there is room for
+four watchpoints.
 </para>
 <para>
-<emphasis>What it does not see.</emphasis> This works by taking write
-permission away from the mapping the client runs on, and dosemu reaches the
-same memory through a mirror of its own, which memory.h keeps unprotected on
-purpose so that its writes are not trapped. Anything written through that
-mirror is therefore missed, and two kinds of write go through it.
+<emphasis>Under the CPU emulator's jit</emphasis> write permission comes off
+the mapping the client runs on and the jit reports the fault. The paragraphs
+below are about this way. The video emulation's aperture and ROM cannot be
+watched: they are protected already and for other reasons.
+</para>
+<para>
+<emphasis>Under KVM</emphasis> that would do nothing, since the protections
+that matter there live in the VM's own page tables, so the watch goes into
+the CPU's own debug registers instead. That is the only kind that follows a
+client which goes to ring 0 and runs with page and descriptor tables of its
+own, as a VCPI client does, and it has nothing to do with the mirror
+described below, so dosemu's own writing for the client is not seen there
+either. The hardware sets the terms: one, two or four bytes per watch,
+starting on a multiple of that size, and the stop comes just after the
+write rather than before it, so the memory already holds the new value.
+The address is the same number the rest of the debugger uses, because
+below the HMA the guest's linear addresses are that number.
+</para>
+<para>
+     What the hardware compares is the linear address, which is what the
+     address means under the page tables in force at the time. Those are
+     dosemu's own for an ordinary client, and there the two are the same
+     number. A client that has gone to ring 0 and installed page tables of
+     its own decides for itself what a linear address stands for, and the
+     watch follows the number rather than the memory: a VCPI client maps
+     the first megabyte to itself, which is why this works there at all,
+     but one that did not would be watching something else.
+</para>
+<para>
+     There is one set of these registers and the client can use them too, a
+     debugger running inside DOS being the case that does. Whatever it had is
+     put back when the last watch is cleared, but anything it sets while a
+     watch is armed is lost at the next arming: the hardware cannot be shared,
+     and the watch is what was asked for.
+</para>
+<para>
+Natively there is neither, so a watchpoint is refused. The two ways cannot
+be mixed either: whichever the first watch picked stands until
+<emphasis>bcw</emphasis> clears them all.
+</para>
+<para>
+     A client can also cross from one to the other while a watch is set,
+     which it does when KVM runs its real mode and the emulator its DPMI, or
+     the other way about. The watch then reports nothing from the far side,
+     and a client that writes nothing looks the same, so the debugger says
+     once that this has happened rather than leave the silence to be read as
+     an answer.
+</para>
+<para>
+<emphasis>What it does not see.</emphasis> Taking write permission off the
+mapping the client runs on leaves dosemu's own mirror of the same memory,
+which memory.h keeps unprotected on purpose so that its writes are not
+trapped. Anything written through that mirror is therefore missed, and two
+kinds of write go through it.
 </para>
 <para>
      The first is dosemu writing on the client's behalf: what a DOS call, the
