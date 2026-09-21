@@ -3471,11 +3471,14 @@ stack_return_from_vm86:
 				/* family 5, model 2, stepping 12 =
 				   Pentium 133-200MHz (no MMX) */
 				rEAX = 0x052c; rEBX = rECX = 0;
-				/* 0x1bf */
+				/* 0x81bf */
 				rEDX = CPUID_FEATURE_FPU | CPUID_FEATURE_VME |
 				  CPUID_FEATURE_DBGE | CPUID_FEATURE_PGSZE |
 				  CPUID_FEATURE_TSC  | CPUID_FEATURE_MSR |
-				  CPUID_FEATURE_MCK  | CPUID_FEATURE_CPMX;
+				  CPUID_FEATURE_MCK  | CPUID_FEATURE_CPMX |
+				  /* CMOVcc, and with the FPU bit above it
+				     also FCMOVcc and F(U)COMI(P) */
+				  CPUID_FEATURE_CMOV;
 			}
 			break;
 /*1c7*/	case 0x1c7: { /* Code Extension 23 - 01=CMPXCHG8B mem */
