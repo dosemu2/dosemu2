@@ -702,26 +702,35 @@ static void node_detach(struct zip_node *n)
   n->next = NULL;
 }
 
+/* removes what a node left in the overlay; defined below chunk_name */
+static void ovl_drop(struct zipfs *zfs, struct zip_node *n);
+
 /*
  * Drop a node from the tree. DOS lets a program delete a file it has
  * open, and goes on using the handle afterwards, so a node that still
  * has handles on it is only cut loose here and freed by the last one.
+ * Whatever it kept in the overlay goes with it, but not before: an open
+ * handle still writes to the chunk file, which is what DOS expects.
  */
-static void node_unlink(struct zip_node *n)
+static void node_unlink(struct zipfs *zfs, struct zip_node *n)
 {
   if (!n->parent)
     return;
   node_detach(n);
   n->parent = NULL;
   n->gone = 1;
-  if (!n->refs)
+  if (!n->refs) {
+    ovl_drop(zfs, n);
     node_free(n);
+  }
 }
 
-static void node_put(struct zip_node *n)
+static void node_put(struct zipfs *zfs, struct zip_node *n)
 {
-  if (--n->refs == 0 && n->gone)
+  if (--n->refs == 0 && n->gone) {
+    ovl_drop(zfs, n);
     node_free(n);
+  }
 }
 
 /* the path a node has now, which is what the log records it under */
@@ -787,7 +796,7 @@ static void node_rename(struct zipfs *zfs, const char *from, const char *to)
     return;
   old = node_find(dir, base, strlen(base));
   if (old && old != n)
-    node_unlink(old);
+    node_unlink(zfs, old);
   node_detach(n);
   free(n->name);
   n->name = name;
@@ -823,7 +832,7 @@ static void log_apply(struct zipfs *zfs, int op, unsigned id,
       return;
     }
     if (n->parent)
-      node_unlink(n);
+      node_unlink(zfs, n);
     return;
   }
   /* only the ops that make an entry take an id out of the sequence */
@@ -894,6 +903,37 @@ static int chunk_name(struct zipfs *zfs, struct zip_node *n, const char *suff,
         -1 : 0;
   return asprintf(ret, "%s%08llx%s", zfs->ovl, (unsigned long long)n->idx,
       suff) == -1 ? -1 : 0;
+}
+
+/* one file of a node's overlay, gone if it was ever there */
+static void ovl_drop_one(struct zipfs *zfs, struct zip_node *n,
+    const char *suff)
+{
+  char *path;
+
+  if (chunk_name(zfs, n, suff, &path) != 0)
+    return;
+  if (unlink(path) != 0 && errno != ENOENT)
+    error("zip: cannot remove %s: %s\n", path, strerror(errno));
+  free(path);
+}
+
+/*
+ * What a node leaves behind in the overlay once it is really gone. A
+ * deleted directory takes its subtree with it, the same way node_free()
+ * does, or the chunk files below it would never be reached again: the
+ * log records the directory, not what was under it.
+ */
+static void ovl_drop(struct zipfs *zfs, struct zip_node *n)
+{
+  struct zip_node *c;
+
+  for (c = n->child; c; c = c->next)
+    ovl_drop(zfs, c);
+  if (n->is_dir || (n->idx < 0 && n->ovl_id < 0))
+    return;
+  ovl_drop_one(zfs, n, "");
+  ovl_drop_one(zfs, n, ".map");
 }
 
 /*
@@ -976,7 +1016,7 @@ static int zf_close(vfs_file_t *file)
 {
   struct zip_file *zf = (struct zip_file *)file;
 
-  node_put(zf->node);
+  node_put(zf->zfs, zf->node);
   if (zf->zfp)
     zip_fclose(zf->zfp);
   if (zf->chunk_fd != -1)
@@ -1484,7 +1524,7 @@ static int zip_fs_unlink(vfs_fs_t *fs, const char *path)
   }
   if (log_append(zfs, '-', 0, rel, NULL) != 0)
     return -1;
-  node_unlink(n);
+  node_unlink(zfs, n);
   return 0;
 }
 
@@ -1527,7 +1567,7 @@ static int zip_fs_rmdir(vfs_fs_t *fs, const char *path)
   }
   if (log_append(zfs, '-', 0, rel, NULL) != 0)
     return -1;
-  node_unlink(n);
+  node_unlink(zfs, n);
   return 0;
 }
 

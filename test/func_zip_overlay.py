@@ -9,6 +9,13 @@ PATCH = "PATCHED-BY-THE-OVERLAY"
 NEWNAME = "CREATED.TXT"
 
 
+def ovl_files(self):
+    """Every file the overlay kept, apart from the directory log."""
+    tmpdir = self.imagedir / "ziptmp"
+    return sorted(str(p.relative_to(tmpdir)) for p in tmpdir.rglob("*")
+                  if p.is_file() and p.name != "dir.log")
+
+
 def ovl_isolate(self):
     """Give this test an overlay directory of its own.
 
@@ -224,17 +231,33 @@ int main(void) {
 
 
 def zip_overlay_delete(self):
-    """A deleted entry stays gone, and the archive keeps its copy."""
+    """A deleted entry stays gone and takes its overlay files with it."""
     ovl_isolate(self)
     archive, _ = mkziparchive(self)
     before = (self.imagedir / ARCHIVE).read_bytes()
 
+    # Writes first, so that the entry really has a chunk file and a map
+    # to leave behind, then deletes it.
     self.mkexe_with_djgpp("ovldel", FINDDRIVE + r"""
+#include <string.h>
+
 int main(void) {
-  int f;
+  int f, size;
 
   if (find_drive())
+    return 4;
+
+  f = open(onarchive(ENTRY), O_WRONLY | O_BINARY);
+  if (f < 0) {
+    printf("open for write failed\n");
     return 3;
+  }
+  size = write(f, PATCH, strlen(PATCH));
+  close(f);
+  if (size != (int)strlen(PATCH)) {
+    printf("write failed\n");
+    return 3;
+  }
 
   if (unlink(onarchive(ENTRY))) {
     printf("unlink failed\n");
@@ -250,7 +273,8 @@ int main(void) {
   printf("entry is gone\n");
   return 0;
 }
-""", extraargs=defines(["-DENTRY=\"%s\"" % STORED]))
+""", extraargs=defines(["-DENTRY=\"%s\"" % STORED,
+                        "-DPATCH=\"%s\"" % PATCH]))
 
     results = runovl(self, archive, "ovldel")[0]
 
@@ -260,6 +284,8 @@ int main(void) {
     self.assertIn("entry is gone", results)
     self.assertEqual(before, (self.imagedir / ARCHIVE).read_bytes(),
                      "archive was modified")
+    self.assertEqual([], ovl_files(self),
+                     "the deleted entry left its overlay files behind")
 
 
 def zip_overlay_deflated(self):
