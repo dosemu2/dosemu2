@@ -198,6 +198,41 @@ static uint16_t dos_alloc_real_seg(struct call *c)
 #define MAX_LINMEM	1024
 static __dpmi_meminfo linmem[MAX_LINMEM];
 
+/*
+ * The programs measure memory by asking for ever smaller blocks until one
+ * is granted, BioForge in steps of one page from 8Mb down, so the answer
+ * to a request that cannot be met has to be cheap. DPMI has no call for
+ * how much linear memory is left, so find it once by halving, and keep
+ * the number until something is allocated or freed.
+ */
+static uint32_t lin_avail;
+static int lin_avail_known;
+
+static int lin_alloc(__dpmi_meminfo *m, uint32_t size)
+{
+    m->size = size;
+    m->address = 0;
+    return __dpmi_allocate_linear_memory(m, 1);
+}
+
+static uint32_t lin_probe(void)
+{
+    __dpmi_meminfo m = {};
+    uint32_t lo = 0, hi = 0x10000000;
+
+    while (hi - lo > 0x1000) {
+	uint32_t mid = lo + (hi - lo) / 2;
+
+	if (lin_alloc(&m, mid & ~0xfff) == 0) {
+	    __dpmi_free_memory(m.handle);
+	    lo = mid;
+	} else {
+	    hi = mid;
+	}
+    }
+    return lo & ~0xfff;
+}
+
 /* USHORT DosAllocLinMem(ULONG size, PULONG lin_addp) */
 static uint16_t dos_alloc_lin_mem(struct call *c)
 {
@@ -221,9 +256,12 @@ static uint16_t dos_alloc_lin_mem(struct call *c)
      * arena of nothing. DPMI 1.0 has a second pool for exactly this, the
      * linear one below $_dpmi_base, so take the memory from there.
      */
-    m.size = size;
-    m.address = 0;
-    if (__dpmi_allocate_linear_memory(&m, 1) == 0) {
+    if (!lin_avail_known) {
+	lin_avail = lin_probe();
+	lin_avail_known = 1;
+    }
+    if (size <= lin_avail && lin_alloc(&m, size) == 0) {
+	lin_avail_known = 0;
 	linmem[i] = m;
 	call_setd(linp, m.address);
 	return 0;
@@ -257,6 +295,7 @@ static uint16_t dos_free_lin_mem(struct call *c)
     if (i == MAX_LINMEM || __dpmi_free_memory(linmem[i].handle) == -1)
 	return ERROR_INVALID_PARAMETER;
     linmem[i].size = 0;
+    lin_avail_known = 0;
     return 0;
 }
 
@@ -280,6 +319,42 @@ static uint16_t dos_free_lin_mem(struct call *c)
 #define RR_IP	20
 #define RR_CS	22
 #define RR_FLAGS 24
+
+/*
+ * With a null register block the call is documented to run on whatever the
+ * caller already has in its registers, and to hand back what the real mode
+ * routine left there. gate_entry() saved them on the program's stack, so
+ * that frame is both the source and the destination.
+ */
+static void callerregs_get(struct call *c, __dpmi_regs *r)
+{
+    memset(r, 0, sizeof(*r));
+    r->x.es = _farpeekw(c->ss, c->sp + CALL_ES);
+    r->x.ds = _farpeekw(c->ss, c->sp + CALL_DS);
+    r->x.di = _farpeekw(c->ss, c->sp + CALL_EDI);
+    r->x.si = _farpeekw(c->ss, c->sp + CALL_ESI);
+    r->x.bp = _farpeekw(c->ss, c->sp + CALL_EBP);
+    r->x.bx = _farpeekw(c->ss, c->sp + CALL_EBX);
+    r->x.dx = _farpeekw(c->ss, c->sp + CALL_EDX);
+    r->x.cx = _farpeekw(c->ss, c->sp + CALL_ECX);
+    r->x.ax = _farpeekw(c->ss, c->sp + CALL_EAX);
+}
+
+/*
+ * Only the general registers go back. ES and DS stay as the program had
+ * them: they are protected mode selectors there and real mode segments
+ * here, and gate_entry() reloads them on the way out. AX stays too, since
+ * that is where the caller reads the PHAPI status code from.
+ */
+static void callerregs_put(struct call *c, const __dpmi_regs *r)
+{
+    _farpokew(c->ss, c->sp + CALL_EDI, r->x.di);
+    _farpokew(c->ss, c->sp + CALL_ESI, r->x.si);
+    _farpokew(c->ss, c->sp + CALL_EBP, r->x.bp);
+    _farpokew(c->ss, c->sp + CALL_EBX, r->x.bx);
+    _farpokew(c->ss, c->sp + CALL_EDX, r->x.dx);
+    _farpokew(c->ss, c->sp + CALL_ECX, r->x.cx);
+}
 
 static void realregs_get(uint16_t sel, uint16_t off, __dpmi_regs *r)
 {
@@ -326,20 +401,26 @@ static uint16_t dos_real_intr(struct call *c)
     uint16_t sel = call_argw(c, 4);
     __dpmi_regs r;
 
-    if (!sel)
-	return ERROR_INVALID_PARAMETER;
-    realregs_get(sel, off, &r);
+    if (sel)
+	realregs_get(sel, off, &r);
+    else
+	callerregs_get(c, &r);
+    r.x.ss = r.x.sp = 0;
     if (__dpmi_int(intno, &r) == -1)
 	return ERROR_INVALID_PARAMETER;
-    realregs_put(sel, off, &r);
+    if (sel)
+	realregs_put(sel, off, &r);
+    else
+	callerregs_put(c, &r);
     return 0;
 }
 
 /*
  * USHORT _DosRealFarCall(REALPTR fn, PREALREGS regs, ULONG copy, ...)
  *
- * The register block is optional: BioForge calls its real mode routines
- * with a null pointer there and cares only that the call happens.
+ * The register block is optional: with a null pointer the call runs on the
+ * caller's own registers and gives them back, which is how BioForge drives
+ * its real mode routines.
  */
 static uint16_t dos_real_far_call(struct call *c)
 {
@@ -351,7 +432,7 @@ static uint16_t dos_real_far_call(struct call *c)
     if (sel)
 	realregs_get(sel, off, &r);
     else
-	memset(&r, 0, sizeof(r));
+	callerregs_get(c, &r);
     r.x.ss = r.x.sp = 0;
     r.x.cs = fn >> 16;
     r.x.ip = fn & 0xffff;
@@ -359,6 +440,8 @@ static uint16_t dos_real_far_call(struct call *c)
 	return ERROR_INVALID_PARAMETER;
     if (sel)
 	realregs_put(sel, off, &r);
+    else
+	callerregs_put(c, &r);
     return 0;
 }
 

@@ -15,6 +15,14 @@
  * frame the DPMI host made, then the near return into the stub, then the
  * arguments. c->sp points at the saved ES.
  */
+#define CALL_ES		0
+#define CALL_DS		4
+#define CALL_EDI	8
+#define CALL_ESI	12
+#define CALL_EBP	16
+#define CALL_EBX	24
+#define CALL_EDX	28
+#define CALL_ECX	32
 #define CALL_EAX	36		/* the saved EAX, for the result */
 #define CALL_ARGS	56		/* the first byte of the arguments */
 

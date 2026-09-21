@@ -37,3 +37,15 @@ ceiling. A layout that works:
 
 With the default 32Mb base the same run reports Largest=0 and the game
 gives up on its arena.
+
+Data files
+----------
+The games read their own data through DOS, so they have to be started in
+their installed directory, not next to a lone .EXE. BioForge takes every
+path from RED.OPT, whose Dir= line normally names the drive the installer
+wrote; pointing it at "." is enough to run from the game directory.
+
+With its data in place BioForge gets through its whole startup, reads its
+message file and then stops at its own CD check, which wants the pressed
+disc rather than a copy of its files: a directory presented as a CDROM,
+even under the right volume label, does not satisfy it.
