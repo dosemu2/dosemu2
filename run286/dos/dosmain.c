@@ -41,6 +41,24 @@ void trc(const char *fmt, ...)
     va_end(ap);
 }
 
+/*
+ * What the program's own interrupt handlers have seen. Per vector, because
+ * "the last one" is always the timer once the timer runs at all, and the
+ * question is usually about a handler that never runs: BioForge hooks the
+ * timer, the keyboard and its sound IRQ, and only one of the three firing
+ * looks exactly like all three firing if you only print the last.
+ */
+static void trace_interrupts(const char *when)
+{
+    char buf[INT_SLOTS * 12], *p = buf;
+    unsigned i;
+
+    for (i = 0; i < INT_SLOTS; i++)
+	p += sprintf(p, "%u ", int_count[i]);
+    trc("run286:   %u interrupts %s, by slot: %s\n", int_taken, when, buf);
+}
+
+
 /* access rights for a 16bit, DPL 3, present segment */
 #define AR_CODE16	0x00fa		/* code, readable */
 #define AR_DATA16	0x00f2		/* data, writable */
@@ -547,8 +565,7 @@ int ASMCFUNC run286_import(void)
      * and says nothing about whether its interrupt handlers still run, which
      * is the first thing to ask when it stops moving. Say so now and then. */
     if (ldr.trace && ldr.ncall % 512 == 0)
-	trc("run286:   %u interrupts so far, the last in slot %u\n",
-		int_taken, int_last);
+	trace_interrupts("so far");
     /* the result goes back in AX, which gate_entry pops off the program's
      * own stack on the way out */
     _farpokew(c.ss, c.sp + CALL_EAX, rc);
@@ -985,8 +1002,7 @@ int main(int argc, char **argv)
 	    env_init(path), m->seg[m->ne.autodata - 1].size);
     trc("run286: back from the program after %u API calls, rc %d\n",
 	    l->ncall, rc);
-    trc("run286: %u interrupts taken, the last in slot %u\n", int_taken,
-	    int_last);
+    trace_interrupts("taken");
     ne_free(&m->ne);
     return 0;
 }

@@ -186,6 +186,8 @@ _int_common:
     movw %ss, %ax
     /* where the interrupt landed, for the exception report */
     movl %ecx, _int_last
+    /* and one counter per vector, so a handler that never runs shows up */
+    incl _int_count(,%ecx,4)
     movl %eax, _int_last_ss
     movl %edx, _int_last_esp
     /*
@@ -341,6 +343,11 @@ _int_target:				/* offset, selector, per vector */
 .endr
 .global _int_taken
 _int_taken:	.long 0
+.global _int_count
+_int_count:
+.rept INT_SLOTS
+	.long 0
+.endr
 .global _int_last
 _int_last:	.long 0
 .global _int_last_ss

@@ -22,6 +22,7 @@ __ASM(unsigned, int_stk_ss) SEMIC
 __ASM(unsigned, int_ret_sel) SEMIC		/* 16bit cs holding int_ret16 */
 __ASM(unsigned, int_ds) SEMIC			/* the program's own DGROUP */
 __ASM(unsigned, int_taken) SEMIC		/* how many have arrived */
+__ASM_ARR(unsigned, int_count, 12) SEMIC		/* and per vector */
 __ASM(unsigned, int_last) SEMIC			/* and where the last one did */
 __ASM(unsigned, int_last_ss) SEMIC
 __ASM(unsigned, int_last_esp) SEMIC
