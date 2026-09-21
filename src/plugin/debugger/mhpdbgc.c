@@ -2586,7 +2586,10 @@ static void mhp_print_ldt(int argc, char *argv[])
       mhp_printf("invalid line count '%s'\n", argv[2]);
       return;
     }
-    lines = count;
+    /* the walk below cannot print more than there are entries, and a count
+     * that does not fit the int it is kept in comes out negative, which
+     * ends the walk before its first line */
+    lines = count > LDT_ENTRIES ? LDT_ENTRIES : count;
   }
 
   if (get_ldt(buffer, LDT_ENTRIES * LDT_ENTRY_SIZE) < 0) {
