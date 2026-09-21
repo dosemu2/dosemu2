@@ -26,6 +26,19 @@
 #define CALL_EAX	36		/* the saved EAX, for the result */
 #define CALL_ARGS	56		/* the first byte of the arguments */
 
+/*
+ * What the LDT alias reports as its limit is only what dosemu2 has
+ * allocated so far, not the size of the table, so we set it ourselves.
+ *
+ * One entry short of the 8192 dosemu2 has, on purpose. Origin's wrapper
+ * turns the limit into a count with "mov ax,limit; inc ax; shr ax,3" in
+ * 16bit registers, so a limit of 0xffff wraps to zero and every index it
+ * then checks is out of range ("DESCRIPT.C, 276"). 8191 entries leave the
+ * arithmetic alone and are as many as any of these programs asks for.
+ */
+#define LDT_ENTRIES_USABLE	8191
+#define LDT_FULL_SIZE		(LDT_ENTRIES_USABLE * 8)
+
 struct call {
     uint16_t ss;
     uint32_t sp;

@@ -982,6 +982,18 @@ int main(int argc, char **argv)
 	    __dpmi_get_segment_base_address(alias, &ldt_base);
 	ldt_lin = ldt_base;
 	ldt_sel_reg = gate_ldt_sel & 0xffff;
+	/*
+	 * The limit of the alias is not the size of the table: dosemu2
+	 * grows it as descriptors get allocated and starts it at a few
+	 * pages. Origin's wrapper reads that limit once and takes it for
+	 * how many selectors exist, so it sized its pool at 2560 entries
+	 * and BioForge ran out of them halfway through a level with
+	 * "RESOURCE.C 170". Ask for the table up front; writes past the
+	 * current limit fault on the alias page and dosemu2 grows it
+	 * there (msdos_ldt_fault), so nothing else has to change.
+	 */
+	if (alias)
+	    __dpmi_set_segment_limit(alias, LDT_FULL_SIZE - 1);
 	ldt_size = alias ? __dpmi_get_segment_limit(alias) + 1 : 0;
 	trc("run286: ldtr %04x, ldt alias %04x at %#x limit %#x\n",
 		gate_ldt_sel & 0xffff, alias, ldt_base,
