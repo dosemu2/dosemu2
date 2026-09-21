@@ -58,6 +58,13 @@ case "${RUNTYPE}" in
     ;;
 esac
 
+cat >&2 << EOFV
+=====================================================
+=           BIOS output in VESA video modes         =
+=====================================================
+EOFV
+python3 test/test_vesa_scroll.py
+
 # This section here only runs for proving out test_comcom changes in PRs etc, the tests are
 # run for real in the Comcom64 repository
 if [ "${COMCOM_CHANGED}" = "true" ] ; then
