@@ -1350,24 +1350,33 @@ static int kvm_post_run(struct vm86_regs *regs, struct kvm_regs *kregs)
     return 0;
   }
 
-  ret = ioctl(vcpufd, KVM_GET_SREGS, &sregs);
-  if (ret == -1) {
-    perror("KVM: KVM_GET_SREGS");
-    leavedos_main(99);
-  }
-  if (sregs.tr.base != MONITOR_DOSADDR) {
-    if (sregs.cr3 == MONITOR_DOSADDR + offsetof(struct monitor, pde)) {
-      /* The monitor is halfway through taking the CPU back from a VCPI
-	 client: its own page tables and IDT are in, its task register is
-	 not.  A signal can land here although the code runs with
-	 interrupts off, and there is nothing to report: let it finish. */
-      return 0;
+  {
+    /* Read into a local: while a VCPI client owns the CPU this describes
+       the client, and the global is what kvm_run() hands back to
+       KVM_SET_SREGS.  Writing the client's CR3, GDT, IDT and TSS back
+       under a v86 task is a triple fault, so only keep what is ours. */
+    struct kvm_sregs ns;
+
+    ret = ioctl(vcpufd, KVM_GET_SREGS, &ns);
+    if (ret == -1) {
+      perror("KVM: KVM_GET_SREGS");
+      leavedos_main(99);
     }
-    g_printf("KVM: interrupt in VCPI code\n");
-    /* the client owns the registers and they stay in the VM; cs=0 says
-       that this is where we were */
-    regs->cs = 0;
-    return 1;
+    if (ns.tr.base != MONITOR_DOSADDR) {
+      if (ns.cr3 == MONITOR_DOSADDR + offsetof(struct monitor, pde)) {
+	/* The monitor is halfway through taking the CPU back from a VCPI
+	   client: its own page tables and IDT are in, its task register is
+	   not.  A signal can land here although the code runs with
+	   interrupts off, and there is nothing to report: let it finish. */
+	return 0;
+      }
+      g_printf("KVM: interrupt in VCPI code\n");
+      /* the client owns the registers and they stay in the VM; cs=0 says
+	 that this is where we were */
+      regs->cs = 0;
+      return 1;
+    }
+    sregs = ns;
   }
 
   /* don't interrupt GDT code */
