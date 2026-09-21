@@ -5969,36 +5969,69 @@ static int dpmi_fault1(cpuctx_t *scp)
       break;
 
     case 0x0f: {
+#define CR0_PE         0x00000001
+#define CR0_PG         0x80000000
       uint32_t *reg32[8] = { &_eax, &_ecx, &_edx, &_ebx, &_esp, &_ebp, &_esi, &_edi };
       uint16_t *reg16[8] = { &_LWORD(eax), &_LWORD(ecx), &_LWORD(edx), &_LWORD(ebx),
                       &_LWORD(esp), &_LWORD(ebp), &_LWORD(esi), &_LWORD(edi) };
       if (debug_level('M')>=9)
         D_printf("DPMI: 0f opcode %x\n", csp[0]);
       switch (csp[0]) {
-        case 0: // SLDT, STR ...
-        case 1: // SGDT, SIDT, SMSW ...
+        case 0: // SLDT, STR, LLDT, LTR, VERR, VERW
+        case 1: { // SGDT, SIDT, LGDT, LIDT, SMSW, LMSW
+          /*
+           * Twelve instructions share these two opcodes, told apart by the
+           * reg field of the modrm byte, and they do not all want the same
+           * thing done to their operand. Only sldt, str, sgdt, sidt and
+           * smsw write it; lldt, ltr, lgdt, lidt and lmsw read it, and
+           * verr and verw only set ZF. Writing zero into the operand of
+           * every one of them, as we did, destroyed a register a client
+           * still needed: lmsw ax came back with ax cleared.
+           */
+          static const char *const insn0[8] = { "sldt", "str", "lldt", "ltr",
+              "verr", "verw", "0f 00 /6", "0f 00 /7" };
+          static const char *const insn1[8] = { "sgdt", "sidt", "lgdt", "lidt",
+              "smsw", "0f 01 /5", "lmsw", "invlpg" };
+          int reg = (csp[1] >> 3) & 7;
+          const char *nm = csp[0] ? insn1[reg] : insn0[reg];
+          /* the ones that store into their operand */
+          int stores = csp[0] ? (reg <= 1 || reg == 4) : (reg <= 1);
+
           switch (csp[1] & 0xc0) {
-            case 0xc0: // register dest
-              /* just write 0 - no one uses SMSW in PM */
-              if (OSIZE_IS_32)
-                *reg32[csp[1] & 7] = 0;
-              else
-                *reg16[csp[1] & 7] = 0;
+            case 0xc0: // register operand
+              if (stores) {
+                /* sldt and str say there is nothing there, as before.
+                 * smsw cannot: we are in protected mode by definition,
+                 * so a client that reads MSW to find out gets PE. It
+                 * reports cr0, and mov r32,cr0 twenty lines below already
+                 * answers PE|PG for the same client, so answer the same
+                 * here rather than let two neighbours disagree. Only the
+                 * 32 bit form can see the difference: PG is bit 31 and
+                 * does not reach the word smsw r16 and smsw m16 store. */
+                unsigned val = (csp[0] && reg == 4) ? (CR0_PE | CR0_PG) : 0;
+
+                if (OSIZE_IS_32)
+                  *reg32[csp[1] & 7] = val;
+                else
+                  *reg16[csp[1] & 7] = val;
+              }
               LWORD32(eip, += 3);
               break;
             default:
-              error_once("DPMI: unsupported SLDT/SIDT dest %x\n%s", csp[1],
-                  DPMI_show_state(scp));
+              /* A memory operand needs the effective address worked out,
+               * which we cannot do here yet, so the store instructions
+               * lose their result. Say which one it was. */
+              error_once("DPMI: unsupported %s with a memory operand, "
+                  "modrm %#x\n%s", nm, csp[1], DPMI_show_state(scp));
               LWORD32(eip, = org_eip + instr_len(lina, Segments(_cs>>3).is_32));
               break;
           }
           break;
+        }
         case 0x20:  // mov r/m,crX
           switch (csp[1] & 0xc0) {
             case 0xc0: // register dest
               /* just write 0 */
-#define CR0_PE         0x00000001
-#define CR0_PG         0x80000000
               *reg32[csp[1] & 7] = CR0_PE | CR0_PG;
               LWORD32(eip, += 3);
               break;
