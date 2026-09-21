@@ -88,18 +88,72 @@ static uint16_t dos_map_real_seg(struct call *c)
     return map_seg((uint32_t)para << 4, size, selp);
 }
 
+uint32_t ldt_lin;
+uint32_t ldt_size;
+uint16_t ldt_sel_reg;
+
+/*
+ * Origin's wrapper looks for its descriptor table the way a 286 extender
+ * would: sgdt for the GDT, sldt for the index of the LDT inside it, then
+ * the base and limit out of that entry. dosemu2 tells a client that both
+ * tables are at zero, so we hand the wrapper a page of our own with one
+ * real entry in it: the LDT, as dosemu2 makes it reachable. Everything it
+ * indexes after that lands in the LDT, where dosemu2 picks the writes up
+ * on the alias page and applies them itself.
+ */
+static __dpmi_meminfo fake_gdt;
+static uint16_t fake_gdt_sel;
+
+static int fake_gdt_init(void)
+{
+    uint32_t off;
+
+    if (fake_gdt.size)
+	return 0;
+    if (!ldt_lin || !ldt_size)
+	return -1;
+    fake_gdt.size = 0x10000;
+    if (__dpmi_allocate_memory(&fake_gdt) == -1) {
+	fake_gdt.size = 0;
+	return -1;
+    }
+    fake_gdt_sel = __dpmi_allocate_ldt_descriptors(1);
+    if (fake_gdt_sel == (uint16_t)-1 ||
+	    __dpmi_set_segment_base_address(fake_gdt_sel,
+		fake_gdt.address) == -1 ||
+	    __dpmi_set_segment_limit(fake_gdt_sel, fake_gdt.size - 1) == -1 ||
+	    __dpmi_set_descriptor_access_rights(fake_gdt_sel, AR_DATA16) == -1)
+	return -1;
+    for (off = 0; off < fake_gdt.size; off += 4)
+	_farpokel(fake_gdt_sel, off, 0);
+
+    off = ldt_sel_reg & 0xfff8;
+    _farpokew(fake_gdt_sel, off + 0, (ldt_size - 1) & 0xffff);
+    _farpokew(fake_gdt_sel, off + 2, ldt_lin & 0xffff);
+    _farpokeb(fake_gdt_sel, off + 4, (ldt_lin >> 16) & 0xff);
+    _farpokeb(fake_gdt_sel, off + 5, 0x82);	/* present, LDT */
+    _farpokeb(fake_gdt_sel, off + 6, ((ldt_size - 1) >> 16) & 0x0f);
+    _farpokeb(fake_gdt_sel, off + 7, (ldt_lin >> 24) & 0xff);
+    printf("run286: descriptor table at %#lx, ldt entry %#x -> %#x/%#x\n",
+	    (unsigned long)fake_gdt.address, off, ldt_lin, ldt_size);
+    return 0;
+}
+
 /*
  * USHORT DosMapLinSeg(ULONG lin_addr, ULONG size, PSEL selp)
  *
- * Origin's wrapper runs sgdt and maps whatever it reports so that it can
- * write descriptors itself. Under dosemu2 that reads back as base 0,
- * limit 0xffff, so the mapping it asks for covers the interrupt vector
- * table and the whole of low memory; letting it write there takes the
- * host down with it. It gets a private page of its own instead, which is
- * where the real work of running these games starts.
+ * Origin's wrapper runs sgdt and maps whatever it reports, so that it can
+ * rewrite the descriptors of its own selectors by hand: it indexes the
+ * mapping by (selector & 0xfff8) and writes the base into bytes 2, 4 and
+ * 7. Under dosemu2 sgdt reads back as base 0, so what it asks to map is
+ * the interrupt vector table and the whole of low memory, and letting it
+ * write there takes the host down with it.
+ *
+ * Its selectors are the ones we handed out, which live in the LDT, so the
+ * table it is really indexing is the LDT. Point the mapping there and its
+ * writes land in the right place: dosemu2 catches them on the alias page
+ * and applies them itself, in msdos_ldt.c.
  */
-static __dpmi_meminfo fake_gdt;
-
 static uint16_t dos_map_lin_seg(struct call *c)
 {
     uint32_t selp = call_argd(c, 0);
@@ -107,15 +161,8 @@ static uint16_t dos_map_lin_seg(struct call *c)
     uint32_t lin = call_argd(c, 8);
 
     if (lin < 0x1000) {
-	if (!fake_gdt.size) {
-	    fake_gdt.size = 0x10000;
-	    if (__dpmi_allocate_memory(&fake_gdt) == -1) {
-		fake_gdt.size = 0;
-		return ERROR_NOT_ENOUGH_MEMORY;
-	    }
-	}
-	printf("run286: descriptor table mapping at %#x redirected to %#lx\n",
-		lin, (unsigned long)fake_gdt.address);
+	if (fake_gdt_init() != 0)
+	    return ERROR_NOT_ENOUGH_MEMORY;
 	return map_seg(fake_gdt.address + lin, size, selp);
     }
     return map_seg(lin, size, selp);

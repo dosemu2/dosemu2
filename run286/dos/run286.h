@@ -32,6 +32,13 @@ struct api_fn {
     uint16_t (*fn)(struct call *c);
 };
 
+/* The linear address of the LDT, as dosemu2 hands it out for int 2Fh
+ * AX=1688h, and its size. Origin's wrapper writes descriptors straight
+ * into the table it finds through sgdt, so this is where they have to go. */
+extern uint32_t ldt_lin;
+extern uint32_t ldt_size;
+extern uint16_t ldt_sel_reg;		/* what sldt says */
+
 const struct api_fn *phapi_lookup(const char *name);
 const struct api_fn *doscalls_lookup(uint16_t ord);
 

@@ -473,9 +473,12 @@ int main(int argc, char **argv)
 
 	if (alias)
 	    __dpmi_get_segment_base_address(alias, &ldt_base);
+	ldt_lin = ldt_base;
+	ldt_sel_reg = gate_ldt_sel & 0xffff;
+	ldt_size = alias ? __dpmi_get_segment_limit(alias) + 1 : 0;
 	printf("run286: ldtr %04x, ldt alias %04x at %#x limit %#x\n",
 		gate_ldt_sel & 0xffff, alias, ldt_base,
-		alias ? __dpmi_get_segment_limit(alias) : 0);
+		ldt_size ? ldt_size - 1 : 0);
     }
     printf("run286: entering %04x:%04x, stack %04x:%04x, ds %04x\n",
 	    l->seg[entry_seg - 1].sel, (unsigned)(ne.csip & 0xffff),
