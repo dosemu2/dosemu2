@@ -18,6 +18,12 @@ NEWNAME = "CREATED.TXT"
 SECONDNAME = "OTHERINS.TXT"
 SECONDWAIT = 20
 
+# How many entries zip_overlay_id_race creates while the other writer
+# is creating its own, and how long that writer keeps the log's lock
+# so that a create on this side is certain to be waiting on it.
+RACEROUNDS = 800
+HOLD = 0.01
+
 # How many times zip_overlay_rewrite rewrites its entry, and the size of
 # one record of the extent map beside a chunk file.
 ROUNDS = 200
@@ -627,3 +633,122 @@ int main(void) {
     self.assertIn("overlay is live", results)
     self.assertTrue(done, "the second writer never found the log")
     self.assertIn("second writer's entry is visible", results)
+
+
+def log_records(path):
+    """Every whole record in a directory log, as (op, id, name)."""
+    blob = path.read_bytes()
+    out = []
+    pos = 0
+    while pos + 8 <= len(blob):
+        op = blob[pos]
+        ln = blob[pos + 2] | (blob[pos + 3] << 8)
+        ident = int.from_bytes(blob[pos + 4:pos + 8], "little")
+        if op not in b"+-drat" or blob[pos + 1] or ln < 1:
+            break
+        if pos + 8 + ln > len(blob):
+            break
+        out.append((chr(op), ident, blob[pos + 8:pos + 8 + ln]))
+        pos += 8 + ln
+    return out
+
+
+def zip_overlay_id_race(self):
+    """Two writers creating at once never hand out the same overlay id."""
+    ovl_isolate(self)
+    archive, _ = mkziparchive(self)
+    tmpdir = self.imagedir / "ziptmp"
+
+    # The second instance, behaving the way a correct one does: it takes
+    # the log's lock, reads the ids already spoken for, and appends a
+    # create with the next one. So a duplicate id in the log can only
+    # have come from the other side handing out one it did not own.
+    from threading import Event, Thread
+    import fcntl
+
+    stop = Event()
+    wrote = []
+
+    def find_log():
+        try:
+            return next(iter(tmpdir.rglob("dir.log")), None)
+        except OSError:
+            # the overlay is pruned at umount, under our feet
+            return None
+
+    def other_instance():
+        from time import sleep
+
+        while not stop.is_set():
+            log = find_log()
+            if log is None:
+                sleep(0.002)
+                continue
+            try:
+                f = open(log, "r+b")
+            except OSError:
+                continue
+            with f:
+                fcntl.flock(f.fileno(), fcntl.LOCK_EX)
+                try:
+                    taken = [i for op, i, _ in log_records(log) if op in "+d"]
+                    ident = max(taken) + 1 if taken else 0
+                    f.seek(0, 2)
+                    f.write(log_record("+", "OTHER%03d.TXT" % (len(wrote) %
+                                                               1000), ident))
+                    f.flush()
+                    wrote.append(ident)
+                    # Hold it. A create on the other side blocks here, so
+                    # its id was chosen before this record existed - which
+                    # is the whole race, made to happen rather than waited
+                    # for.
+                    sleep(HOLD)
+                finally:
+                    fcntl.flock(f.fileno(), fcntl.LOCK_UN)
+            sleep(0.005)
+
+    writer = Thread(target=other_instance, daemon=True)
+    writer.start()
+
+    def finish():
+        stop.set()
+        writer.join(30)
+
+    self.addCleanup(finish)
+
+    self.mkexe_with_djgpp("ovlidrace", FINDDRIVE + r"""
+int main(void) {
+  char name[64];
+  int f, i, made = 0;
+
+  if (find_drive())
+    return 4;
+
+  for (i = 0; i < RACEROUNDS; i++) {
+    sprintf(name, "R%05d.TXT", i);
+    f = open(onarchive(name), O_WRONLY | O_CREAT | O_BINARY, 0644);
+    if (f < 0)
+      continue;
+    close(f);
+    made++;
+  }
+  printf("created %d entries\n", made);
+  return 0;
+}
+""", extraargs=defines(["-DRACEROUNDS=%d" % RACEROUNDS]))
+
+    results = runovl(self, archive, "ovlidrace")[0]
+
+    self.assertNotIn("archive drive not found", results)
+    self.assertIn("created %d entries" % RACEROUNDS, results)
+    self.assertTrue(wrote, "the second writer never appended anything")
+
+    logs = list(tmpdir.rglob("dir.log"))
+    self.assertTrue(logs, "no directory log was written")
+    taken = [(i, name) for op, i, name in log_records(logs[0]) if op in "+d"]
+    seen = {}
+    for ident, name in taken:
+        if ident in seen:
+            self.fail("overlay id %d handed out twice, to %s and %s" %
+                      (ident, seen[ident].decode(), name.decode()))
+        seen[ident] = name
