@@ -2206,8 +2206,14 @@ int mhp_watch_fault(uintptr_t cr2, unsigned int err, unsigned int pc,
  * of the client's through dosemu's own mirror of the memory.  That mirror is
  * deliberately left writable, so the protection a watch puts on the client's
  * view is not in the way and no fault happens: without this the write is
- * missed entirely, and a watch on the client's stack never fires at all,
- * because every stack write goes this way.
+ * missed entirely.
+ *
+ * An instruction only reaches these helpers once the jit has patched it, and
+ * it is patched on a fault, which mhp_watch_fault() above claims first for
+ * watched bytes.  So while a watch is armed the instructions writing to it
+ * are not patched and do not come here: a watch on the client's stack does
+ * fire, measured on eight pushes out of eight.  What is left is the write of
+ * an instruction that was already patched when the watch went on.
  *
  * Nothing can be stopped on here - the helper is called with the write still
  * to come and returns into compiled code - so the write is let through and
