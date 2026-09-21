@@ -63,6 +63,7 @@
 #include "hlt.h"
 #include "pic.h"
 #include "kvm.h"
+#include "vtmr.h"
 #include "coopth.h"
 
 #define Addr_8086(x,y)  MK_FP32((x),(y) & 0xffff)
@@ -2131,6 +2132,10 @@ static void vcpi_interface(struct vm86_regs *state)
        v86 return that never happens and the next DE0Ch stacks another one
        on top of it, five deep and out of recursion depth. */
     coopth_leave();
+    /* The virtual timer has to be retired before the client gets the CPU:
+       it has no gate for the virtual line's vector, and nothing can ack a
+       request left standing on it while it runs.  See vtmr_pre_vcpi(). */
+    vtmr_pre_vcpi();
     /* Does not return here: the monitor jumps to the client's entry point
        and we are next called when it comes back through AX=DE0Ch. */
     kvm_vcpi_pm_switch(state->esi);
