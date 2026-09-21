@@ -128,8 +128,14 @@ static void bios_setup(void)
 {
   int i;
 
-  /* initially, no HMA */
-  set_a20(0);
+  /* Initially no HMA, unless a JEMM is emulated.  A real one loads before
+   * DOS does and, like EMM386, holds the A20 gate open for as long as it is
+   * resident, so its clients address the HMA without asking anyone to open
+   * it.  With the gate shut FFFF:xxxx wraps onto the first 64k: Privateer
+   * clears the HMA before using it, and what it cleared instead was the
+   * interrupt vector table, after which the CPU walked a field of zeros
+   * from 0000:0000 for ever. */
+  set_a20(config.jemm);
 
   /* init trapped interrupts called via jump */
   for (i = 0; i < 256; i++) {
