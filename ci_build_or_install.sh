@@ -2,6 +2,25 @@
 
 set -e
 
+# Nothing here is watched by anyone, so a question from dpkg is a hung run,
+# and a dropped connection should be retried by the tool that made it rather
+# than waited out: apt's own default socket timeout is two minutes.  This
+# also covers the download of the .deb files themselves, which is a place a
+# shell retry cannot help -- mk-build-deps may already be half unpacked by
+# then, and re-running its configuration from there is worse than the
+# failure.  Acquire::Retries retries the fetch instead, before anything is
+# unpacked.  Assume-Yes is set here rather than passed to mk-build-deps as
+# --tool="apt-get -y", because that would replace the tool devscripts calls
+# by default, flags and all, and one of them is --no-install-recommends.
+export DEBIAN_FRONTEND=noninteractive
+sudo tee /etc/apt/apt.conf.d/99ci-retries >/dev/null <<'EOF'
+Acquire::Retries "3";
+Acquire::http::Timeout "15";
+Acquire::https::Timeout "15";
+APT::Get::Assume-Yes "true";
+DPkg::Options { "--force-confdef"; "--force-confold"; };
+EOF
+
 # Launchpad drops the PPA signing key lookup often enough to matter, and
 # add-apt-repository has no retry of its own: getSigningKeyData() raises and
 # the script is gone.  Seen as HTTP 504 and as HTTP 500 with the body
@@ -65,9 +84,9 @@ apt_update()
 
 if [ "${BLDTYPE}" = "packaged" ] ; then
   echo "Adding dosemu2 PPA..."
-  add_apt_repository -y -c main -c main/debug ppa:dosemu2/ppa
+  add_apt_repository -n -y -c main -c main/debug ppa:dosemu2/ppa
   apt_update
-  sudo apt install -y \
+  sudo apt-get install -y \
     dosemu2 \
     dosemu2-dbgsym \
     fdpp \
@@ -99,7 +118,7 @@ git clone --depth 1 --no-single-branch https://github.com/dosemu2/fdpp.git ${LOC
 
   echo "Configuring PPAs..."
   # Install the build dependancies based FDPP's debian/control file
-  add_apt_repository ppa:stsp-0/thunk-gen
+  add_apt_repository -n ppa:stsp-0/thunk-gen
   apt_update
   mk-build-deps --install --root-cmd sudo
 
@@ -108,10 +127,10 @@ git clone --depth 1 --no-single-branch https://github.com/dosemu2/fdpp.git ${LOC
 )
 
 # Install the build dependancies based Dosemu's debian/control file
-add_apt_repository -y -c main -c main/debug ppa:dosemu2/ppa
+add_apt_repository -n -y -c main -c main/debug ppa:dosemu2/ppa
 apt_update
 mk-build-deps --install --root-cmd sudo
-sudo apt remove -y fdpp
+sudo apt-get remove -y fdpp
 
 if [ "${BLDTYPE}" = "asan" ] ; then
   sed -i 's/asan off/asan on/g' compiletime-settings.devel
