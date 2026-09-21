@@ -2631,6 +2631,97 @@ int dpmi_install_rsp(struct RSPcall_s *callback)
     return 0;
 }
 
+/*
+ * What a client finds where the descriptor tables should be.
+ *
+ * A 286 extender looks for its descriptors the way the hardware does:
+ * sgdt for the GDT, sldt for the index of the LDT inside it, the base
+ * and limit out of that entry, and then it indexes that table by
+ * selector. Under DPMI the LDT is the only table it has any business
+ * touching, and it is reachable: int 2Fh AX=1688h hands out an alias of
+ * it, read-only, and writes to that alias are picked up in msdos_ldt.c.
+ * What was missing is the step in between: something for sgdt to point
+ * at that names the alias. The same client reads the table sidt names
+ * before it goes on, so that has to be readable too.
+ *
+ * One page holds both tables, taken here at init and read-only, which
+ * is all a GDT a client cannot grow has to be. Its first half is a GDT
+ * whose single entry, at index 0 because that is what sldt reports,
+ * describes the LDT alias; its second half is an IDT of absent gates,
+ * which is the truth about what a client may take from the host's
+ * interrupt table. The page is there for the whole run; the one entry
+ * in it is written when there is an alias to name.
+ */
+#define DTR_ALIAS_LIMIT 0x7ff	/* 256 entries, as on a real machine */
+static struct {
+    dosaddr_t base;
+    unsigned limit;
+} dtr_alias[2];
+static dosaddr_t dtr_base = (dosaddr_t)-1;
+
+static void dtr_alias_setup(void)
+{
+    dpmi_pm_block *blk;
+
+    assert(DPMI_page_size >= 2 * (DTR_ALIAS_LIMIT + 1));
+    blk = DPMI_malloc(&host_pm_block_root, DPMI_page_size);
+    if (!blk) {
+	error("DPMI: can't allocate memory for descriptor tables\n");
+	return;
+    }
+    MEMSET_DOS(blk->base, 0, DPMI_page_size);
+    mprotect_mapping(MAPPING_DPMI, blk->base,
+	    HOST_PAGE_ALIGN(DPMI_page_size), PROT_READ);
+    dtr_base = blk->base;
+    dtr_alias[0].base = dtr_base;
+    dtr_alias[0].limit = DTR_ALIAS_LIMIT;
+    dtr_alias[1].base = dtr_base + DTR_ALIAS_LIMIT + 1;
+    dtr_alias[1].limit = DTR_ALIAS_LIMIT;
+    D_printf("DPMI: descriptor tables at %#x\n", dtr_base);
+}
+
+/*
+ * The one entry in that GDT, which msdos_ldt.c fills in when it has
+ * made the LDT alias and clears when it takes it away. Until then it
+ * reads as a descriptor that is not present, which is the truth.
+ */
+void dpmi_set_ldt_alias(dosaddr_t ldt_lin)
+{
+    /* one entry short of the whole table: the extender works out how
+     * many descriptors fit with a 16bit (limit + 1) / 8, and a limit of
+     * 0xffff wraps that to zero, which it reports as a fatal error */
+    unsigned lim = LDT_ENTRIES * LDT_ENTRY_SIZE - LDT_ENTRY_SIZE - 1;
+    unsigned char d[LDT_ENTRY_SIZE] = { 0 };
+
+    if (dtr_base == (dosaddr_t)-1)
+	return;
+    if (ldt_lin) {
+	d[0] = lim & 0xff;
+	d[1] = (lim >> 8) & 0xff;
+	d[2] = ldt_lin & 0xff;
+	d[3] = (ldt_lin >> 8) & 0xff;
+	d[4] = (ldt_lin >> 16) & 0xff;
+	d[5] = 0x82;		/* present, system, LDT */
+	d[6] = (lim >> 16) & 0x0f;
+	d[7] = (ldt_lin >> 24) & 0xff;
+    }
+    mprotect_mapping(MAPPING_DPMI, dtr_base,
+	    HOST_PAGE_ALIGN(DPMI_page_size), PROT_READ | PROT_WRITE);
+    MEMCPY_2DOS(dtr_base, d, sizeof(d));
+    mprotect_mapping(MAPPING_DPMI, dtr_base,
+	    HOST_PAGE_ALIGN(DPMI_page_size), PROT_READ);
+    D_printf("DPMI: ldt alias at %#x/%#x\n", ldt_lin, lim);
+}
+
+int dpmi_get_dtr_alias(int idt, dosaddr_t *base, unsigned *limit)
+{
+    if (!dtr_alias[!!idt].limit)
+	return 0;
+    *base = dtr_alias[!!idt].base;
+    *limit = dtr_alias[!!idt].limit;
+    return 1;
+}
+
 dosaddr_t DPMIMapHWRam(unsigned addr, unsigned size)
 {
     dpmi_pm_block *blk = DPMI_mapHWRam(&DPMI_CLIENT.pm_block_root, addr, size);
@@ -4354,12 +4445,14 @@ void dpmi_setup(void)
       break;
     }
 
-    get_ldt(ldt_buffer, LDT_ENTRIES * LDT_ENTRY_SIZE);
-
     if (dpmi_alloc_pool()) {
 	leavedos(2);
 	return;
     }
+    get_ldt(ldt_buffer, LDT_ENTRIES * LDT_ENTRY_SIZE);
+    /* the tables a client goes looking for, made once and for all */
+    dtr_alias_setup();
+
     if (!(_dpmi_sel16 = allocate_descriptors(1))) goto err;
     if (!(_dpmi_sel32 = allocate_descriptors(1))) goto err;
 
@@ -6148,6 +6241,10 @@ static int dpmi_fault1(cpuctx_t *scp)
                 unsigned int base = reg ? EMU_IDT_BASE : EMU_GDT_BASE;
                 unsigned int limit = reg ? EMU_IDT_LIMIT : EMU_GDT_LIMIT;
 
+                /* the page msdos_ldt.c keeps, when there is one: a
+                 * client that follows what it reads here then finds
+                 * its own LDT rather than nothing at all */
+                dpmi_get_dtr_alias(reg, &base, &limit);
                 p[0] = limit;
                 p[1] = limit >> 8;
                 p[2] = base;

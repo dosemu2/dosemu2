@@ -51,6 +51,7 @@ from func_memory_dpmi_linmem_oom import memory_dpmi_linmem_oom
 from func_memory_dpmi_nullseg import memory_dpmi_nullseg
 from func_memory_dpmi_pm_stack import memory_dpmi_pm_stack
 from func_memory_dpmi_privileged_dt import memory_dpmi_privileged_dt
+from func_memory_dpmi_dtrbase import memory_dpmi_dtrbase
 from func_memory_dpmi_ecm import (memory_dpmi_ecm_alloc, memory_dpmi_ecm_mini,
                                   memory_dpmi_ecm_modeswitch, memory_dpmi_ecm_psp)
 from func_memory_dpmi_japheth import memory_dpmi_japheth
@@ -1050,6 +1051,11 @@ class OurTestCase(BaseTestCase):
     def test_memory_dpmi_privileged_dt(self):
         """Memory DPMI privileged descriptor table loads"""
         memory_dpmi_privileged_dt(self)
+
+    @mark(['memtest', 'dpmitest'])
+    def test_memory_dpmi_dtrbase(self):
+        """Memory DPMI descriptor table base"""
+        memory_dpmi_dtrbase(self)
 
     @mark(['memtest', 'dpmitest'])
     def test_memory_dpmi_nullseg(self):

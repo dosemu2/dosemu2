@@ -292,6 +292,8 @@ struct RSPcall_s {
 
 int dpmi_install_rsp(struct RSPcall_s *callback);
 dosaddr_t DPMIMapHWRam(unsigned addr, unsigned size);
+void dpmi_set_ldt_alias(dosaddr_t ldt_lin);
+int dpmi_get_dtr_alias(int idt, dosaddr_t *base, unsigned *limit);
 int DPMIUnmapHWRam(dosaddr_t vbase);
 
 #endif // __ASSEMBLER__
@@ -382,6 +384,11 @@ static inline int dpmi_mhp_setIF(int on)
 static inline uint8_t *dpmi_get_ldt_buffer(void)
 {
     return NULL;
+}
+
+static inline int dpmi_get_dtr_alias(int idt, dosaddr_t *base, unsigned *limit)
+{
+    return 0;
 }
 
 static inline int get_ldt(void *buffer)
