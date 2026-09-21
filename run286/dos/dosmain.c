@@ -162,10 +162,15 @@ int ASMCFUNC run286_import(void)
     rc = im->fn->fn(&c);
     ldr.ncall++;
     if (ldr.trace)
-	printf("run286: %s.%s%u(%04x %04x %04x %04x %04x) = %u\n", im->mod,
-		im->name[0] ? im->name : "#", im->ord, call_argw(&c, 0),
-		call_argw(&c, 2), call_argw(&c, 4), call_argw(&c, 6),
-		call_argw(&c, 8), rc);
+	printf("run286: %s.%s%u(%04x %04x %04x %04x %04x %04x %04x) = %u\n",
+		im->mod, im->name[0] ? im->name : "#", im->ord,
+		call_argw(&c, 0), call_argw(&c, 2), call_argw(&c, 4),
+		call_argw(&c, 6), call_argw(&c, 8), call_argw(&c, 10),
+		call_argw(&c, 12), rc);
+    if (ldr.trace)
+	printf("run286:   called from %04x:%04x\n",
+		_farpeekw(c.ss, c.sp + CALL_ARGS - 2),
+		_farpeekw(c.ss, c.sp + CALL_ARGS - 4));
     /* the result goes back in AX, which gate_entry pops off the program's
      * own stack on the way out */
     _farpokew(c.ss, c.sp + CALL_EAX, rc);
@@ -458,6 +463,10 @@ int main(int argc, char **argv)
     }
     if (!sp)				/* top of the stack segment */
 	sp = l->seg[ss_seg - 1].size;
+    desc_probe();
+    printf("run286: gdt %04x:%04x%04x, idt %04x:%04x%04x\n",
+	    gate_gdt[0], gate_gdt[2], gate_gdt[1],
+	    gate_idt[0], gate_idt[2], gate_idt[1]);
     printf("run286: entering %04x:%04x, stack %04x:%04x, ds %04x\n",
 	    l->seg[entry_seg - 1].sel, (unsigned)(ne.csip & 0xffff),
 	    l->seg[ss_seg - 1].sel, sp, l->seg[ne.autodata - 1].sel);

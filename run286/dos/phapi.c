@@ -43,13 +43,15 @@ void call_setd(uint32_t fp, uint32_t val)
     _farpokel(fp >> 16, fp & 0xffff, val);
 }
 
-/* Hands out one descriptor covering [base, base + size). */
+/* Hands out one descriptor covering [base, base + size). A size of zero
+ * means the full 64K a 16bit selector can reach: the programs get there by
+ * pushing a 16bit count, so a 64K request arrives as 0. */
 static uint16_t map_seg(uint32_t base, uint32_t size, uint32_t selp)
 {
     uint16_t sel;
 
     if (!size)
-	return ERROR_INVALID_PARAMETER;
+	size = 0x10000;
     sel = __dpmi_allocate_ldt_descriptors(1);
     if (sel == (uint16_t)-1)
 	return ERROR_NOT_ENOUGH_MEMORY;
@@ -86,13 +88,36 @@ static uint16_t dos_map_real_seg(struct call *c)
     return map_seg((uint32_t)para << 4, size, selp);
 }
 
-/* USHORT DosMapLinSeg(ULONG lin_addr, ULONG size, PSEL selp) */
+/*
+ * USHORT DosMapLinSeg(ULONG lin_addr, ULONG size, PSEL selp)
+ *
+ * Origin's wrapper runs sgdt and maps whatever it reports so that it can
+ * write descriptors itself. Under dosemu2 that reads back as base 0,
+ * limit 0xffff, so the mapping it asks for covers the interrupt vector
+ * table and the whole of low memory; letting it write there takes the
+ * host down with it. It gets a private page of its own instead, which is
+ * where the real work of running these games starts.
+ */
+static __dpmi_meminfo fake_gdt;
+
 static uint16_t dos_map_lin_seg(struct call *c)
 {
     uint32_t selp = call_argd(c, 0);
     uint32_t size = call_argd(c, 4);
     uint32_t lin = call_argd(c, 8);
 
+    if (lin < 0x1000) {
+	if (!fake_gdt.size) {
+	    fake_gdt.size = 0x10000;
+	    if (__dpmi_allocate_memory(&fake_gdt) == -1) {
+		fake_gdt.size = 0;
+		return ERROR_NOT_ENOUGH_MEMORY;
+	    }
+	}
+	printf("run286: descriptor table mapping at %#x redirected to %#lx\n",
+		lin, (unsigned long)fake_gdt.address);
+	return map_seg(fake_gdt.address + lin, size, selp);
+    }
     return map_seg(lin, size, selp);
 }
 
@@ -122,7 +147,7 @@ static uint16_t dos_alloc_real_seg(struct call *c)
 
 /* DPMI frees a block by handle, PHAPI by linear address, so the handles
  * have to be kept around. */
-#define MAX_LINMEM	64
+#define MAX_LINMEM	1024
 static __dpmi_meminfo linmem[MAX_LINMEM];
 
 /* USHORT DosAllocLinMem(ULONG size, PULONG lin_addp) */

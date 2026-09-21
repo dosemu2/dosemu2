@@ -51,6 +51,15 @@ _ne_enter:
     movl %ebx, %esp
     ljmpw *%cs:_gate_jmp
 
+/* int desc_probe(void) - what the machine says its tables are */
+.global _desc_probe
+_desc_probe:
+    sgdt _gate_gdt
+    sidt _gate_idt
+    xorl %eax, %eax
+    movw %cs, %ax
+    lret
+
 /*
  * The int 0x66 handler. Entered from the program's 16bit stub with a 32bit
  * iret frame on the program's own 16bit stack.
@@ -119,6 +128,14 @@ _gate_cli_ss:	.long 0
 _gate_cli_esp:	.long 0
 .global _gate_exit_code
 _gate_exit_code: .long 0
+.global _gate_gdt
+_gate_gdt:	.word 0
+		.long 0
+		.word 0
+.global _gate_idt
+_gate_idt:	.word 0
+		.long 0
+		.word 0
 
 .global _gate_stack
 _gate_stack:
