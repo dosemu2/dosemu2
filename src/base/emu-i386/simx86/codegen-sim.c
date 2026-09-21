@@ -3181,8 +3181,9 @@ stack_return_from_vm86:
 			    }
 			}
 			else {
-			    int amask = (CPL==0? 0:EFLAGS_IOPL_MASK) |
-					(CPL<=IOPL? 0:EFLAGS_IF) |
+			    /* the IOPL field is not masked: see IOPL in
+			     * emu86.h for why a client may write it */
+			    int amask = (CPL<=IOPL? 0:EFLAGS_IF) |
 					(EFLAGS_VM|EFLAGS_RF);
 			    if (mode & DATA16)
 				FLAGS = (FLAGS&amask) | ((temp&0x7fd7)&~amask) | 2;
