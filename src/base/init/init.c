@@ -233,6 +233,15 @@ void map_custom_bios(void)
   ptr = SEGOFF2LINEAR(BIOSSEG, bios_data_start);
   e_invalidate(ptr, DOSEMU_BIOS_SIZE());
   MEMCPY_2DOS(ptr, _binary_bios_o_bin_start, DOSEMU_BIOS_SIZE());
+  if (BIOSSEG != 0x0f000) {
+    /* The image is assembled for 0xf000 and says so in four places: the
+     * segment word of three far jumps, and the segment of the int 33h
+     * chain it publishes.  Everything else in it is segment-relative. */
+    WRITE_WORD(SEGOFF2LINEAR(BIOSSEG, bios_ljmp_eoi2 + 3), BIOSSEG);
+    WRITE_WORD(SEGOFF2LINEAR(BIOSSEG, bios_ljmp_int33 + 3), BIOSSEG);
+    WRITE_WORD(SEGOFF2LINEAR(BIOSSEG, bios_ljmp_reset + 3), BIOSSEG);
+    WRITE_WORD(SEGOFF2LINEAR(BIOSSEG, bios_int33_chain_seg), BIOSSEG);
+  }
   setup_fonts();
   /* Initialise the ROM-BIOS graphic font (lower half only) */
   MEMCPY_2DOS(GFX_CHARS, vga_rom_08, 128 * 8);
@@ -503,8 +512,9 @@ void map_memory_space(void)
         MEM_BASE32(LOWMEM_SIZE + HMASIZE), LOWMEM_SIZE + HMASIZE,
         KVM_PROT_RWX);
 
-  /* R/O protect 0xf0000-0xf4000 */
-  if (!config.umb_f0) {
+  /* R/O protect 0xf0000-0xf4000.  Not under JEMM, where that address is one
+   * of the client's windows and none of it is ours to call a ROM. */
+  if (!config.umb_f0 && !config.jemm) {
     memcheck_addtype('R', "ROM at f000:0000 for $_umb_f0 = (off)");
     memcheck_reserve('R', 0xF0000, 0x4000);
   }

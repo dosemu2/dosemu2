@@ -32,6 +32,7 @@
 #include "video.h"
 
 static smpool mp;
+unsigned short dosemu_bios_seg = 0x0f000;
 unsigned char *dosemu_lmheap_base;
 static void *rm_stack;
 #define RM_STACK_SIZE 0x200

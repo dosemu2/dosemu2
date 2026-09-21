@@ -1,4 +1,11 @@
 extern const unsigned bios_data_start;
+/* the four places in the image that name the segment it sits in:
+ * three far jumps, patched at their segment word, and the segment
+ * word of the int 33h chain */
+extern const unsigned bios_ljmp_eoi2;
+extern const unsigned bios_ljmp_int33;
+extern const unsigned bios_ljmp_reset;
+extern const unsigned bios_int33_chain_seg;
 extern const unsigned ROM_BIOS_EXIT;
 extern const unsigned GET_RETCODE_HELPER;
 extern const unsigned Mouse_ROUTINE_OFF;
