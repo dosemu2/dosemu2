@@ -42,6 +42,10 @@
 
 #define NE_MAX_MODREF	16
 
+/* flags byte of an entry-table entry */
+#define NE_ENT_EXPORTED	0x01
+#define NE_ENT_DATA	0x02	/* wants the module's own DGROUP in DS */
+
 struct ne_seg {
     uint32_t file_off;		/* 0 if the segment has no file image */
     uint32_t len;		/* 0 in the file means 64K */
@@ -95,6 +99,17 @@ static inline uint32_t ne_seg_len(const struct ne_seg *s)
 
 const char *ne_impname(const struct ne_image *ne, uint16_t off, char *buf,
 	size_t len);
+/* Walking the entry table. Zero the iterator to start; ne_entry_next()
+ * returns 1 for as long as it yields an entry and 0 at the end of the
+ * table. Segment numbers are 1-based, as in the file. */
+struct ne_entry_iter {
+    uint32_t off;		/* how far into the table we are */
+    uint16_t ord;		/* the ordinal of the entry to yield next */
+    uint8_t cnt, type;		/* what is left of the bundle we are in */
+};
+
+int ne_entry_next(const struct ne_image *ne, struct ne_entry_iter *it,
+	uint16_t *ord, uint8_t *flags, uint16_t *segnum, uint16_t *off);
 /* Maps an entry-table ordinal to a segment number and an offset within it.
  * Returns 0 on success. Segment numbers are 1-based, as in the file. */
 int ne_entry_lookup(const struct ne_image *ne, uint16_t ord, uint16_t *segnum,

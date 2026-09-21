@@ -166,6 +166,50 @@ static int make_stub(struct dos_ldr *l, const char *mod, const char *name,
     return 0;
 }
 
+/*
+ * A DLL's exported functions run on the DLL's own data, not on the data
+ * of whoever called them, and the linker leaves the loader to say so: an
+ * entry whose flags carry NE_ENT_DATA begins with "mov ax,ds; nop", three
+ * bytes that are there to be rewritten into "mov ax,DGROUP". The prologue
+ * that follows pushes DS and loads AX into it, so the rewrite is the whole
+ * of the mechanism.
+ *
+ * Skipping it is not harmless. AILXMI's functions then ran on BioForge's
+ * own DGROUP and wrote their state over the game's, which carried on for
+ * a few thousand calls and died with its stack overrun.
+ */
+static void patch_dll_prologues(struct module *m)
+{
+    struct ne_entry_iter it = {};
+    uint16_t ord, segnum, off, dgroup;
+    uint8_t flags;
+    unsigned n = 0;
+
+    if (!m->ne.autodata || m->ne.autodata > m->ne.cseg)
+	return;
+    dgroup = m->seg[m->ne.autodata - 1].sel;
+    while (ne_entry_next(&m->ne, &it, &ord, &flags, &segnum, &off)) {
+	struct seg_info *si;
+	uint8_t *code;
+
+	if (!(flags & NE_ENT_DATA) || !segnum || segnum > m->ne.cseg)
+	    continue;
+	si = &m->seg[segnum - 1];
+	code = si->shadow;
+	if (!code || off + 3 > si->size)
+	    continue;
+	if (code[off] != 0x8c || code[off + 1] != 0xd8 || code[off + 2] != 0x90)
+	    continue;
+	code[off] = 0xb8;		/* mov ax,imm16 */
+	code[off + 1] = dgroup & 0xff;
+	code[off + 2] = dgroup >> 8;
+	n++;
+    }
+    if (n)
+	trc("run286: %s: %u entry points now load DGROUP %#x\n", m->name, n,
+		dgroup);
+}
+
 static struct module *find_module(const char *name)
 {
     int i;
@@ -233,6 +277,7 @@ static struct module *dll_load(const char *name)
 	    return NULL;
 	}
     }
+    patch_dll_prologues(m);
     if (commit_segments(m) != 0)
 	return NULL;
     trc("run286: loaded %s, %u segments, %u fixups, %u unresolved\n",

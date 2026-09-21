@@ -261,45 +261,68 @@ const char *ne_impname(const struct ne_image *ne, uint16_t off, char *buf,
     return buf;
 }
 
+int ne_entry_next(const struct ne_image *ne, struct ne_entry_iter *it,
+	uint16_t *ord, uint8_t *flags, uint16_t *segnum, uint16_t *off)
+{
+    const uint8_t *tab = ne->file + ne->hdr + ne->enttab;
+    const uint8_t *end = tab + ne->cbenttab;
+    const uint8_t *p;
+
+    if (end > ne->file + ne->file_size)
+	return 0;
+    if (!it->ord)
+	it->ord = 1;
+    /* The table is a run of bundles: a count, a segment indicator, and
+     * then that many entries. Indicator 0 is a gap in the ordinal space
+     * and 0xff a bundle of moveable entries, which carry their segment
+     * number one by one behind an int 3fh thunk. */
+    while (!it->cnt) {
+	p = tab + it->off;
+	if (p + 2 > end || !p[0])
+	    return 0;
+	it->cnt = p[0];
+	it->type = p[1];
+	it->off += 2;
+	if (!it->type) {
+	    it->ord += it->cnt;
+	    it->cnt = 0;
+	}
+    }
+    p = tab + it->off;
+    if (it->type == 0xff) {		/* moveable: flags, int 3fh, seg, off */
+	if (p + 6 > end)
+	    return 0;
+	*flags = p[0];
+	*segnum = p[3];
+	*off = rd16(p + 4);
+	it->off += 6;
+    } else {				/* fixed: flags, off */
+	if (p + 3 > end)
+	    return 0;
+	*flags = p[0];
+	*segnum = it->type;
+	*off = rd16(p + 1);
+	it->off += 3;
+    }
+    *ord = it->ord++;
+    it->cnt--;
+    return 1;
+}
+
 int ne_entry_lookup(const struct ne_image *ne, uint16_t ord, uint16_t *segnum,
 	uint16_t *off)
 {
-    const uint8_t *p = ne->file + ne->hdr + ne->enttab;
-    const uint8_t *end = p + ne->cbenttab;
-    uint16_t cur = 1;
+    struct ne_entry_iter it = {};
+    uint16_t cur, sg, o;
+    uint8_t flags;
 
-    if (!ord || end > ne->file + ne->file_size)
+    if (!ord)
 	return -1;
-    while (p + 2 <= end) {
-	uint8_t cnt = p[0], type = p[1];
-
-	if (!cnt)
-	    break;
-	p += 2;
-	if (!type) {			/* a gap in the ordinal space */
-	    cur += cnt;
-	    continue;
-	}
-	for (; cnt; cnt--, cur++) {
-	    if (type == 0xff) {		/* moveable: flags, int 3fh, seg, off */
-		if (p + 6 > end)
-		    return -1;
-		if (cur == ord) {
-		    *segnum = p[3];
-		    *off = rd16(p + 4);
-		    return 0;
-		}
-		p += 6;
-	    } else {			/* fixed: flags, off */
-		if (p + 3 > end)
-		    return -1;
-		if (cur == ord) {
-		    *segnum = type;
-		    *off = rd16(p + 1);
-		    return 0;
-		}
-		p += 3;
-	    }
+    while (ne_entry_next(ne, &it, &cur, &flags, &sg, &o)) {
+	if (cur == ord) {
+	    *segnum = sg;
+	    *off = o;
+	    return 0;
 	}
     }
     return -1;
