@@ -79,6 +79,8 @@ static struct keyboard_state
 	unsigned char Esc_Char;
 	int KeyNot_Ready;	 /* a flag */
 	int RetNot_Ready;	 /* ret val for above flag */
+	int CharNot_Ready;	 /* a multi byte character is half here */
+	hitimer_t c_start;	 /* when the first byte of it arrived */
 	int Keystr_Len;
 	unsigned long Shift_Flags;
 
@@ -1261,14 +1263,28 @@ static int get_modifiers(void)
 	return modifier;
 }
 
+#define THE_TIMEOUT 250000L
+
 static void do_slang_pending(void)
 {
+	if (keyb_state.CharNot_Ready && keyb_state.kbcount) {
+		/* the rest of a multi byte character that never came */
+		hitimer_t c_dif = GETusTIME(0) - keyb_state.c_start;
+		if (c_dif >= THE_TIMEOUT) {
+			k_printf("KBD: timeout on incomplete character\n");
+			/* Give up on one byte, as high bit meta on a dumb
+			 * ascii terminal.  Any byte after it is a lone
+			 * continuation byte, which is not the start of a
+			 * character either, so the loop below reaches the
+			 * same reading for it straight away. */
+			slang_send_scancode(keyb_state.Shift_Flags | ALT_MASK,
+					    *keyb_state.kbp & 0x7f);
+			keyb_state.CharNot_Ready = 0;
+			keyb_state.kbp++;
+			keyb_state.kbcount--;
+		}
+	}
 	if (keyb_state.KeyNot_Ready && *keyb_state.kbp == 27) {
-#if 0
-#define THE_TIMEOUT 750000L
-#else
-#define THE_TIMEOUT 250000L
-#endif
 		hitimer_t t_dif = GETusTIME(0) - keyb_state.t_start;
 		if (t_dif >= THE_TIMEOUT) {
 			t_unicode symbol = DKY_VOID;
@@ -1364,7 +1380,7 @@ static void _do_slang_getkeys(void)
 		do_sync_shiftstate();
 		return;
 	}
-	if (cc <= 0 && keyb_state.KeyNot_Ready)
+	if (cc <= 0 && (keyb_state.KeyNot_Ready || keyb_state.CharNot_Ready))
 		return;
 	process_slang_keys();
 }
@@ -1389,6 +1405,7 @@ static void process_slang_keys(void)
 		unsigned long scan = 0;
 		t_unicode symbol = DKY_VOID;
 		size_t result;
+		int incomplete;
 
 		keyb_state.Keystr_Len = 0;
 		keyb_state.RetNot_Ready = 0;
@@ -1411,10 +1428,14 @@ static void process_slang_keys(void)
 			symbol = scan & 0xFFFF;
 		}
 		result = 1;
+		incomplete = 0;
 		if (symbol == DKY_VOID) {
 			/* rough draft version don't stop here... */
 			result = charset_to_unicode(&keyb_state.translate_state,
 				&symbol, keyb_state.kbp, keyb_state.kbcount);
+			/* errno has to be read before anything else can
+			 * overwrite it, k_printf() included */
+			incomplete = (result == -1 && errno == EINVAL);
 			if (result != -1 && result > keyb_state.Keystr_Len)
 				keyb_state.Keystr_Len = result;
 			k_printf("KBD: got %08x, result=%zx\n", symbol, result);
@@ -1431,6 +1452,22 @@ static void process_slang_keys(void)
 			continue;
 		}
 		modifier = 0;
+		if (incomplete) {
+			/* The beginning of a multi byte character whose tail
+			 * has not arrived yet.  Reading the first byte as a
+			 * meta key would type one wrong character now and
+			 * another when the rest turns up, so wait for it.
+			 * do_slang_pending() gives up after the timeout. */
+			k_printf("KBD: incomplete character, waiting\n");
+			if (!keyb_state.CharNot_Ready) {
+				keyb_state.c_start = GETusTIME(0);
+				keyb_state.CharNot_Ready = 1;
+			}
+			break;
+		}
+		/* only now, so that a retry of the same bytes does not keep
+		 * pushing the timeout out of reach */
+		keyb_state.CharNot_Ready = 0;
 		if (result == -1 && (unsigned char)keyb_state.kbp[0] >= 0x80) {
 			/* allow for high bit meta on dumb ascii terminals */
 			scan |= ALT_MASK;
