@@ -38,6 +38,7 @@
 #include "codegen-arch.h"
 #include "cpatch.h"
 #include "vgaemu.h"
+#include "misc/smalloc.h"
 
 #define UNCPATCH_WRITES 0
 
@@ -112,6 +113,43 @@ struct rep_stack {
 		addr += df; source += df; \
 	} while (--ecx && (eflags & X86_EFLAGS_ZF)==repcond)
 
+/* The jit checks no segment limits, so a string op whose source or
+ * destination lies outside the memory dosemu mapped would run off into a
+ * hole in our own address space. From compiled code such a fault comes
+ * back to the client as a page fault (see e_emu_badaddr_fault()), but
+ * this helper is an ordinary C function, and the fault handler cannot
+ * unwind through it: the registers compiled code is entered with are
+ * restored by an epilogue that would then never run, and dosemu dies on
+ * the way out instead. So look before we leap here, and leave through
+ * that epilogue like any other call.
+ * main_pool.size is how far a dosaddr_t reaches, the same bound dosdebug
+ * checks before it reads. */
+static int rep_range_ok(dosaddr_t addr, unsigned int len, unsigned int size)
+{
+	dosaddr_t start = (EFLAGS & EFLAGS_DF) ? addr - (len - size) : addr;
+
+	return start < main_pool.size && len <= main_pool.size - start;
+}
+
+/* Give the rep back to the client as a page fault on its first element.
+ * Nothing has been copied, and SI, DI and CX are written back only after
+ * the rep (O_MOVS_SavA), so the client is free to restart it.
+ * Compiled code is left the way e_return_from_jit() leaves it, only the
+ * road there is different: the stub returns to whatever eip says, and the
+ * block's own stack, with the flags and the return address on it, is
+ * exactly what stub_rep_exit__ then finds under its feet. */
+static void rep_fault(struct rep_stack *stack, dosaddr_t addr, int wr)
+{
+	void stub_rep_exit(void) asm ("stub_rep_exit__");
+
+	TheCPU.scp_err = wr ? 6 : 4;	/* user, not present */
+	TheCPU.err = EXCP0E_PAGE;
+	TheCPU.cr[2] = addr;
+	stack->eax = FindPC_X(stack->eip - 1);
+	stack->eip = (unsigned char *)stub_rep_exit;
+	InCompiledCode++;
+}
+
 // the rep stub gets passed an argument on the stack:
 // the original op | 0x10 for operand override, | 0x40 for REPNE
 void rep_movs_stos(struct rep_stack *stack)
@@ -137,6 +175,20 @@ void rep_movs_stos(struct rep_stack *stack)
 	else if (op & 1)
 		size = 4;
 	len *= size;
+	/* both ends before anything is touched, and only the ends the op
+	 * below really uses: a client may well point just one of them
+	 * outside our memory */
+	if (((op & 0xfe) == 0xa4 || (op & 0xfe) == 0xaa ||
+	     (op & 0xb6) == 0xa6) && !rep_range_ok(addr, len, size)) {
+		rep_fault(stack, addr, (op & 0xfe) == 0xa4 ||
+			  (op & 0xfe) == 0xaa);
+		return;
+	}
+	if (((op & 0xfe) == 0xa4 || (op & 0xbe) == 0xa6) &&
+	    !rep_range_ok(EMUADDR_REL(stack->esi), len, size)) {
+		rep_fault(stack, EMUADDR_REL(stack->esi), 0);
+		return;
+	}
 	m_munprotect(addr - ((EFLAGS & EFLAGS_DF) ? (len - size) : 0),
 		     len, eip);
 	edi = LINEAR2UNIX(addr);
@@ -493,6 +545,15 @@ asm (
 "1:		ret	$4\n"
 );
 
+/* where rep_movs_stos() sends the stub when the rep has to come back to
+ * the client as a fault: %esp is then the stack of the block itself */
+asm (
+".text\n.globl stub_rep_exit__\n"
+"stub_rep_exit__:\n"
+"\t\tpopl\t%edx\n"	/* flags, as at the end of a block */
+"\t\tret\n"
+);
+
 asm (
 ".text\n.globl stub_setsegprot__\n"
 "stub_setsegprot__:\n"
@@ -576,6 +637,15 @@ asm (
 "		popq	%rdx\n"
 "		popq	%rax\n"
 "1:		ret	$8\n"
+);
+
+/* where rep_movs_stos() sends the stub when the rep has to come back to
+ * the client as a fault: %rsp is then the stack of the block itself */
+asm (
+".text\n.globl stub_rep_exit__\n"
+"stub_rep_exit__:\n"
+"\t\tpopq\t%rdx\n"	/* flags, as at the end of a block */
+"\t\tret\n"
 );
 
 asm (
