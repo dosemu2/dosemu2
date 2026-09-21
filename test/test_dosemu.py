@@ -50,6 +50,7 @@ from func_memory_dpmi_ldt_movs import memory_dpmi_ldt_movs
 from func_memory_dpmi_pharlap import memory_dpmi_pharlap, memory_dpmi_pharlap16
 from func_memory_dpmi_nullseg import memory_dpmi_nullseg
 from func_memory_dpmi_popf_if import memory_dpmi_popf_if
+from func_memory_dpmi_popf_iopl import memory_dpmi_popf_iopl
 from func_memory_dpmi_ecm import (memory_dpmi_ecm_alloc, memory_dpmi_ecm_mini,
                                   memory_dpmi_ecm_modeswitch, memory_dpmi_ecm_psp)
 from func_memory_dpmi_japheth import memory_dpmi_japheth
@@ -1050,6 +1051,11 @@ class OurTestCase(BaseTestCase):
     def test_memory_dpmi_nullseg(self):
         """Memory DPMI null selector access"""
         memory_dpmi_nullseg(self)
+
+    @mark(['memtest', 'dpmitest'])
+    def test_memory_dpmi_popf_iopl(self):
+        """Memory DPMI popf writes the IOPL field"""
+        memory_dpmi_popf_iopl(self)
 
     @mark(['memtest', 'dpmitest'])
     def test_memory_dpmi_popf_if(self):
