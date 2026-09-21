@@ -86,6 +86,14 @@
 
 static vga_mode_info *get_vmi(void)
 {
+    /* The BDA has room for only 7 bits of mode number, so it cannot name a
+     * VESA mode: int 10h stores 0x7f there for the ones that have no VGA
+     * number at all, and truncation makes the rest answer to some unrelated
+     * mode.  Either way we would end up working on the wrong mode info --
+     * a 32bpp mode read back as 16bpp, say.  This is the host side of the
+     * BIOS, so ask vgaemu which mode is really up instead. */
+    if (vga.VESA_mode >= 0x100)
+        return vga_emu_find_mode(vga.VESA_mode, NULL);
     return vga_emu_find_mode(READ_BYTE(BIOS_VIDEO_MODE), NULL);
 }
 
