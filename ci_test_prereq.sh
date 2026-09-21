@@ -16,6 +16,7 @@ sudo apt install -y \
   comcom64 \
   cpu-checker \
   nasm \
+  xvfb \
   python3-cpuinfo \
   python3-pexpect \
   mtools \
