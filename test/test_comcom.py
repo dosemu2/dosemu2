@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 
-from common_framework import (BaseTestCase, main, main_setup, mark, acceptFailure)
+from common_framework import BaseTestCase, main, main_setup, mark
 from common_os import ppdosgit
 
 from func_build_freecom import build_freecom
@@ -97,7 +97,6 @@ class OurTestCase(BaseTestCase):
         """Comcom r200fix Real Mode"""
         comcom_r200fix(self, 'REAL')
 
-    @acceptFailure
     @mark('inttest')
     def test_comcom_r200fix_protected(self):
         """Comcom r200fix Protected Mode"""
