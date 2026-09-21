@@ -85,6 +85,7 @@
 #define MTEXT      TEXT_MONO
 //#define CGA        0x02
 #define PLANAR1    PL1
+#define PLANAR2    PL2
 #define PLANAR4    PL4
 #define LINEAR8    P8
 
