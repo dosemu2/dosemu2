@@ -146,6 +146,13 @@ static int desired_win_width, desired_win_height;
 static int m_x_res, m_y_res;
 static int use_bitmap_font;
 static int use_ttf_font;
+/* Test hook, inert unless the environment asks for it.  The render thread
+ * claims the queued rectangles and only then waits for the mode lock, and a
+ * mode change holding that lock is what replaces the surface they were cut
+ * from.  That window is narrow enough that a bug in it shows up once in
+ * many runs; widening it here lets test/test_sdl3_video.py hit it every
+ * time.  See DOSEMU_SDL_REND_DELAY_US. */
+static int rend_delay_us;
 static pthread_mutex_t rects_mtx = PTHREAD_MUTEX_INITIALIZER;
 static int sdl_rects_num;
 static int tmp_rects_num;
@@ -360,6 +367,7 @@ static int SDL_init(void)
 {
   Uint32 flags = SDL_WINDOW_HIDDEN;
   const char *rflags = NULL;
+  const char *p;
   int bpp, features;
   Uint32 rm, gm, bm, am;
   int rc;
@@ -446,6 +454,10 @@ static int SDL_init(void)
 
   if (config.X_mgrab_key && config.X_mgrab_key[0])
     mgrab_key = SDL_GetKeyFromName(config.X_mgrab_key);
+
+  p = getenv("DOSEMU_SDL_REND_DELAY_US");
+  if (p)
+    rend_delay_us = atoi(p);
 
   rc = 0;
   if (config.sdl_fonts && config.sdl_fonts[0] && !config.vga_fonts)
@@ -874,6 +886,8 @@ static void *render_thread(void *arg)
       cond_wait(&rend_cnd, &rects_mtx);
     sdl_rects_num = tmp_rects_num;
     tmp_rects_num = 0;
+    if (rend_delay_us)
+      usleep(rend_delay_us);
     render_mode_lock();
     pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
     do_rend();

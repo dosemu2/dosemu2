@@ -58,6 +58,13 @@ case "${RUNTYPE}" in
     ;;
 esac
 
+cat >&2 << EOF5
+=====================================================
+=          Tests run on the SDL video plugin        =
+=====================================================
+EOF5
+python3 test/test_sdl3_video.py
+
 # This section here only runs for proving out test_comcom changes in PRs etc, the tests are
 # run for real in the Comcom64 repository
 if [ "${COMCOM_CHANGED}" = "true" ] ; then
