@@ -44,6 +44,7 @@
 #include "chipset.h"
 #include "vint.h"
 #include "vtmr.h"
+#include "kvm.h"
 
 #define VTMR_FIRST_PORT 0x550
 #define VTMR_VPEND_PORT VTMR_FIRST_PORT
@@ -461,6 +462,14 @@ void vtmr_raise(int timer)
 
 void vtmr_latch(int timer)
 {
+    /* A VCPI client owns the CPU: there is no v86 context for a thread to
+       run in, and one started here never gets to run at all -- five latches
+       in a row and the recursion depth is gone.  The SMI body only touches
+       emulated ports, so do it right here instead. */
+    if (kvm_vcpi_active()) {
+        vtmr_latch_smi((void *)(uintptr_t)timer);
+        return;
+    }
     if (in_dpmi_pm())
         fake_pm_int();
     coopth_start(latch_tid, (void *)(uintptr_t)timer);
