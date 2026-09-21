@@ -436,14 +436,45 @@ static int slutf8_enable(int mode)
 #define slutf8_enable(mode) SLutf8_enable(mode)
 #endif
 
+/* The top bit of the DOS attribute byte means one of two things, and the
+ * program chooses which through int 10h ax=1003h, which lands in the
+ * attribute controller's mode register: blinking text, or a bright
+ * background.  The terminal needs different colour objects for the two, so
+ * they are rebuilt whenever the program changes its mind.
+ */
+static int attr_blink_mode = -1;
+
+static void set_color_attributes(int blink)
+{
+   /* This maps (r,g,b) --> (b,g,r) */
+   static const int rotate[8] = { 0, 4, 2, 6, 1, 5, 3, 7 };
+   int attr;
+
+   for (attr = 0; attr < 256; attr++)
+     {
+	int bg = (attr >> 4) & (blink ? 0x07 : 0x0f);
+	int fg = attr & 0x0f;
+
+	SLtt_set_color_fgbg(attr, rotate[fg & 7] | (fg & 8),
+			    rotate[bg & 7] | (bg & 8));
+	if (blink && (attr & 0x80))
+	  SLtt_add_color_attribute(attr, SLTT_BLINK_MASK);
+     }
+
+   /* object 0 is special.  It is normal video. */
+   SLtt_set_color_object (0, 0x000700);
+   SLtt_set_color_object (7, 0);
+
+   attr_blink_mode = blink;
+}
+
 /* The following initializes the terminal.  This should be called at the
  * startup of DOSEMU if it's running in terminal mode.
  */
 static int terminal_initialize(void)
 {
-   SLtt_Char_Type sltt_attr, fg, bg, attr, color_sltt_attr, bw_sltt_attr;
+   SLtt_Char_Type sltt_attr, fg, bg, attr, bw_sltt_attr;
    int is_color = config.term_color;
-   int rotate[8];
    struct termios buf;
 
    v_printf("VID: terminal_initialize() called \n");
@@ -454,12 +485,6 @@ static int terminal_initialize(void)
      close(STDERR_FILENO);
      open("/dev/null", O_WRONLY | O_CLOEXEC);
    }
-
-   /* This maps (r,g,b) --> (b,g,r) */
-   rotate[0] = 0; rotate[1] = 4;
-   rotate[2] = 2; rotate[3] = 6;
-   rotate[4] = 1; rotate[5] = 5;
-   rotate[6] = 3; rotate[7] = 7;
 
    if (no_local_video)
      Video_term.update_screen = NULL;
@@ -528,14 +553,9 @@ static int terminal_initialize(void)
 	if (attr & 0x80) sltt_attr |= SLTT_BLINK_MASK;
 	if (attr & 0x08) sltt_attr |= SLTT_BOLD_MASK;
 
-	bw_sltt_attr = color_sltt_attr = sltt_attr;
+	bw_sltt_attr = sltt_attr;
 	bg = (attr >> 4) & 0x0f;
 	fg = (attr & 0x0f);
-
-	/* color information */
-	//color_sltt_attr |= (rotate[bg] << 16) | (rotate[fg] << 8);
-	SLtt_set_color_fgbg(attr,rotate[fg & 7] | (fg & 8),rotate[bg & 7] | (bg & 8));
-	//SLtt_set_color_object (attr, color_sltt_attr);
 
 	/* Monochrome information */
 	if ((fg == 0x01) && (bg == 0x00)) bw_sltt_attr |= SLTT_ULINE_MASK;
@@ -553,9 +573,9 @@ static int terminal_initialize(void)
    BW_Attribute_Map[0x7] = Color_Attribute_Map[0x7] = 0;
    BW_Attribute_Map[0] = Color_Attribute_Map[0] = 7;
 
-   SLtt_set_color_object (0, 0x000700);
+   /* blinking is what a text mode starts with; the first update settles it */
+   set_color_attributes (1);
    SLtt_set_mono (0, NULL, 0x000700);
-   SLtt_set_color_object (7, 0);
    SLtt_set_mono (7, NULL, 0);
 
    set_char_set ();
@@ -670,6 +690,11 @@ static int slang_update (void)
    static const char *last_prompt = NULL;
 
    SLtt_Blink_Mode = (vga.attr.data[0x10] & 0x8) != 0;
+   if (SLtt_Blink_Mode != attr_blink_mode)
+     {
+	set_color_attributes (SLtt_Blink_Mode);
+	redraw_text_screen ();
+     }
 
    if (DOSemu_Slang_Show_Help)
      {
