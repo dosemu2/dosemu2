@@ -186,10 +186,14 @@ _gate_ldt_alias: .long 0
 _gate_thunk_err: .long 0
 _gate_thunk_name: .asciz "THUNK_16_32x"
 
+/* what the host pushes on this stack is dwords, and the program's own
+ * handlers run on it too, so it has to start aligned */
+.balign 16
 .global _gate_stack
 _gate_stack:
 .rept GATE_STACK_LEN
 .byte 0
 .endr
+.balign 16
 .global _gate_stack_end
 _gate_stack_end:
