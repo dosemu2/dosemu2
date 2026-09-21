@@ -275,6 +275,14 @@ static int mhp_input(void)
   return nbytes;
 }
 
+/* a breakpoint ends a trace loop: the point of 'tc' is to run until
+ * something stops it, and an interrupt breakpoint is such a something */
+static void mhp_end_traceloop(void)
+{
+  traceloop = 0;
+  loopbuf[0] = '\0';
+}
+
 static void mhp_poll_loop(void)
 {
   static int in_poll_loop;
@@ -499,6 +507,7 @@ unsigned int mhp_debug(unsigned code, unsigned int parm1, unsigned int parm2)
         } else {
           if ((DBG_ARG(mhpdbgc.currcode) != 0x21) || !mhpdbgc.bpload) {
             mhpdbgc.stopped = 1;
+            mhp_end_traceloop();
             if (parm1)
               LWORD(eip) -= 2;
             mhpdbgc.int_handled = 0;
@@ -519,6 +528,7 @@ unsigned int mhp_debug(unsigned code, unsigned int parm1, unsigned int parm2)
       if (!mhpdbg.active)
         break;
       mhpdbgc.stopped = 1;
+      mhp_end_traceloop();
 #if WITH_DPMI
       dpmi_mhp_intxxtab[DBG_ARG(mhpdbgc.currcode) & 0xff] &= ~2;
 #endif
@@ -539,10 +549,8 @@ unsigned int mhp_debug(unsigned code, unsigned int parm1, unsigned int parm2)
         }
         rtncd = 1; // suppress int 1
 
-        if (traceloop && bpchk(mhp_getcsip_value())) {
-          traceloop = 0;
-          loopbuf[0] = '\0';
-        }
+        if (traceloop && bpchk(mhp_getcsip_value()))
+          mhp_end_traceloop();
       }
 
       if (DBG_ARG(mhpdbgc.currcode) == 3) { /* int3 (0xCC) */
