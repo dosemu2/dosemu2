@@ -609,8 +609,8 @@ void run_vm86(void)
        to deliver by rewriting cs:eip.  Just let it run on; it is given
        its interrupts through the monitor, see true_kvm_vm86(). */
     if (kvm_vcpi_active()) {
-	_do_vm86();
-	return;
+        _do_vm86();
+        return;
     }
 
     cnt = 0;
