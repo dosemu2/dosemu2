@@ -432,20 +432,32 @@ mirror is therefore missed, and two kinds of write go through it.
 </para>
 <para>
      The first is dosemu writing on the client's behalf: what a DOS call, the
-     BIOS or a driver puts there. The second is the client's own writes that
-     the jit does not perform itself but hands to a helper in
-     <emphasis>cpatch.c</emphasis>: every stack write goes through
-     <emphasis>stk_16</emphasis> or <emphasis>stk_32</emphasis>, and an
-     ordinary write goes through <emphasis>wri8_slow</emphasis> and its
-     siblings whenever the target lies in a range the CPU emulator protects
-     for itself. All of them end in <emphasis>WRITE_WORD()</emphasis> and its
-     siblings, which is the mirror. So a watch on the client's stack never
-     fires at all, and a watch elsewhere can be stepped over by the client
-     without a word.
+     BIOS or a driver puts there. This one is by design, and no watchpoint
+     reports it.
+</para>
+<para>
+     The second is the client's own writes that the jit does not perform
+     itself but hands to a helper in <emphasis>cpatch.c</emphasis> -
+     <emphasis>stk_16</emphasis>, <emphasis>stk_32</emphasis>,
+     <emphasis>wri8_slow</emphasis> and their siblings - all of which end in
+     <emphasis>WRITE_WORD()</emphasis> and its siblings, which is the mirror.
+     Those helpers are asked about a watch before they write, so the write is
+     reported, after the fact rather than before it: the client cannot be
+     stopped on the instruction there, because by then it is inside a call
+     the compiled code made.
+</para>
+<para>
+     An instruction only reaches those helpers once the jit has patched it,
+     and it is patched on a fault. A watched address takes its fault before
+     the patching code is reached, so an instruction writing to watched bytes
+     is not patched while the watch is armed: the helpers matter for an
+     instruction that was already patched when the watch went on, which is
+     what the hook above is for.
 </para>
 <para>
      That matters because the way this fails is silence: a watchpoint that
-     says nothing means nothing was caught, not that nothing wrote.
+     says nothing means nothing was caught, not that nothing wrote. The one
+     case above that stays silent is dosemu's own writing for the client.
 </para>
 <para>
      The protection is by page while the watch is by byte, so a write to a

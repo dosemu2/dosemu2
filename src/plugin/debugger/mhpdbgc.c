@@ -2202,6 +2202,39 @@ int mhp_watch_fault(uintptr_t cr2, unsigned int err, unsigned int pc,
   return 2;				/* stop on this one */
 }
 
+/* Called from the jit's write helpers in cpatch.c, which carry out a write
+ * of the client's through dosemu's own mirror of the memory.  That mirror is
+ * deliberately left writable, so the protection a watch puts on the client's
+ * view is not in the way and no fault happens: without this the write is
+ * missed entirely, and a watch on the client's stack never fires at all,
+ * because every stack write goes this way.
+ *
+ * Nothing can be stopped on here - the helper is called with the write still
+ * to come and returns into compiled code - so the write is let through and
+ * reported after, the way the interpreter's writes already are. */
+void mhp_watch_write(dosaddr_t addr, unsigned int len)
+{
+  unsigned int i;
+  int num = -1;
+
+  if (!wp_armed || wp_last.num != -1)
+    return;
+  for (i = 0; i < len; i++) {
+    if ((num = wp_find(addr + i)) != -1)
+      break;
+  }
+  if (num == -1)
+    return;
+
+  wp_last.num = num;
+  wp_last.addr = addr + i;
+  wp_last.pc = 0;
+  wp_last.before = 0;
+  wp_last.olen = _min(wptab[num].len, (unsigned int)sizeof(wp_last.old));
+  for (i = 0; i < wp_last.olen; i++)
+    wp_last.old[i] = READ_BYTE(wptab[num].addr + i);
+}
+
 /* called from mhp_poll(), outside of any signal handler */
 void mhp_watch_poll(void)
 {
@@ -2315,10 +2348,8 @@ static void mhp_bpw(int argc, char *argv[])
       wptab[i].is_valid = 1;
       mhp_printf("Watchpoint %d set at %08x, %u byte%s\n", i, seekval, len,
                  len == 1 ? "" : "s");
-      /* Said here rather than only in the README because the failure these
-       * warn about is silence, and silence reads as "nothing wrote". */
-      mhp_printf("not seen: the client's stack writes, and what the jit hands"
-                 " to a helper\n");
+      /* Said here rather than only in the README because the failure it
+       * warns about is silence, and silence reads as "nothing wrote". */
       mhp_printf("not seen: what dosemu writes into this memory for the"
                  " client\n");
       return;

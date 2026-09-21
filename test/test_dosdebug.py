@@ -41,6 +41,32 @@ msg:	db "SIMPLE OK",13,10,'$'
 # let through.  Letting it through takes the protection off the page, and it
 # goes back on only at the next poll, so the client waits for a BIOS tick
 # before the write the test is really about.
+# A watch on the word a push lands in has to fire, and the whole of it: the
+# helpers the jit uses for stack writes reach memory through a mirror that
+# the protection is not on, so this is the case that says whether a write
+# goes the way the watchpoint can see.
+STKWATCH_ASM = r"""
+	cpu 386
+	org 100h
+	bits 16
+start:
+	int3			; tell a watching debugger we are here
+	mov cx, 3
+	mov bx, 0A55Ah
+.again:
+	push bx			; the write the watchpoint is for
+	pop bx
+	inc bx
+	dec cx
+	jnz .again
+	mov dx, msg
+	mov ah, 9
+	int 21h
+	mov ax, 4C00h
+	int 21h
+msg:	db "STKWATCH OK",13,10,'$'
+"""
+
 WATCH_ASM = r"""
 	cpu 386
 	org 100h
@@ -432,6 +458,48 @@ class OurTestCase(BaseTestCase):
         empty = results.split("empty=")[-1]
         self.assertNotRegex(empty, r"\n\s*\d+: [0-9a-f]+",
                             "a watchpoint was left behind: " + results)
+
+    def test_dosdebug_watchpoint_stack(self):
+        """Dosdebug watchpoint on a client stack write"""
+
+        self.mkfile("testit.bat", "c:\\stkwatch\nrem end\n", newline="\r\n")
+        self.mkcom_with_nasm("stkwatch", STKWATCH_ASM)
+
+        def body(args):
+            self.dbgCmd("bpint 3")
+            self.dbgchild.sendline("g")
+            _, _, stop = self.dbgWaitStop(pm=False, limit=40)
+            self.dbgCmd("bcint 3")
+
+            # where the next push lands, which is what we want to watch
+            m = re.search(r"SS:SP=([0-9a-f]{4}):([0-9a-f]{4})", stop)
+            if not m:
+                self.fail("no stack pointer in:\n" + stop)
+            ss, sp = int(m.group(1), 16), int(m.group(2), 16)
+            where = (ss << 4) + ((sp - 2) & 0xffff)
+
+            out = ["set=" + self.dbgCmd("bpw %x 2" % where)]
+            hits = 0
+            for _ in range(3):
+                self.dbgchild.sendline("g")
+                _, _, stop = self.dbgWaitStop(pm=False, limit=40)
+                out.append("stop=" + stop)
+                hits += stop.count("watchpoint 0:")
+            out.append("hits=%d" % hits)
+            out.append("clr=" + self.dbgCmd("bcw"))
+            return " | ".join(out)
+
+        results = self.runWithDosdebug("testit.bat", body, config=CPUEMU_CONF)
+
+        self.assertNotIn('Timeout', results)
+        # every push has to be reported, not just the first: the jit patches
+        # a write it has faulted on, and a patched write goes a way the
+        # protection cannot see
+        self.assertRegex(results, r"watchpoint 0: [0-9a-f]{8} about to be"
+                         r" written", results)
+        hits = int(results.split("hits=")[-1].split(" | ")[0])
+        self.assertEqual(hits, 3, "only %d of 3 pushes reported: %s"
+                         % (hits, results))
 
 
 
