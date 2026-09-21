@@ -586,6 +586,30 @@ static uint32_t client_esp(cpuctx_t *scp)
 	return (_esp)&0xffff;
 }
 
+/* Are the len bytes at the client's own SS:ESP plus off within the limit
+ * of its stack segment? ESP comes from the client, so it can be anything,
+ * and the frames we build or read there go through SEL_ADR(), which does
+ * no limit check at all: an access past the limit would land wherever
+ * base+esp points, possibly outside our memory, instead of raising #SS
+ * the way the hardware does. Use off = -len for a push, off = 0 for a
+ * pop. Expand-down segments are left alone, for them the limit is the
+ * lower bound and GetSegmentLimit() does not say so. */
+static int client_stack_ok(cpuctx_t *scp, int off, unsigned len)
+{
+    uint32_t esp = client_esp(scp);
+    uint32_t lo, hi;
+
+    if (off < 0 && esp < (uint32_t)-off)
+	return 0;
+    lo = esp + off;
+    hi = lo + len - 1;
+    if (hi < lo)
+	return 0;
+    if (GetSegmentType(_ss) == MODIFY_LDT_CONTENTS_STACK)
+	return 1;
+    return hi <= GetSegmentLimit(_ss);
+}
+
 static uint32_t client_eip(cpuctx_t *scp)
 {
     if( Segments(_cs >> 3).is_32)
@@ -1294,8 +1318,21 @@ static void *enter_lpms(cpuctx_t *scp)
 
   if (_ss == DPMI_CLIENT.PMSTACK_SEL || DPMI_CLIENT.in_dpmi_pm_stack) {
     pmstack_esp = client_esp(scp);
-    if (pmstack_esp < 256) {
-      error("PM stack invalid, in_dpmi_pm_stack=%i\n", DPMI_CLIENT.in_dpmi_pm_stack);
+    /* ESP comes from the client, so it can be anything. Besides leaving
+     * room for the frame we are about to push, it has to be within the
+     * limit of its own stack segment: on real hardware a push past the
+     * limit raises #SS, whereas here it is written through
+     * SEL_ADR_CLNT(), which does no limit check at all, so it lands
+     * wherever base+esp happens to point - possibly outside our memory,
+     * taking down the host rather than the client.
+     * Expand-down segments are left alone: there the limit is the lower
+     * bound, not the upper one, and GetSegmentLimit() does not say so. */
+    if (pmstack_esp < 256 ||
+        (GetSegmentType(pmstack_sel) != MODIFY_LDT_CONTENTS_STACK &&
+         pmstack_esp - 1 > GetSegmentLimit(pmstack_sel))) {
+      error("PM stack invalid, in_dpmi_pm_stack=%i sel=%#x esp=%#x lim=%#x\n",
+            DPMI_CLIENT.in_dpmi_pm_stack, pmstack_sel, pmstack_esp,
+            GetSegmentLimit(pmstack_sel));
       if (_ss != DPMI_CLIENT.PMSTACK_SEL) {
         /* win31 sets ESP to 0 to re-enter lpms */
         DPMI_CLIENT.in_dpmi_pm_stack = 0;
@@ -5521,6 +5558,23 @@ static int dpmi_gpf_simple(cpuctx_t *scp, uint8_t *lina, void *sp, int *rv)
         }
       }
 #endif
+      if (!DEFAULT_INT(inum)) {
+	int flen = DPMI_CLIENT.is_32 ? 12 : 6;
+	/* The handler is the client's own, so the iret frame has to go on
+	 * the client's stack. EIP is still on the int instruction here. */
+	if (!client_stack_ok(scp, -flen, flen)) {
+	  error("DPMI: int %#x with no room on the client stack, "
+		"sel=%#x esp=%#x lim=%#x\n",
+		inum, _ss, client_esp(scp), GetSegmentLimit(_ss));
+	  /* #SS(0) is what the hardware raises here, and it is a fault,
+	   * so EIP stays on the int instruction. */
+	  _trapno = 0x0c;
+	  _err = 0;
+	  _cr2 = 0;
+	  do_cpu_exception(scp);
+	  return 1;
+	}
+      }
       /* Bypass the int instruction */
       _eip += 2;
       _err = 0;
@@ -5614,6 +5668,18 @@ static int dpmi_gpf_simple(cpuctx_t *scp, uint8_t *lina, void *sp, int *rv)
           D_printf("DPMI: sti/iret detected\n");
         /* This may not be our HW inthandler, but some user's sw interrupt.
          * Needs to call emu_dpmi_iret() that emulates iret more precisely. */
+        int flen = Segments(_cs >> 3).is_32 ? 12 : 6;
+        if (!client_stack_ok(scp, 0, flen)) {
+          error("DPMI: iret with no frame on the client stack, "
+                "sel=%#x esp=%#x lim=%#x\n",
+                _ss, client_esp(scp), GetSegmentLimit(_ss));
+          /* EIP is on the iret by now, which is where #SS belongs. */
+          _trapno = 0x0c;
+          _err = 0;
+          _cr2 = 0;
+          do_cpu_exception(scp);
+          break;
+        }
         emu_dpmi_iret(scp, sp);
         sp = SEL_ADR(_ss, _esp);
         if (_cs == dpmi_sel() && _eip == DPMI_SEL_OFF(DPMI_return_from_pm)) {
