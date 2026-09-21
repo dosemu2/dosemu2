@@ -278,6 +278,18 @@ static void FlagSync_RFL (uint32_t flg)
 	RFL.res = (!(flg & EFLAGS_ZF)) << 8;
 }
 
+/* the fpu code needs the condition codes as a real cpu keeps them:
+ * FCMOVcc reads them, FCOMI and its relatives write them */
+int e_fpu_flags_get(void)
+{
+	return FlagSync_All();
+}
+
+void e_fpu_flags_set(int flg)
+{
+	FlagSync_RFL(flg);
+}
+
 /////////////////////////////////////////////////////////////////////////////
 
 void InitGen_sim(void)

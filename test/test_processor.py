@@ -7,6 +7,7 @@ from common_os import ppdosgit
 from func_build_freecom import build_freecom
 from func_build_freedos import build_freedos
 from func_build_pcmos import build_pcmos
+from func_cpu_fcmov import cpu_fcmov
 from func_cpu_fpu_undef import cpu_fpu_undef
 from func_cpu_trap_flag import cpu_trap_flag
 from func_cpu_methods import cpu_create_items
@@ -67,6 +68,16 @@ class EMUTestCase(ppdosgit(OurTestCase, {
     def test_cpu_fpu_undef_sim(self):
         """CPU undefined FPU opcodes (simulated)"""
         cpu_fpu_undef(self, 1)
+
+    @mark('cputest')
+    def test_cpu_fcmov_jit(self):
+        """CPU FCMOVcc and FCOMI (JIT)"""
+        cpu_fcmov(self, 0)
+
+    @mark('cputest')
+    def test_cpu_fcmov_sim(self):
+        """CPU FCMOVcc and FCOMI (simulated)"""
+        cpu_fcmov(self, 1)
 
 
 class KVMTestCase(ppdosgit(OurTestCase, {

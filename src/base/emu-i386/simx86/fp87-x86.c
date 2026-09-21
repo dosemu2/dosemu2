@@ -270,12 +270,44 @@ fp_mem:
 //	65	DD 11000nnn	FUCOM	st(n),st(0)
 //	6D	DD 11101nnn	FUCOMP	st(n)
 //	6A.1	DA 11101001	FUCOMPP
+		goto fp_op;
 
-//	73	DB 11000nnn	FCOMI	st(0),st(n)
-//	77	DF 11000nnn	FCOMIP	st(0),st(n)
+/*73*/	case 0x73:
+/*77*/	case 0x77:
+/*6b*/	case 0x6b:
+/*6f*/	case 0x6f:
+//	73	DB 11110nnn	FCOMI	st(0),st(n)
+//	77	DF 11110nnn	FCOMIP	st(0),st(n)
 //	6B	DB 11101nnn	FUCOMI	st(0),st(n)
 //	6F	DF 11101nnn	FUCOMIP	st(0),st(n)
-		goto fp_op;
+		/* the answer goes to the flags, so the guest flags have
+		 * to be on the host cpu across the instruction */
+		G1(0x9d,Cp);	// get flags from stack
+		G2M(0xd8+(exop&7),0xc0|(exop&0x38)|reg,Cp);
+		G1(0x9c,Cp);	// flags back on stack
+		break;
+
+/*42*/	case 0x42:
+/*43*/	case 0x43:
+/*4a*/	case 0x4a:
+/*4b*/	case 0x4b:
+/*52*/	case 0x52:
+/*53*/	case 0x53:
+/*5a*/	case 0x5a:
+/*5b*/	case 0x5b:
+//	42	DA 11000nnn	FCMOVB	 st(0),st(n)
+//	43	DB 11000nnn	FCMOVNB	 st(0),st(n)
+//	4A	DA 11001nnn	FCMOVE	 st(0),st(n)
+//	4B	DB 11001nnn	FCMOVNE	 st(0),st(n)
+//	52	DA 11010nnn	FCMOVBE	 st(0),st(n)
+//	53	DB 11010nnn	FCMOVNBE st(0),st(n)
+//	5A	DA 11011nnn	FCMOVU	 st(0),st(n)
+//	5B	DB 11011nnn	FCMOVNU	 st(0),st(n)
+		/* reads the flags and leaves them alone, so they are
+		 * restored to the host cpu and pushed back untouched */
+		G2M(0x9d,0x9c,Cp);	// popf; pushf
+		G2M(0xd8+(exop&7),0xc0|(exop&0x38)|reg,Cp);
+		break;
 
 /*5e*/	case 0x5e: if (reg==1) {
 //	5E.1	DE 11011001	FCOMPP
