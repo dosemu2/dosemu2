@@ -56,8 +56,17 @@ static uint16_t dos_free_seg(struct call *c)
 {
     uint16_t sel = call_argw(c, 0);
 
-    if (__dpmi_free_ldt_descriptor(sel) == -1)
-	return ERROR_INVALID_PARAMETER;
+    /*
+     * A 286 extender hands the entry back to itself: the descriptor stays
+     * in the LDT, stays present and stays loadable, and Origin counts on
+     * that - it threads its own free list through the descriptors it has
+     * freed, through the LDT alias, and loads them again afterwards.
+     * Under DPMI, freeing really takes the entry away, and the next load
+     * of it is a #GP, which is where BioForge died after the difficulty
+     * menu. So leave the entry alone; what the program writes into it
+     * next goes through the alias, which the host is watching anyway.
+     */
+    (void)sel;
     return 0;
 }
 
