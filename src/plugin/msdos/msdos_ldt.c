@@ -327,7 +327,18 @@ int _msdos_ldt_pagefault(cpuctx_t *scp)
     return 1;
 }
 
+/* Asked about a code selector, so anything that is not one - a system
+ * descriptor, a data segment, a not-present entry, a selector outside the
+ * LDT, or no LDT monitor at all - answers -1 for "cannot tell" rather than
+ * a confident wrong bit. */
 int msdos_ldt_is32(unsigned short selector)
 {
-  return ((ldt_backbuf[(selector & 0xfff8) + 6] >> 6) & 1);
+  const unsigned char *d;
+
+  if (!ldt_backbuf || !(selector & 4))
+    return -1;
+  d = &ldt_backbuf[selector & 0xfff8];
+  if ((d[5] & 0x98) != 0x98)		/* present, non-system, executable */
+    return -1;
+  return ((d[6] >> 6) & 1);
 }
