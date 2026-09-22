@@ -41,11 +41,18 @@ static size_t multibyte_to_unicode(struct char_set_state *state,
 {
 	wchar_t wide_symbol;
 	size_t result;
+	mbstate_t saved = state->u.mb_state;
 
 	*symbol = U_VOID;
 	result = mbrtowc(&wide_symbol, (const char *)inbuf, in_bytes_left,
 		&state->u.mb_state);
 	if (result == -2) {
+		/* mbrtowc() has swallowed the bytes into its state and wants
+		 * the next ones, but our callers hand the whole character in
+		 * again once the rest of it arrives.  Put the state back, or
+		 * the second try sees the same bytes as a continuation and
+		 * calls the character invalid. */
+		state->u.mb_state = saved;
 		errno = EINVAL;
 		result = -1;
 	}
