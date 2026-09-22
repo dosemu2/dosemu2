@@ -29,6 +29,16 @@ int a20;
 static void HMA_MAP(int HMA)
 {
   int ret;
+  if (config.jemm) {
+    /* Under $_jemm the first 64k above the 1M line is not extended memory
+     * at all.  JEMM translates the whole first megabyte page by page and
+     * points the page above the line at the video aperture, so that a
+     * client whose windows cover 0xa0000 can still reach the screen; we
+     * follow it, and vgaemu owns the mapping there.  See vgaemu_map_hma().
+     * jemm_config() clears config.hma to keep DOS out of it. */
+    x_printf("HMA: left to the video aperture under $_jemm\n");
+    return;
+  }
   /* destroy simx86 memory protections first */
   e_invalidate_full(HMAAREA, HMASIZE);
   /* Note: MAPPING_HMA is magic, don't be confused by src==dst==HMAAREA here */
@@ -46,7 +56,9 @@ static void HMA_MAP(int HMA)
 
 void set_a20(int enableHMA)
 {
-  if (!config.hma)
+  /* $_jemm turns config.hma off but still wants the line up: its clients
+   * address the aperture as ffff:0010 and must not wrap to low memory. */
+  if (!config.hma && !config.jemm)
     return;
   if (a20 == enableHMA) {
     g_printf("WARNING: redundant %s of A20!\n", enableHMA ? "enabling" :
@@ -65,14 +77,18 @@ void set_a20(int enableHMA)
 
 void HMA_init(void)
 {
-  /* initially, no HMA */
-  int ret = alias_mapping(MAPPING_HMA, HMAAREA, HMASIZE,
-    PROT_RWX, LOWMEM(0));
-  if (ret == -1) {
-    error("HMA: Mapping HMA to HMAAREA %#x unsuccessful: %s\n",
-	       HMAAREA, strerror(errno));
-    config.exitearly = 1;
-    return;
+  int ret;
+
+  if (!config.jemm) {
+    /* initially, no HMA */
+    ret = alias_mapping(MAPPING_HMA, HMAAREA, HMASIZE,
+      PROT_RWX, LOWMEM(0));
+    if (ret == -1) {
+      error("HMA: Mapping HMA to HMAAREA %#x unsuccessful: %s\n",
+		 HMAAREA, strerror(errno));
+      config.exitearly = 1;
+      return;
+    }
   }
   a20 = 0;
   memcheck_addtype('H', "HMA");

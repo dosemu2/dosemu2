@@ -240,12 +240,20 @@ typedef struct {
  * We need probably only 3 mappings.
  * 0: 0xa000/0xb800 for banked graphics/text (vga.mem.bank refers to this mapping)
  * 1: LFB
+ * 2: the video aperture as a JEMM client sees it, at 0x100000; see
+ *    vgaemu_map_hma() and JEMM_HMA_BASE
  */
 
-#define VGAEMU_MAX_MAPPINGS	2
+#define VGAEMU_MAX_MAPPINGS	3
 
 #define VGAEMU_MAP_BANK_MODE	0
 #define VGAEMU_MAP_LFB_MODE	1
+#define VGAEMU_MAP_HMA_MODE	2
+
+/* JEMM puts the video aperture in the first 64k above the 1M line, so a
+ * client that cannot have the windows out of its way at 0xa0000 can still
+ * reach the screen. */
+#define JEMM_HMA_BASE	0x100000
 
 /* Physical LFB base. With KVM this is actually used; without KVM this is
    just a cookie, reported by the VESA VBE interface, that can be mapped using DPMI

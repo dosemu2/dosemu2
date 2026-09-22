@@ -2762,6 +2762,13 @@ void jemm_config(void)
    * with it, see cpu_reset(). */
   dosemu_bios_seg = 0x0000;
   config.mem_size = 640;
+  /* There is no HMA under JEMM: it points the first page above the 1M line
+   * at the video aperture instead, so that a client whose windows cover
+   * 0xa0000 can still put a picture on the screen.  Privateer relies on it -
+   * it reads the window array's segment from int 67h ah=41h, sees it below
+   * 0xb000 and moves its front surface to ffff:0010.  Keep DOS out of the
+   * range; vgaemu maps it, see vgaemu_map_hma() and HMA_MAP(). */
+  config.hma = 0;
   c_printf("CONF: JEMM: %i EMS windows from 0x%04x, BIOS at 0x%04x, "
 	   "DOS memory %iK\n", config.ems_uma_pages, config.ems_frame,
 	   dosemu_bios_seg, config.mem_size);
