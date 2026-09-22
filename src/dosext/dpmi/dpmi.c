@@ -6783,8 +6783,7 @@ char *DPMI_show_state(cpuctx_t *scp)
 
 void dpmi_timer(void)
 {
-  if (dpmi_pm && !DPMI_CLIENT.in_dpmi_pm_stack &&
-      config.cli_timeout && dpmi_is_cli) {
+  if (dpmi_pm && !DPMI_CLIENT.in_dpmi_pm_stack && config.cli_timeout) {
     cpuctx_t *scp = &DPMI_CLIENT.stack_frame;
     /*
      XXX as IF is not set by popf, we have to set it explicitly after a
@@ -6795,7 +6794,9 @@ void dpmi_timer(void)
     } else if (dpmi_is_cli++ >= config.cli_timeout) {
       D_printf("Warning: Interrupts were disabled for too long, "
       "re-enabling.\n");
-      add_cli_to_blacklist(current_cli);
+      if (current_cli)
+        add_cli_to_blacklist(current_cli);
+      dpmi_is_cli = 0;
       dpmi_sti();
     }
   }
