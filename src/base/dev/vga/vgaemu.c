@@ -25,7 +25,7 @@
  *
  * VGAEmu uses the video BIOS code in base/bios/int10.c and env/video/vesa.c.
  *
- * For an excellent reference to programming SVGA cards see Finn Thøgersen's
+ * For an excellent reference to programming SVGA cards see Finn Thï¿½gersen's
  * VGADOC4, available at http://www.datashopper.dk/~finth
  *
  * /REMARK
@@ -192,7 +192,7 @@
 #define NONE	VGA_PROT_NONE
 #define DEF_PROT_BANK (vga.inst_emu==EMU_ALL_INST ? NONE : RO)
 #define DEF_PROT_LFB (RO)
-#define DEF_PROT (int[]){DEF_PROT_BANK,DEF_PROT_LFB}
+#define DEF_PROT (int[]){DEF_PROT_BANK,DEF_PROT_LFB,DEF_PROT_BANK}
 
 /*
  * We add PROT_EXEC just because pages should be executable. Of course
@@ -291,6 +291,7 @@
  * functions local to this file
  */
 
+static void vgaemu_map_hma(void);
 static int vga_emu_protect(unsigned, int[VGAEMU_MAX_MAPPINGS], int);
 static int vga_emu_map(unsigned, unsigned);
 static int _vga_emu_adjust_protection(unsigned page,
@@ -778,12 +779,22 @@ static void Logical_VGA_write(unsigned offset, unsigned char value)
 
 }
 
+/* the copy of the aperture a JEMM client reaches above the 1M line */
+static int vga_hma_access(dosaddr_t m)
+{
+	unsigned pages = vga.mem.map[VGAEMU_MAP_HMA_MODE].pages;
+
+	return pages && (unsigned)(m - JEMM_HMA_BASE) < pages * HOST_PAGE_SIZE;
+}
+
 int vga_bank_access(dosaddr_t m)
 {
 	if (config.console_video)
 		return 0;
 	if (emm_jemm_window(m))
 		return 0;
+	if (vga_hma_access(m))
+		return 1;
 	return (unsigned)(m - vga.mem.bank_base) < vga.mem.bank_len;
 }
 
@@ -806,6 +817,8 @@ int vga_write_access(dosaddr_t m)
 		return 0;
 	if (emm_jemm_window(m))
 		return 0;
+	if (vga_hma_access(m))
+		return 1;
 	/* Note: the vga.mem.xx pointers are NULL in dumb_video mode,
 	 * in which case the accesses are treated as to normal RAM. */
 	if ((m >= vga.mem.graph_base &&
@@ -1095,7 +1108,7 @@ int vga_emu_fault(dosaddr_t lin_addr, unsigned err, cpuctx_t *scp)
   unsigned page_fault, vga_page = 0, u;
   unsigned char *cs_ip;
 #if DEBUG_MAP >= 1
-  static const char *txt1[VGAEMU_MAX_MAPPINGS + 1] = { "bank", "lfb", "some" };
+  static const char *txt1[VGAEMU_MAX_MAPPINGS + 1] = { "bank", "lfb", "hma", "some" };
   unsigned access_type = (err >> 1) & 1;
 #endif
   page_fault = lin_addr / HOST_PAGE_SIZE;
@@ -1246,6 +1259,20 @@ int vga_emu_protect_page(unsigned page, int prot, int instremu)
   );
 
   if(
+    vga.mem.map[VGAEMU_MAP_HMA_MODE].pages &&
+    page >= JEMM_HMA_BASE / HOST_PAGE_SIZE &&
+    page < JEMM_HMA_BASE / HOST_PAGE_SIZE +
+	   vga.mem.map[VGAEMU_MAP_HMA_MODE].pages) {
+    /* the aperture a JEMM client sees above the 1M line is a plain alias
+     * over low memory, not hardware ram, so it goes the same way the LFB
+     * does rather than through the _pa calls */
+    dosaddr_t p = page * HOST_PAGE_SIZE;
+    if (instremu)
+      i = mprotect_mapping(MAPPING_VGAEMU, p, 1 * HOST_PAGE_SIZE, sys_prot);
+    else
+      i = mprotect_vga(VGAEMU_MAP_HMA_MODE, p, 1 * HOST_PAGE_SIZE, sys_prot);
+  }
+  else if(
     vga.mem.lfb_base_page &&
     page >= vga.mem.lfb_base_page &&
     page < vga.mem.lfb_base_page + vga.mem.pages) {
@@ -1395,7 +1422,7 @@ int vga_emu_adjust_protection(unsigned page,
 {
   int ret;
   vga_emu_prot_lock();
-  ret = _vga_emu_adjust_protection(page, (int[]){prot1, prot2}, dirty, instremu);
+  ret = _vga_emu_adjust_protection(page, (int[]){prot1, prot2, prot1}, dirty, instremu);
   vga_emu_prot_unlock();
   return ret;
 }
@@ -1495,6 +1522,13 @@ static int vga_emu_map(unsigned mapping, unsigned first_page)
       prot, vga.mem.base + (first_page * HOST_PAGE_SIZE));
   }
 
+  if (mapping == VGAEMU_MAP_HMA_MODE) {
+    /* low memory, not hardware ram: plain alias_mapping(), like the LFB */
+    i = alias_mapping(MAPPING_VGAEMU,
+      vmt->base_page * HOST_PAGE_SIZE, vmt->pages * HOST_PAGE_SIZE,
+      prot, vga.mem.base + (first_page * HOST_PAGE_SIZE));
+  }
+
   if(i == -1) {
     pthread_mutex_unlock(&prot_mtx);
     error("VGA: protect page failed\n");
@@ -1505,7 +1539,7 @@ static int vga_emu_map(unsigned mapping, unsigned first_page)
    for (u = 0; u < vmt->pages; u++)
     /* need to fix up protection for clean pages */
     if (!vga.mem.dirty_map[vmt->first_page + u])
-      _vga_emu_adjust_protection(vmt->first_page + u, (int[]){VGA_PROT_RO, VGA_PROT_RO}, 0, 0);
+      _vga_emu_adjust_protection(vmt->first_page + u, (int[]){VGA_PROT_RO, VGA_PROT_RO, VGA_PROT_RO}, 0, 0);
   }
   pthread_mutex_unlock(&prot_mtx);
 
@@ -2425,6 +2459,9 @@ static int __vga_emu_setmode(vga_mode_info *vmi, int width, int height)
   vgaemu_adj_cfg(CFG_MODE_CONTROL, 1);
 #endif
 
+  /* also here, because vgaemu_map_bank() gives up early in text modes */
+  vgaemu_map_hma();
+
   dirty_all_video_pages();  // do that last or it can clean up from thread
   vga_msg("vga_emu_setmode: mode initialized\n");
 
@@ -2505,6 +2542,42 @@ int vga_emu_setmode_vmi(vga_mode_info *vmi, int width, int height)
   return ret;
 }
 
+/*
+ * Show the video aperture where a JEMM client expects it.
+ *
+ * JEMM translates the whole first megabyte page by page and maps the page
+ * above the 1M line onto physical 0xa0000, because its window array covers
+ * the aperture and a client that wants the screen cannot use it at 0xa0000
+ * any more.  We do the same with an alias of the same VGA memory the bank
+ * mapping uses, so that the two addresses are one buffer, as they are on
+ * the real thing.  HMA_MAP() leaves the range alone under $_jemm.
+ */
+static void vgaemu_map_hma(void)
+{
+  vga_mapping_type *vmt = vga.mem.map + VGAEMU_MAP_HMA_MODE;
+  vga_mapping_type *bank = vga.mem.map + VGAEMU_MAP_BANK_MODE;
+
+  unsigned first;
+
+  if (!config.jemm || !vga.mem.base || !vga.mem.pages)
+    return;
+  /* JEMM does this whatever the video mode, because 0xa0000 is the card's
+   * window on the real thing whatever the video mode.  When the bank is the
+   * aperture we follow it, so that the two addresses are one buffer; when it
+   * is not, the aperture is the start of the video memory. */
+  first = bank->base_page == VGA_A0 ? bank->first_page : 0;
+  vmt->base_page = JEMM_HMA_BASE / HOST_PAGE_SIZE;
+  vmt->pages = HMASIZE / HOST_PAGE_SIZE;
+  if (vmt->pages > vga.mem.pages - first)
+    vmt->pages = vga.mem.pages - first;
+  if (vga_emu_map(VGAEMU_MAP_HMA_MODE, first))
+    vga_msg("vgaemu_map_hma: failed to map %u pages at 0x%x\n",
+	    vmt->pages, JEMM_HMA_BASE);
+  else
+    vga_deb_map("vgaemu_map_hma: mapped %u pages (ofs %u) at 0x%x\n",
+		vmt->pages, first, JEMM_HMA_BASE);
+}
+
 int vgaemu_map_bank(void)
 {
   int i, first, k0;
@@ -2552,6 +2625,7 @@ int vgaemu_map_bank(void)
   if (vga.inst_emu && (k0 << PAGE_SHIFT) == vga.mem.graph_base)
     return False;
   i = vga_emu_map(VGAEMU_MAP_BANK_MODE, first);
+  vgaemu_map_hma();
   e_invalidate_full(0xa0000, 0x20000);
   dirty_all_video_pages();
 
