@@ -730,7 +730,31 @@ void reset_emu_cpu(void)
   TheCPU.dr[5] = 0x400;
   TheCPU.dr[6] = 0xffff1ff0;
   TheCPU.dr[7] = 0x400;
-  TheCPU.GDTR.Limit = TheCPU.IDTR.Limit = TheCPU.LDTR.Limit = TheCPU.TR.Limit = 0xffff;
+  TheCPU.LDTR.Limit = TheCPU.TR.Limit = 0xffff;
+  /* What sgdt and sidt report has to be believable: a table of 0xffff
+   * bytes is 8192 entries, which no machine has, and 16bit code that works
+   * out the entry count as (limit + 1) / 8 gets zero out of it and
+   * concludes the table is empty. Report the sizes a real machine has.
+   * sgdt and sidt are the only live readers; the GDT limit is also
+   * compared against in protmode.c, but both of those places are dead
+   * today, one under #if 0 and one behind an earlier return, and if the
+   * GDT branch there is ever revived 0xfff will start rejecting GDT
+   * selectors from index 512 up. The LDT limit above is a different
+   * thing, it is what selector loads are checked against.
+   *
+   * These four are only what is answered when there is no table to name.
+   * Once msdos_ldt.c has made its page the answer comes from there
+   * instead, through dpmi_get_dtr_alias(), and names a GDT that really
+   * holds the client's LDT descriptor. Take the fallback from the shared
+   * header so that cpuemu, the instruction emulator in dpmi.c and the KVM
+   * path cannot drift apart: leaving the base at zero here while dpmi.c
+   * answers EMU_GDT_BASE would have two backends disagree about the same
+   * register, and zero is the one answer that is actively harmful, being
+   * the address of the real mode interrupt vector table. */
+  TheCPU.GDTR.Base = EMU_GDT_BASE;
+  TheCPU.GDTR.Limit = EMU_GDT_LIMIT;
+  TheCPU.IDTR.Base = EMU_IDT_BASE;
+  TheCPU.IDTR.Limit = EMU_IDT_LIMIT;
   TheCPU.cs_cache.BoundL = 0x400;
   TheCPU.cs_cache.BoundH = 0x10ffff;
   TheCPU.ss_cache.BoundL = 0x100;

@@ -47,6 +47,7 @@ from func_lredir import mfs_lredir_auto_hdc, mfs_lredir_command, mfs_lredir_comm
 from func_memory_dpmi_dpmi10_ldt import memory_dpmi_dpmi10_ldt
 from func_memory_dpmi_int_stack import (memory_dpmi_int_stack,
                                         memory_dpmi_iret_stack)
+from func_memory_dpmi_dtr_limits import memory_dpmi_dtr_limits
 from func_memory_dpmi_linmem_oom import memory_dpmi_linmem_oom
 from func_memory_dpmi_nullseg import memory_dpmi_nullseg
 from func_memory_dpmi_pm_stack import memory_dpmi_pm_stack
@@ -1056,6 +1057,11 @@ class OurTestCase(BaseTestCase):
     def test_memory_dpmi_dtrbase(self):
         """Memory DPMI descriptor table base"""
         memory_dpmi_dtrbase(self)
+
+    @mark(['memtest', 'dpmitest'])
+    def test_memory_dpmi_dtr_limits(self):
+        """Memory DPMI descriptor table limits"""
+        memory_dpmi_dtr_limits(self)
 
     @mark(['memtest', 'dpmitest'])
     def test_memory_dpmi_nullseg(self):
