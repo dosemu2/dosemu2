@@ -1517,9 +1517,32 @@ static int vga_emu_map(unsigned mapping, unsigned first_page)
   }
   if (mapping == VGAEMU_MAP_BANK_MODE) {
     int cap = MAPPING_VGAEMU;
-    i = alias_mapping_pa(cap,
-      vmt->base_page * HOST_PAGE_SIZE, vmt->pages * HOST_PAGE_SIZE,
-      prot, vga.mem.base + (first_page * HOST_PAGE_SIZE));
+    unsigned p = 0;
+
+    /* A JEMM client keeps its EMS windows over the video aperture and uses
+     * them as plain memory; it owns them for as long as it is loaded, see
+     * emm_jemm_window().  The bank has to leave those pages alone.  An alias
+     * put over one of them is never taken back - nothing unmaps the bank when
+     * a mode change moves it elsewhere - so the window would stay lost for the
+     * rest of the run, and everything the client wrote there would go to the
+     * screen instead of to its own memory.  Map the runs in between, which is
+     * the whole bank when no window is in the way.
+     */
+    while (p < vmt->pages && i != -1) {
+      unsigned run;
+
+      if (emm_jemm_window((vmt->base_page + p) * HOST_PAGE_SIZE)) {
+	p++;
+	continue;
+      }
+      for (run = 1; p + run < vmt->pages; run++)
+	if (emm_jemm_window((vmt->base_page + p + run) * HOST_PAGE_SIZE))
+	  break;
+      i = alias_mapping_pa(cap,
+	(vmt->base_page + p) * HOST_PAGE_SIZE, run * HOST_PAGE_SIZE,
+	prot, vga.mem.base + ((first_page + p) * HOST_PAGE_SIZE));
+      p += run;
+    }
   }
 
   if (mapping == VGAEMU_MAP_HMA_MODE) {
