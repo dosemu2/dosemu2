@@ -7,6 +7,7 @@ from common_os import ppdosgit
 from func_build_freecom import build_freecom
 from func_build_freedos import build_freedos
 from func_build_pcmos import build_pcmos
+from func_cpu_sgdt_mem import cpu_sgdt_mem
 from func_cpu_smsw_mem import cpu_smsw_mem
 from func_cpu_trap_flag import cpu_trap_flag
 from func_cpu_methods import cpu_create_items
@@ -30,6 +31,11 @@ class OurTestCase(BaseTestCase):
     def test_build_pcmos(self):
         """Build PC-MOS"""
         build_pcmos(self)
+
+    @mark('cputest')
+    def test_cpu_sgdt_mem(self):
+        """CPU SGDT and SIDT with memory operand"""
+        cpu_sgdt_mem(self)
 
     @mark('fputest')
     def test_fpu_bart_exceptions_fpex(self):
