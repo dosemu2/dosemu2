@@ -22,6 +22,16 @@ PKG_CHECK_MODULES(FONTCONFIG, [fontconfig], [
   AC_MSG_WARN([Fontconfig development package not installed])
 ])
 
+dnl Check for sdl3-spice, which gives the plugin a SPICE remote display
+dnl alongside the local window.  Optional: without it the plugin builds
+dnl exactly as before and $_spice has no effect.
+PKG_CHECK_MODULES(SDL_SPICE, [sdl3-spice], [
+  SDL_LIBS="$SDL_LIBS $SDL_SPICE_LIBS"
+  SDL_CFLAGS="$SDL_CFLAGS $SDL_SPICE_CFLAGS -DHAVE_SPICE"
+], [
+  AC_MSG_WARN([sdl3-spice not installed, no SPICE remote display])
+])
+
 AC_CONFIG_FILES([Makefile.conf])
 
 AC_OUTPUT

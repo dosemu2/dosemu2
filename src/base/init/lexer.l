@@ -549,6 +549,10 @@ sdl_hwrend		RETURN(SDL_HWREND);
 sdl_fonts		RETURN(SDL_FONTS);
 sdl_wcontrols		RETURN(SDL_WCONTROLS);
 sdl_clip_native		RETURN(SDL_CLIP_NATIVE);
+spice			RETURN(SPICE);
+spice_port		RETURN(SPICE_PORT);
+spice_addr		RETURN(SPICE_ADDR);
+spice_password		RETURN(SPICE_PASSWORD);
 
         /* Sound stuff */
 

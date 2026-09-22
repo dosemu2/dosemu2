@@ -16,6 +16,10 @@ sudo apt install -y \
   comcom64 \
   cpu-checker \
   nasm \
+  xvfb \
+  xdotool \
+  python3-gi \
+  gir1.2-spiceclientglib-2.0 \
   python3-cpuinfo \
   python3-pexpect \
   mtools \

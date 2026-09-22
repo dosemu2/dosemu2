@@ -217,6 +217,10 @@ typedef struct config_info {
        boolean sdl_wcontrols;		/* enable window controls */
        char    *sdl_fonts;		/* TTF font used in SDL2 */
        boolean sdl_clip_native;		/* enable native clipboard */
+       boolean spice;			/* SPICE remote display */
+       int     spice_port;		/* its TCP port, 0 for the default */
+       char    *spice_addr;		/* bind address, NULL for all */
+       char    *spice_password;		/* ticket, NULL for none */
        boolean fullrestore;
        boolean force_vt_switch;         /* in case of console_video force switch to emu VT at start */
        int     dualmon;

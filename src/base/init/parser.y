@@ -268,6 +268,7 @@ enum {
 %token X_GAMMA X_FULLSCREEN VGAEMU_MEMSIZE VESAMODE X_LFB X_PM_INTERFACE X_MGRAB_KEY X_BACKGROUND_PAUSE
 	/* sdl */
 %token SDL_HWREND SDL_FONTS SDL_WCONTROLS SDL_CLIP_NATIVE
+%token SPICE SPICE_PORT SPICE_ADDR SPICE_PASSWORD
 	/* video */
 %token VGA MGA CGA EGA NONE CONSOLE GRAPHICS CHIPSET FULLREST PARTREST
 %token MEMSIZE VBIOS_SIZE_TOK VBIOS_SEG VGAEMUBIOS_FILE VBIOS_FILE 
@@ -1151,6 +1152,10 @@ sdl_flag	: SDL_HWREND expression	{ config.sdl_hwrend = ($2!=0); }
 		| SDL_FONTS string_expr	{ free(config.sdl_fonts); config.sdl_fonts = $2; }
 		| SDL_WCONTROLS expression	{ config.sdl_wcontrols = ($2!=0); }
 		| SDL_CLIP_NATIVE bool		{ config.sdl_clip_native = ($2!=0); }
+		| SPICE bool			{ config.spice = ($2!=0); }
+		| SPICE_PORT expression		{ config.spice_port = $2; }
+		| SPICE_ADDR string_expr	{ free(config.spice_addr); config.spice_addr = $2; }
+		| SPICE_PASSWORD string_expr	{ free(config.spice_password); config.spice_password = $2; }
 		;
 
 	/* sb emulation */
