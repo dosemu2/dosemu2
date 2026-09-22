@@ -19,7 +19,7 @@ import re
 import unittest
 
 from pathlib import Path
-from shutil import which, rmtree
+from shutil import rmtree
 from subprocess import check_call, CalledProcessError, DEVNULL
 from sys import argv
 from tempfile import mkdtemp
@@ -298,11 +298,6 @@ class TerminalRenderTestCase(BaseTestCase, unittest.TestCase):
         # set; the probe does not read either file.
         cls.autoexec = "dautoemu.bat"
         cls.confsys = "dconfig.sys"
-        if not cls.dosemu.is_file():
-            raise unittest.SkipTest("dosemu2 not built at %s" % cls.dosemu)
-        if which("nasm") is None:
-            raise unittest.SkipTest("nasm not installed")
-
         cls.probedir = Path(mkdtemp(prefix="termrender."))
         src = cls.probedir / "probe.asm"
         src.write_text(PROBE)
