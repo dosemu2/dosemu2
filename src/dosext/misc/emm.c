@@ -56,12 +56,14 @@
 #include "memory.h"
 #include "mapping/mapping.h"
 #include "misc/pgalloc.h"
+#include "lowmem.h"
 #include "emm.h"
 #include "dos2linux.h"
 #include "utilities.h"
 #include "int.h"
 #include "hlt.h"
 #include "pic.h"
+#include "vgaemu.h"
 
 #define Addr_8086(x,y)  MK_FP32((x),(y) & 0xffff)
 #define Addr(s,x,y)     Addr_8086(((s)->x), ((s)->y))
@@ -74,11 +76,17 @@
 /* this is in EMS pages, which MAX_EMS (defined in Makefile) is in K */
 #define MAX_EMM		(config.ems_size >> 4)
 #define	EMM_PAGE_SIZE	(16*1024)
-#define EMM_UMA_MAX_PHYS 12
-#define EMM_UMA_STD_PHYS 4
+#define EMM_UMA_MAX_PHYS 24
 #define EMM_CNV_MAX_PHYS 24
-#define EMM_MAX_PHYS	(EMM_UMA_MAX_PHYS + EMM_CNV_MAX_PHYS)
-#define EMM_MAX_SAVED_PHYS EMM_UMA_STD_PHYS
+#define EMM_LOW_MAX_PHYS 24
+#define EMM_MAX_PHYS	(EMM_UMA_MAX_PHYS + EMM_CNV_MAX_PHYS + EMM_LOW_MAX_PHYS)
+/* JEMM extends function 50h with a third set of physical pages, laid out
+ * over low memory from the second 4k page upwards, 16k apart.  Privateer
+ * puts its far heap there. */
+#define EMM_LOW_SEGMENT 0x100
+/* Save Page Map has to cover the whole frame, not just the four windows a
+ * standard one has: with $_jemm the client's frame is all 24 of them */
+#define EMM_MAX_SAVED_PHYS EMM_UMA_MAX_PHYS
 #define NULL_HANDLE	0xffff
 #define	NULL_PAGE	0xffff
 
@@ -112,6 +120,7 @@
 #define MAP_UNMAP_MULTIPLE	0x50	/* V4.0 */
 #define MULT_LOGPHYS		0
 #define MULT_LOGSEG		1
+#define MULT_LOGLOW		2	/* JEMM extension */
 #define REALLOCATE_PAGES	0x51	/* V4.0 */
 #define HANDLE_ATTRIBUTE	0x52	/* V4.0 */
 #define ALTERNATE_MAP_REGISTER  0x5B	/* V4.0 */
@@ -183,6 +192,9 @@ static int handle_total, emm_allocated;
 static Bit32u EMSAPMAP_ret_OFF;
 #define saved_phys_pages _min(config.ems_uma_pages, EMM_MAX_SAVED_PHYS)
 static Bit32u phys_pages;
+static Bit32u low_pages;
+#define low_pages_start (config.ems_uma_pages + config.ems_cnv_pages)
+#define all_phys_pages (phys_pages + low_pages)
 #define cnv_start_seg (0xa000 - 0x400 * config.ems_cnv_pages)
 #define cnv_pages_start config.ems_uma_pages
 
@@ -318,7 +330,9 @@ ems_helper(void)
     }
 
     err = 0;
-    for (i = 0; i < config.ems_uma_pages; i++) {
+    /* under JEMM the frame is the video memory and the ROMs, which are
+     * reserved already, and it is the client's business that it asked */
+    for (i = 0; !config.jemm && i < config.ems_uma_pages; i++) {
       err = memcheck_map_reserve('E', PHYS_PAGE_ADDR(i), EMM_PAGE_SIZE);
       if (err)
         break;
@@ -519,7 +533,7 @@ static int emm_deallocate_handle(int handle)
   int numpages, i;
   void *object;
 
-  for (i = 0; i < phys_pages; i++) {
+  for (i = 0; i < all_phys_pages; i++) {
     if (emm_map[i].handle == handle) {
       unmap_page(i);
       emm_map[i].handle = NULL_HANDLE;
@@ -568,7 +582,7 @@ __map_page(int physical_page)
   caddr_t logical;
   unsigned int base;
 
-  if ((physical_page < 0) || (physical_page >= phys_pages))
+  if ((physical_page < 0) || (physical_page >= all_phys_pages))
     return (FALSE);
   handle=emm_map[physical_page].handle;
   if (handle == NULL_HANDLE)
@@ -590,7 +604,7 @@ __unmap_page(int physical_page)
   int handle;
   unsigned int base;
 
-  if ((physical_page < 0) || (physical_page >= phys_pages))
+  if ((physical_page < 0) || (physical_page >= all_phys_pages))
     return (FALSE);
   handle=emm_map[physical_page].handle;
   if (handle == NULL_HANDLE)
@@ -636,7 +650,7 @@ map_page(int handle, int physical_page, int logical_page)
   E_printf("EMS: map_page(handle=%d, phy_page=%d, log_page=%d), prev handle=%d\n",
            handle, physical_page, logical_page, emm_map[physical_page].handle);
 
-  if ((physical_page < 0) || (physical_page >= phys_pages))
+  if ((physical_page < 0) || (physical_page >= all_phys_pages))
     return (FALSE);
 
   if (handle == NULL_HANDLE)
@@ -718,7 +732,7 @@ static int emm_restore_handle_state(int handle)
 static int
 do_map_unmap(int handle, int physical_page, int logical_page)
 {
-  if ((physical_page < 0) || (physical_page >= phys_pages)) {
+  if ((physical_page < 0) || (physical_page >= all_phys_pages)) {
     E_printf("Invalid Physical Page physical_page=%x\n",
 	     physical_page);
     return EMM_ILL_PHYS;
@@ -868,7 +882,8 @@ partial_map_registers(struct vm86_regs * state)
   }
 }
 
-static int emm_map_unmap_multi(const u_short *array, int handle, int map_len)
+static int emm_map_unmap_multi(const u_short *array, int handle, int map_len,
+	int base, int npages)
 {
   int ret = EMM_NO_ERR;
   int i, phys, log;
@@ -876,7 +891,11 @@ static int emm_map_unmap_multi(const u_short *array, int handle, int map_len)
     log = array[i * 2];
     phys = array[i * 2 + 1];
     Kdebug0(("loop: 0x%x 0x%x \n", log, phys));
-    ret = do_map_unmap(handle, phys, log);
+    if (phys >= npages) {
+      ret = EMM_ILL_PHYS;
+      break;
+    }
+    ret = do_map_unmap(handle, base + phys, log);
     if (ret != EMM_NO_ERR)
       break;
   }
@@ -884,7 +903,8 @@ static int emm_map_unmap_multi(const u_short *array, int handle, int map_len)
 }
 
 static int
-do_map_unmap_multi(int method, unsigned array, int handle, int map_len)
+do_map_unmap_multi(int method, unsigned array, int handle, int map_len,
+	int base, int npages)
 {
   int ret;
   u_short *array2 = malloc(PAGE_MAP_SIZE(map_len));
@@ -919,7 +939,7 @@ do_map_unmap_multi(int method, unsigned array, int handle, int map_len)
     }
   }
 
-  ret = emm_map_unmap_multi(array2, handle, map_len);
+  ret = emm_map_unmap_multi(array2, handle, map_len, base, npages);
   free(array2);
   return ret;
 }
@@ -945,7 +965,22 @@ map_unmap_multiple(struct vm86_regs * state)
 	     "handle %d, map_len %d, array @ %#x\n",
 	     method == MULT_LOGPHYS ? "phys" : "seg",
 	     handle, map_len, array));
-    ret = do_map_unmap_multi(method, array, handle, map_len);
+    ret = do_map_unmap_multi(method, array, handle, map_len, 0, phys_pages);
+    break;
+
+  case MULT_LOGLOW:
+    /* JEMM's own: the pages go to low memory rather than to the frame */
+    if (!low_pages) {
+      Kdebug0(("ERROR: no low pages for mult_loglow\n"));
+      ret = EMM_INVALID_SUB;
+      break;
+    }
+    map_len = LO_WORD(state->ecx);
+    array = SEGOFF2LINEAR(state->ds, LO_WORD(state->esi));
+    Kdebug0(("...using mult_loglow method, "
+	     "handle %d, map_len %d, array @ %#x\n", handle, map_len, array));
+    ret = do_map_unmap_multi(MULT_LOGPHYS, array, handle, map_len,
+			     low_pages_start, low_pages);
     break;
 
   default:
@@ -999,7 +1034,7 @@ reallocate_pages(struct vm86_regs * state)
 
   /* Make sure extended pages have correct data */
 
-  for (i = 0; i < phys_pages; i++)
+  for (i = 0; i < all_phys_pages; i++)
      if (emm_map[i].handle == handle)
         reunmap_page(i);
 
@@ -1061,7 +1096,7 @@ reallocate_pages(struct vm86_regs * state)
 
   /* remove pages no longer in range, remap others */
 
-  for (i = 0; i < phys_pages; i++) {
+  for (i = 0; i < all_phys_pages; i++) {
     if (emm_map[i].handle == handle) {
        /*
         * NOTE: In case of the above critical case (newcount==0)
@@ -1252,7 +1287,7 @@ alter_map(int method, int handle, const struct alter_map_struct *alter_map)
 	   handle, map_len, array));
 
   /* change mapping context */
-  return do_map_unmap_multi(method, array, handle, map_len);
+  return do_map_unmap_multi(method, array, handle, map_len, 0, phys_pages);
 }
 
 struct __attribute__ ((__packed__)) alter_map_jmp_struct {
@@ -2532,6 +2567,206 @@ void ems_reset(void)
   ems_reset2();
 }
 
+
+/* JEMM, the memory manager Origin shipped with Privateer and Strike
+ * Commander, has a private API that is not an int 67h extension at all: it
+ * lives on int 15h AX=1209h, with a two-letter function code in BX.  The
+ * games probe for it with BX='AC' before they make a single EMS call and
+ * print "Type PRIV to run Privateer" or "Type SC to run Strike Commander"
+ * when it does not answer, which is what has kept them from starting here.
+ *
+ * Only the functions the games use are implemented, and their meaning was
+ * read off MyJEMM, the Win9x reimplementation: under DOS, JEMM runs the game
+ * in protected mode and 'SM' drops back to v86 through VCPI, while MyJEMM
+ * keeps the game in v86 and swaps the page table for the first 4M instead.
+ * We are the monitor ourselves, and we own the whole window region already,
+ * so a window is simply real memory that stays where it is: the client's
+ * writes through either view have to stay where they landed, which is what it
+ * relies on when it loads an overlay and then switches back.  The one region
+ * that cannot be shared is the video aperture, and there the state byte says
+ * who has it; see jemm_set_state() below.
+ */
+#define JEMM_FN(a, b) (((a) << 8) | (b))
+#define JEMM_VERSION 0x0436	/* the JEMM.OVL the games carry */
+
+/* The window array lies over the video memory and the video BIOS, as real
+ * JEMM's does, and the client owns all of it for as long as it is loaded.
+ * The two views are not two mappings: the state byte only tells the client
+ * which one it asked for, so that the code it shares with the real JEMM takes
+ * the same branch.  We used to hand the aperture back to vgaemu on the way
+ * into the DOS view, and that is wrong - Privateer reads a file into the
+ * windows over 0xa0000, switches to the DOS view and reads it straight back,
+ * so taking the windows away lost it its resource index.  Real JEMM has no
+ * such trouble because it never gives the array up; a client that wants a
+ * picture on the screen asks JEMM to copy it there instead. */
+#define JEMM_HW_BASE 0xa0000
+#define JEMM_HW_TOP 0xc8000
+
+static unsigned short jemm_state_seg, jemm_state_off;
+static int jemm_dos_view;
+
+/* a window sitting where the video card would be */
+static int jemm_on_aperture(int physical_page)
+{
+  unsigned base = PHYS_PAGE_ADDR(physical_page);
+
+  return base >= JEMM_HW_BASE && base < JEMM_HW_TOP;
+}
+
+/* The first window that is nobody else's.  dosemu borrows four windows as the
+ * buffer it bounces DOS calls of a protected-mode client through, see
+ * prepare_ems_frame() in msdos.c.  Normally the whole frame is ours and the
+ * first window will do, but under JEMM the array starts on the video aperture,
+ * and mapping over that behind the card's back corrupts it.  Returns -1 when
+ * there is no such window. */
+int emm_first_own_page(void)
+{
+  int i;
+
+  if (!config.jemm)
+    return 0;
+  for (i = 0; i < phys_pages; i++) {
+    if (!jemm_on_aperture(i))
+      return i;
+  }
+  return -1;
+}
+
+/* True while a JEMM window, and not the video card, owns this address.  The
+ * client's windows over the video aperture are plain memory to it, so an
+ * access there has to reach the window that is mapped in, not vgaemu's idea
+ * of the screen; see vga_read_access() and vga_write_access(). */
+int emm_jemm_window(dosaddr_t addr)
+{
+  int page;
+
+  if (!config.jemm || addr < PHYS_PAGE_ADDR(0))
+    return 0;
+  page = (addr - PHYS_PAGE_ADDR(0)) / EMM_PAGE_SIZE;
+  if (page >= phys_pages)
+    return 0;
+  return emm_map[page].handle != NULL_HANDLE;
+}
+
+static void jemm_init(void)
+{
+  unsigned char *p;
+
+  if (!config.jemm)
+    return;
+  p = lowmem_alloc(1);
+  if (!p) {
+    error("JEMM: cannot allocate the state byte\n");
+    config.jemm = 0;
+    return;
+  }
+  *p = 0;
+  jemm_state_seg = DOSEMU_LMHEAP_SEG;
+  jemm_state_off = DOSEMU_LMHEAP_OFFS_OF(p);
+}
+
+static void jemm_set_state(int dos)
+{
+  if (dos != jemm_dos_view) {
+    E_printf("JEMM: %s view\n", dos ? "DOS" : "window");
+    jemm_dos_view = dos;
+  }
+  WRITE_BYTE(SEGOFF2LINEAR(jemm_state_seg, jemm_state_off), dos);
+}
+
+/* returns 1 when the call was ours, 0 to let int 15h carry on */
+int jemm_api(void)
+{
+  int prev;
+
+  switch (LWORD(ebx)) {
+  case JEMM_FN('A', 'C'):	/* are you there */
+    LWORD(eax) = 0;
+    LWORD(ebx) = 0x1209;
+    LWORD(ecx) = 6;
+    break;
+
+  case JEMM_FN('V', 'E'):	/* version */
+    LWORD(eax) = JEMM_VERSION;
+    break;
+
+  case JEMM_FN('F', 'F'):	/* address of the state byte */
+    LWORD(eax) = 0;
+    SREG(es) = jemm_state_seg;
+    LWORD(edi) = jemm_state_off;
+    break;
+
+  case JEMM_FN('S', 'M'):	/* switch to DOS's view of memory */
+    prev = jemm_dos_view;
+    jemm_set_state(1);
+    LWORD(ebx) = prev;
+    break;
+
+  case JEMM_FN('s', 'm'):	/* and back to JEMM's own */
+    prev = jemm_dos_view;
+    jemm_set_state(0);
+    LWORD(ebx) = prev;
+    break;
+
+  case JEMM_FN('G', 'S'):
+    LWORD(eax) = 1;
+    break;
+
+  case JEMM_FN('S', 'F'):
+    LWORD(eax) = 0;
+    break;
+
+  case JEMM_FN('S', 'R'):	/* nothing to restore */
+    break;
+
+  default:
+    E_printf("JEMM: unimplemented function %c%c from %04x:%04x\n",
+	     HI(bx), LO(bx), SREG(cs), LWORD(eip));
+    return 0;
+  }
+  return 1;
+}
+
+/* JEMM leaves its client where DOS loaded it and puts the EMS windows above,
+ * over the video memory and the ROMs: its DE06 translates that whole region
+ * page by page, and the clients ask for all 24 windows of it by number.  The
+ * array therefore starts at JEMM_HW_BASE, exactly where the real one does.
+ * That matters to the client and not only to us: Privateer's allocator sorts
+ * a block by comparing its segment against 0xa000, so a window below that line
+ * is ordinary DOS memory to it, and a window it may remap is not.  With the
+ * array moved down by two windows to keep our own top of memory, its far heap
+ * comes out empty; from 0xa000 it gets its 296k.  Called from
+ * config_post_process(), which is where the frame has to be settled before
+ * memcheck sees it. */
+void jemm_config(void)
+{
+  if (!config.jemm)
+    return;
+  config.ems_uma_pages = EMM_UMA_MAX_PHYS;
+  config.ems_cnv_pages = 0;
+  config.ems_frame = JEMM_HW_BASE >> 4;
+  /* The array wants the whole of 0xa0000-0xfffff, and our own BIOS and low
+   * memory heap live in the top 32k of it, ROMBIOSSEG with them.  They are
+   * addressed relative to BIOSSEG throughout, so move that instead - but
+   * not by shortening DOS memory, because that is what the client counts
+   * on.  Privateer's allocator takes conventional memory and the window
+   * array for one space that ends at 0xa0000: it links the block it gets
+   * from DOS to the blocks it keeps in the windows, and walks the chain
+   * across the join.  A gap below the array breaks the walk.  So put our
+   * 28k low, just under 64k, where no window can reach it and DOS memory
+   * still ends at 0xa0000, and hand DOS a block of it once it is up.
+   *
+   * The base has to be a multiple of 0x1000, because INT_OFF() takes the
+   * offset of the halt block as the low word of its linear address, so 0
+   * is the only value that is both low and legal.  The reset stack moves
+   * with it, see cpu_reset(). */
+  dosemu_bios_seg = 0x0000;
+  config.mem_size = 640;
+  c_printf("CONF: JEMM: %i EMS windows from 0x%04x, BIOS at 0x%04x, "
+	   "DOS memory %iK\n", config.ems_uma_pages, config.ems_frame,
+	   dosemu_bios_seg, config.mem_size);
+}
+
 void ems_init(void)
 {
   int i;
@@ -2555,19 +2790,33 @@ void ems_init(void)
   E_printf("EMS: initializing memory\n");
 
   vcpi_pool_init();
+  jemm_init();
 
   memcheck_addtype('E', "EMS page frame");
   /* set up standard EMS frame in UMA */
   for (i = 0; i < config.ems_uma_pages; i++) {
     emm_map[i].phys_seg = EMM_SEGMENT + 0x400 * i;
-    memcheck_e820_reserve(PHYS_PAGE_ADDR(i), EMM_PAGE_SIZE, 1);
+    if (!config.jemm)
+      memcheck_e820_reserve(PHYS_PAGE_ADDR(i), EMM_PAGE_SIZE, 1);
   }
   /* now in conventional mem */
   E_printf("EMS: Using %i pages in conventional memory, starting from 0x%x\n",
        config.ems_cnv_pages, cnv_start_seg);
   for (i = 0; i < config.ems_cnv_pages; i++)
     emm_map[i + cnv_pages_start].phys_seg = cnv_start_seg + 0x400 * i;
-  E_printf("EMS: initialized %i pages\n", phys_pages);
+  /* and the JEMM set over low memory.  It is only there when our own low
+   * memory block sits at the bottom of the first 64k, below DOS, which is
+   * how jemm_config() lays things out: the room between the BIOS data area
+   * and that block is free then, and nothing else can be given away. */
+  if (config.jemm && !BIOSSEG) {
+    low_pages = _min((SEGOFF2LINEAR(BIOSSEG, DOSEMU_LMHEAP_OFF) -
+		      (EMM_LOW_SEGMENT << 4)) / EMM_PAGE_SIZE,
+		     EMM_LOW_MAX_PHYS);
+    for (i = 0; i < low_pages; i++)
+      emm_map[i + low_pages_start].phys_seg = EMM_LOW_SEGMENT + 0x400 * i;
+  }
+  E_printf("EMS: initialized %i pages, %i of them in low memory\n",
+	   phys_pages, low_pages);
 
   ems_reset2();
 

@@ -35,6 +35,7 @@
 #define SUPPORT_DOSEMU_HELPERS
 #endif
 #include "emudpmi.h"
+#include "emm.h"
 #include "emm_msdos.h"
 #include "xms_msdos.h"
 #include "lio.h"
@@ -51,6 +52,7 @@
 #endif
 
 static unsigned short EMM_SEG;
+static int ems_first_page;
 #define SCRATCH_SEG (MSDOS_CLIENT.lowmem_seg + Scratch_Para_ADD)
 #define EXEC_SEG SCRATCH_SEG
 #define IO_SEG SCRATCH_SEG
@@ -567,8 +569,7 @@ static unsigned int msdos_realloc(unsigned int addr, unsigned int new_size)
 
 static int prepare_ems_frame(cpuctx_t *scp)
 {
-    static const u_short ems_map_simple[MSDOS_EMS_PAGES * 2] =
-	    { 0, 0, 1, 1, 2, 2, 3, 3 };
+    static u_short ems_map_simple[MSDOS_EMS_PAGES * 2];
     int err;
     if (ems_frame_mapped) {
 	dosemu_error("mapping already mapped EMS frame\n");
@@ -578,7 +579,7 @@ static int prepare_ems_frame(cpuctx_t *scp)
 #define EMM_MAX_PHYS 64
 	struct emm_phys_page_desc mpa[EMM_MAX_PHYS];
 	int phys_total, uma_total;
-	int i;
+	int first, i;
 	phys_total = emm_get_mpa_len(scp, MSDOS_CLIENT.is_32);
 	if (phys_total == -1) {
 	    error("MSDOS: EMS is disabled\n");
@@ -593,21 +594,47 @@ static int prepare_ems_frame(cpuctx_t *scp)
 	    error("MSDOS: EMS get_mpa failed\n");
 	    return err;
 	}
+	/* the bottom of the frame can be on loan from somebody else, in
+	 * which case borrowing it would overmap their memory */
+	first = emm_first_own_page();
+	if (first == -1) {
+	    error("MSDOS: no EMS window is free to borrow\n");
+	    return -1;
+	}
+	/* the array does not have to come in physical page order, so the
+	 * page number is the one the entry carries, not its index */
 	uma_total = 0;
 	for (i = 0; i < phys_total; i++) {
-	    if (mpa[i].seg > 0xa000) {
-		if (!uma_total)
+	    if (mpa[i].num < first || mpa[i].seg <= 0xa000)
+		continue;
+	    if (!uma_total || mpa[i].num < ems_first_page) {
+		EMM_SEG = mpa[i].seg;
+		ems_first_page = mpa[i].num;
+	    }
+	    uma_total++;
+	}
+	if (!uma_total) {
+	    for (i = 0; i < phys_total; i++) {
+		if (mpa[i].num < first)
+		    continue;
+		if (!uma_total || mpa[i].num < ems_first_page) {
 		    EMM_SEG = mpa[i].seg;
+		    ems_first_page = mpa[i].num;
+		}
 		uma_total++;
 	    }
 	}
-	if (!uma_total) {
-	    EMM_SEG = mpa[0].seg;
-	    uma_total = phys_total;
-	}
-	if (uma_total < 4) {
-	    error("MSDOS: EMS has %i UMA pages, needs 4\n", uma_total);
+	if (uma_total < MSDOS_EMS_PAGES) {
+	    error("MSDOS: EMS has %i usable pages, needs %i\n", uma_total,
+		    MSDOS_EMS_PAGES);
 	    return -1;
+	}
+	/* EMM_SEG is the address of window ems_first_page, so those are the
+	 * windows to map: assuming the frame starts at window 0 is wrong
+	 * as soon as the bottom of it is not ours */
+	for (i = 0; i < MSDOS_EMS_PAGES; i++) {
+	    ems_map_simple[i * 2] = i;
+	    ems_map_simple[i * 2 + 1] = ems_first_page + i;
 	}
 	ems_handle = emm_allocate_handle(scp, MSDOS_CLIENT.is_32,
 		MSDOS_EMS_PAGES);

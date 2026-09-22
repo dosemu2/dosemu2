@@ -42,6 +42,7 @@
 #include "bitops.h"
 #include "hma.h"
 #include "xms.h"
+#include "emm.h"
 #include "int.h"
 #include "vint.h"
 #include "dos2linux.h"
@@ -299,7 +300,9 @@ static void revect_helper(int stk_offs)
 	    break;
 	}
 	entry = int_handlers[inum].unrevect_function(SREG(es), LWORD(edi));
-	if (!entry.segment) {
+	/* the failure return is a zeroed far_t, so both halves must be
+	 * checked: with BIOSSEG 0 a good entry has segment 0 too. */
+	if (!entry.segment && !entry.offset) {
 	    CARRY;
 	    break;
 	}
@@ -922,6 +925,10 @@ static int int15(void)
 
     if (HI(ax) != 0x4f)
 	NOCARRY;
+
+    /* JEMM's own API, see emm.c */
+    if (config.jemm && LWORD(eax) == 0x1209 && jemm_api())
+	return 1;
 
     switch (HI(ax)) {
     case 0x10:			/* TopView/DESQview */

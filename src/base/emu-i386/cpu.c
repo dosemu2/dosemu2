@@ -244,9 +244,11 @@ void cpu_reset(void)
   REG(edi) = 0;
   REG(ebp) = 0;
   REG(eip) = 0;
-  SREG(cs) = 0xffff;
-  REG(esp) = 0xfffe;
-  SREG(ss) = 0;		/* This is the standard pc bios stack */
+  SREG(cs) = BIOSSEG + 0xfff;	/* the reset vector, wherever our BIOS is */
+  /* the standard pc bios stack, unless our own bios is down there: with
+   * BIOSSEG 0 the top of the first 64k is the lowmem heap and the image */
+  REG(esp) = BIOSSEG ? 0xfffe : DOSEMU_LMHEAP_OFF - 2;
+  SREG(ss) = 0;
   SREG(es) = 0;			/* standard pc es */
   SREG(ds) = 0x40;		/* standard pc ds */
   SREG(fs) = 0;
