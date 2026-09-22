@@ -175,6 +175,78 @@ static int _SetSegProt_check(int ofs, unsigned long sel)
 	return 0;
 }
 
+/* A far call whose target selector is a call gate does not go where the
+ * instruction points: the gate names the code selector and the entry point,
+ * and the offset in the instruction is ignored. A 286|DOS-Extender client
+ * reaches its library that way. Only the case that needs no stack switch is
+ * handled, which is the only one a dpmi client can build for itself: the
+ * gate, the caller and the target all at the same privilege level.
+ * Returns -1 when the selector is not a gate, 0 when it is and *selp and
+ * *eipp now name the entry point, and an exception number otherwise. */
+int call_gate(unsigned int *selp, unsigned int *eipp, int *modep)
+{
+	unsigned int sel = *selp;
+	unsigned short tflags;
+	Descriptor *dt;
+	Gatedesc *gp;
+	unsigned int tsel;
+
+	if (!PROTMODE() || sel < 4)
+		return -1;
+	dt = (sel & 4) ? LDT : GDT;
+	if (dt == NULL)
+		return -1;
+	if ((sel & 0xfff8) > ((sel & 4) ? TheCPU.LDTR.Limit : TheCPU.GDTR.Limit))
+		return -1;
+	gp = (Gatedesc *)&dt[sel >> 3];
+	if (gp->S || (gp->type & 7) != 4)
+		return -1;
+	TheCPU.scp_err = sel & 0xfffc;
+	if (!gp->present) {
+		e_printf("call gate %#x not present\n", sel);
+		return EXCP0B_NOSEG;
+	}
+	/* the gate has to be visible from here */
+	if ((int)gp->DPL < CPL || (int)gp->DPL < (int)(sel & 3)) {
+		e_printf("call gate %#x dpl %d not visible at cpl %d\n",
+			 sel, gp->DPL, CPL);
+		return EXCP0D_GPF;
+	}
+	tsel = gp->seg;
+	if (tsel < 4) {
+		e_printf("call gate %#x has a null target\n", sel);
+		TheCPU.scp_err = 0;
+		return EXCP0D_GPF;
+	}
+	tflags = GetSelectorFlags(tsel);
+	if (!(tflags & DF_USER) || !(tflags & DF_CODE)) {
+		e_printf("call gate %#x does not point at code\n", sel);
+		TheCPU.scp_err = tsel & 0xfffc;
+		return EXCP0D_GPF;
+	}
+	/* a gate to a more privileged segment would need a stack switch,
+	 * which nothing here can build, so refuse it rather than run the
+	 * target on the caller's stack */
+	if (!(tflags & DF_CONFORMING) &&
+	    (int)((tflags & DF_DPL) >> 5) != CPL) {
+		e_printf("call gate %#x to dpl %d from cpl %d not supported\n",
+			 sel, (tflags & DF_DPL) >> 5, CPL);
+		TheCPU.scp_err = tsel & 0xfffc;
+		return EXCP0D_GPF;
+	}
+	*selp = tsel | CPL;
+	if (gp->type & 8) {
+		*eipp = (gp->offs_hi << 16) | gp->offs_lo;
+		*modep &= ~DATA16;
+	} else {
+		*eipp = gp->offs_lo;
+		*modep |= DATA16;
+	}
+	if (debug_level('e') > 2)
+		dbug_printf("call gate %#x -> %04x:%08x\n", sel, *selp, *eipp);
+	return 0;
+}
+
 int SetSegProt_check(int ofs, unsigned long sel)
 {
 	int e = _SetSegProt_check(ofs, sel);

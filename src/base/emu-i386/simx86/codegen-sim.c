@@ -2930,6 +2930,9 @@ static int check_stack_limit(unsigned int sp, unsigned int size)
  * arg: instruction-dependent argument passed via IG->p1 at compile time
  * returns data (could be modified), so compiled code can write it back
  */
+static unsigned int gate_eip;
+static int gate_pending;
+
 unsigned int Sim_helper(unsigned int mem_ref, unsigned int data, int mode,
 			uint32_t *flags, unsigned int opc, unsigned int arg,
 			unsigned char *eip)
@@ -3040,11 +3043,18 @@ unsigned int Sim_helper(unsigned int mem_ref, unsigned int data, int mode,
 			unsigned int oldeip = arg;
 			unsigned int newcs = data;
 			unsigned int sp;
-			int e = SetSegProt_check(Ofs_CS, newcs);
+			int e, gate, gmode = mode;
+			gate_pending = 0;
+			gate = call_gate(&newcs, &gate_eip, &gmode);
+			if (gate > 0) {
+				TheCPU.err = gate;
+				break;
+			}
+			e = SetSegProt_check(Ofs_CS, newcs);
 			if (e > 0)
 				break;
 			sp = rESP;
-			if (mode&DATA16) {
+			if (gmode&DATA16) {
 				if (!check_stack_limit(sp - 4, 4))
 					break;
 				PUSHw(sp,oldcs);
@@ -3056,6 +3066,9 @@ unsigned int Sim_helper(unsigned int mem_ref, unsigned int data, int mode,
 				PUSHwl(sp,oldcs);
 				PUSHl(sp,oldeip);
 			}
+			/* the call is going through now, so the step after
+			 * this one may take the entry point from the gate */
+			gate_pending = (gate == 0);
 			if (debug_level('e')>2) {
 				dbug_printf("CALL_FAR: ret=%04x:%08x\n  calling:      cs=%04x\n",
 					    oldcs,oldeip,newcs);
@@ -3063,9 +3076,22 @@ unsigned int Sim_helper(unsigned int mem_ref, unsigned int data, int mode,
 			rESP = sp | (rESP&~TheCPU.StackMask);
 			// -1 means cached, nothing to set
 			if (e == 0)
-				SetSegProt_set(Ofs_CS, data);
+				SetSegProt_set(Ofs_CS, newcs);
 			break;
 			}
+	case CALLl_GATE:
+			/* the far call above went through a call gate, so the
+			 * entry point is the gate's, not the one the
+			 * instruction carries. data is what JMP_INDIRECT
+			 * jumps to. */
+			if (gate_pending) {
+				gate_pending = 0;
+				if (debug_level('e')>2)
+					dbug_printf("CALL_GATE: entry %04x:%08x\n",
+						    TheCPU.cs, gate_eip);
+				data = gate_eip;
+			}
+			break;
 /*ca*/	case RETlisp:
 /*cb*/	case RETl:
 /*cf*/	case IRET: {	/* restartable */
