@@ -1265,6 +1265,148 @@ static int get_modifiers(void)
 
 #define THE_TIMEOUT 250000L
 
+/*
+ * The kitty keyboard protocol, issue #1379.
+ *
+ * A terminal that speaks it reports every key that would otherwise need an
+ * escape sequence as CSI <unicode> ; <modifiers> u, the Escape key
+ * included.  That is what we are after here: an Escape that arrives whole
+ * cannot be mistaken for the start of something longer, so it needs none
+ * of the quarter second of waiting in do_slang_pending() that issue #1378
+ * was about.  The same goes for the control keys the legacy encoding folds
+ * together: ctrl+i stops being the same byte as Tab.
+ *
+ * A terminal that does not know the protocol says nothing when asked, so
+ * the question goes out with a primary device attributes request behind
+ * it.  Every terminal answers that one, and its answer arriving first is
+ * the "no".  Terminals answer in the order they were asked, and until one
+ * of the two answers turns up we behave exactly as before.
+ */
+#define KITTY_FLAGS 1		/* disambiguate escape codes */
+
+static enum { KITTY_OFF, KITTY_ASKED, KITTY_ON } kitty_mode;
+
+/* What DOS should get for the key kitty numbered `code'. */
+static t_keysym kitty_keysym(unsigned code)
+{
+	switch (code) {
+	case 27:	return DKY_ESC;
+	case 13:	return DKY_RETURN;
+	case 9:		return DKY_TAB;
+	case 127:	return DKY_BKSP;
+	}
+	/* Anything else is the character on the key, and only a character
+	 * can be passed on: a keysym is 16 bit (keyboard.h) and the private
+	 * use area from 0xe000 up is where dosemu keeps its own keys --
+	 * which is also where kitty numbers the keys that have no character
+	 * at all, so a code from there is dropped rather than taken for one
+	 * of ours. */
+	if (code >= ' ' && code < 0xd800)
+		return code;
+	return DKY_VOID;
+}
+
+/*
+ * Take the CSI sequences the kitty protocol adds.  Returns how many bytes
+ * were eaten, 0 if the sequence belongs to somebody else, and -1 if it may
+ * still become one of ours once the rest of it arrives.  *sent says whether
+ * a key went to DOS, so the caller knows to let DOS chew on it.
+ */
+static int kitty_get_event(int *sent)
+{
+	const Bit8u *p = keyb_state.kbp;
+	int n = keyb_state.kbcount;
+	int i, priv = 0, sub = 0, npar = 0, slot;
+	unsigned par[3] = { 0, 0, 0 };	/* code, modifiers, event type */
+	unsigned code, mods;
+	unsigned long flags = 0;
+	t_keysym sym;
+
+	*sent = 0;
+	if (n < 2 || p[0] != 27 || p[1] != '[')
+		return 0;
+	i = 2;
+	if (p[i] == '?') {
+		priv = 1;
+		i++;
+	}
+	for (; i < n; i++) {
+		if (isdigit(p[i])) {
+			slot = -1;
+			if (npar == 0 && sub == 0)
+				slot = 0;
+			else if (npar == 1 && sub == 0)
+				slot = 1;
+			else if (npar == 1 && sub == 1)
+				slot = 2;
+			if (slot >= 0)
+				par[slot] = par[slot] * 10 + p[i] - '0';
+			continue;
+		}
+		if (p[i] == ':') {
+			sub++;
+			continue;
+		}
+		if (p[i] == ';') {
+			npar++;
+			sub = 0;
+			continue;
+		}
+		break;
+	}
+	if (i == n)
+		return -1;			/* still arriving */
+	if (p[i] != 'u' && p[i] != 'c')
+		return 0;			/* not one of ours */
+
+	if (priv) {
+		/* the two answers asked for at startup, and neither of them
+		 * is ever a keystroke, so both are eaten either way */
+		if (p[i] == 'u') {
+			if (kitty_mode == KITTY_ASKED) {
+				kitty_mode = KITTY_ON;
+				printf("\033[>%du", KITTY_FLAGS);
+				fflush(stdout);
+				k_printf("KBD: kitty keyboard protocol on\n");
+			}
+		} else if (kitty_mode == KITTY_ASKED) {
+			kitty_mode = KITTY_OFF;
+			k_printf("KBD: terminal has no kitty keyboard "
+				 "protocol\n");
+		}
+		return i + 1;
+	}
+	if (p[i] != 'u' || kitty_mode != KITTY_ON)
+		return 0;
+
+	code = par[0];
+	mods = par[1] ? par[1] - 1 : 0;
+	if (par[2] == 3) {
+		/* a release.  These are not asked for, but a terminal that
+		 * sends them anyway must not type the key a second time. */
+		k_printf("KBD: kitty release of %u\n", code);
+		return i + 1;
+	}
+	sym = kitty_keysym(code);
+	if (sym == DKY_VOID) {
+		k_printf("KBD: kitty key %u has nothing to type\n", code);
+		return i + 1;
+	}
+	if (mods & 1)
+		flags |= SHIFT_MASK;
+	if (mods & 2)
+		flags |= ALT_MASK;
+	if (mods & 4)
+		flags |= CTRL_MASK;
+	/* Bit 3 is super, 4 hyper, 5 meta, and a PC keyboard has no key to
+	 * press for any of them; bits 6 and 7 say whether caps lock and num
+	 * lock are on, which is the terminal's business, not ours. */
+	k_printf("KBD: kitty key %u mods %u\n", code, mods);
+	slang_send_scancode(keyb_state.Shift_Flags | flags, sym);
+	*sent = 1;
+	return i + 1;
+}
+
 static void do_slang_pending(void)
 {
 	if (keyb_state.CharNot_Ready && keyb_state.kbcount) {
@@ -1409,6 +1551,28 @@ static void process_slang_keys(void)
 
 		keyb_state.Keystr_Len = 0;
 		keyb_state.RetNot_Ready = 0;
+
+		if (kitty_mode != KITTY_OFF) {
+			int sent, len = kitty_get_event(&sent);
+
+			if (len < 0) {
+				k_printf("KBD: waiting for the rest of a "
+					 "CSI sequence\n");
+				if (!keyb_state.KeyNot_Ready) {
+					keyb_state.t_start = GETusTIME(0);
+					keyb_state.KeyNot_Ready = 1;
+				}
+				break;
+			}
+			if (len > 0) {
+				keyb_state.KeyNot_Ready = 0;
+				keyb_state.kbcount -= len;
+				keyb_state.kbp += len;
+				if (sent)
+					break;
+				continue;
+			}
+		}
 
 		key = SLang_do_key(keyb_state.The_Normal_KeyMap, getkey_callback);
 		slang_set_error(0);
@@ -1687,6 +1851,15 @@ static int slang_keyb_init(void)
 
 	/* Enable cursor keys (DECCKM) */
 	printf("\033[?1h\r");
+
+	if (!keyb_state.pc_scancode_mode) {
+		/* Does this terminal speak the kitty keyboard protocol?  A
+		 * terminal that does answers CSI ? <flags> u; one that does
+		 * not says nothing, and answers only the request behind it. */
+		printf("\033[?u\033[c");
+		kitty_mode = KITTY_ASKED;
+	}
+	fflush(stdout);
 	k_printf("KBD: slang_keyb_init() ok\n");
 	return TRUE;
 }
@@ -1701,6 +1874,11 @@ static void slang_keyb_close(void)
 	}
 	term_close();
 	cleanup_charset_state(&keyb_state.translate_state);
+	if (kitty_mode == KITTY_ON) {
+		/* give the terminal back the keyboard mode it had */
+		printf("\033[<u");
+		kitty_mode = KITTY_OFF;
+	}
 	printf("\033[?1l\r");
 	if (exitstr) printf("%s", exitstr);
 }
