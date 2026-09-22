@@ -240,6 +240,13 @@ extern int SpecPrejits;
 #define CBW		0x98u
 #define CWD		0x99u
 #define CALLl		0x9au
+/* not x86 opcodes: a second Sim_helper step after a protected mode far
+ * call, so that a call gate can name the entry point the instruction does
+ * not carry. The direct form carries the selector as an immediate, the
+ * indirect one has it in memory. Kept out of the one-byte and two-byte
+ * opcode ranges. */
+#define CALLl_GATE	0x1000u
+#define CALLl_GATE_MEM	0x1001u
 #define oWAIT		0x9bu
 #define PUSHF		0x9cu
 #define POPF		0x9du

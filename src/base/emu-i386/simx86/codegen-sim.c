@@ -3040,11 +3040,18 @@ unsigned int Sim_helper(unsigned int mem_ref, unsigned int data, int mode,
 			unsigned int oldeip = arg;
 			unsigned int newcs = data;
 			unsigned int sp;
-			int e = SetSegProt_check(Ofs_CS, newcs);
+			unsigned int gate_eip;
+			int e, gate, gmode = mode;
+			gate = call_gate(&newcs, &gate_eip, &gmode);
+			if (gate > 0) {
+				TheCPU.err = gate;
+				break;
+			}
+			e = SetSegProt_check(Ofs_CS, newcs);
 			if (e > 0)
 				break;
 			sp = rESP;
-			if (mode&DATA16) {
+			if (gmode&DATA16) {
 				if (!check_stack_limit(sp - 4, 4))
 					break;
 				PUSHw(sp,oldcs);
@@ -3063,7 +3070,34 @@ unsigned int Sim_helper(unsigned int mem_ref, unsigned int data, int mode,
 			rESP = sp | (rESP&~TheCPU.StackMask);
 			// -1 means cached, nothing to set
 			if (e == 0)
-				SetSegProt_set(Ofs_CS, data);
+				SetSegProt_set(Ofs_CS, newcs);
+			break;
+			}
+	case CALLl_GATE_MEM:
+			/* the indirect form left the selector in memory,
+			 * where L_LXS2 read it */
+			arg = sim_read_word(mem_ref + BT24(BitDATA16, mode));
+			/* fall through */
+	case CALLl_GATE: {
+			/* The far call above may have gone through a call
+			 * gate, and then the entry point is the gate's, not
+			 * the one the instruction carries. The gate is looked
+			 * up here a second time rather than carried over from
+			 * the step above: call_gate() only reads the
+			 * descriptor tables and CPL, which the call did not
+			 * change (it keeps CPL in the RPL of the new CS), so
+			 * it answers the same thing, and nothing has to
+			 * survive between the two steps.
+			 * data is what JMP_INDIRECT jumps to. */
+			unsigned int sel = arg, gate_eip;
+			int gmode = mode;
+
+			if (call_gate(&sel, &gate_eip, &gmode) == 0) {
+				if (debug_level('e')>2)
+					dbug_printf("CALL_GATE: entry %04x:%08x\n",
+						    TheCPU.cs, gate_eip);
+				data = gate_eip;
+			}
 			break;
 			}
 /*ca*/	case RETlisp:
