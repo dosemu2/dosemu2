@@ -9,6 +9,7 @@ import unittest
 
 from datetime import datetime, timezone
 from functools import wraps
+from collections import Counter
 from hashlib import sha1
 from os import environ, rename, _exit
 from os.path import exists, join
@@ -20,7 +21,8 @@ from subprocess import (Popen, call, check_call, check_output,
                         DEVNULL, STDOUT, TimeoutExpired, CalledProcessError)
 from sys import argv, exit, stdout, stderr, version_info
 from tarfile import open as topen
-from time import sleep
+from struct import unpack
+from time import sleep, time
 from unittest.util import strclass
 
 __common_framework = True
@@ -799,6 +801,119 @@ class BaseTestCase(object):
 
         self.assertNotIn('Timeout:', ret)
         return ret
+
+    def runDosemuGraphics(self, cmd, resultfile, config=DOSEMU_CONF_DEFAULT,
+                          timeout=None):
+        """Run a test on a real video backend instead of the terminal.
+
+        Every other runner passes -td, and a terminal leaves vgaemu without
+        any memory at all, so nothing about the emulated card can be seen
+        from there.  Here dosemu gets a virtual X server to draw on.  There
+        is no terminal to read either: the test program leaves its answer in
+        resultfile on drive C and then waits for a key that never comes, so
+        that the picture is still up when the screen is taken.
+
+        Returns the screen as an XWD dump, from the X server's own
+        framebuffer; see readXWD().
+        """
+        if which("Xvfb") is None:
+            self.skipTest("Xvfb is not installed")
+
+        default_timeout = int(environ.get("DEFAULT_TIMEOUT", '15'))
+        if timeout is None:
+            timeout = default_timeout
+        timeout += default_timeout
+
+        self.mkfile("dosemu.conf", config, dname=self.imagedir)
+        # there is no prompt to type at, so the command goes into startup
+        self.mkfile(self.autoexec, cmd + "\r\n", mode="a")
+
+        result = self.workdir / resultfile
+        fbdir = self.imagedir / "fb"
+        fbdir.mkdir(exist_ok=True)
+        screen = fbdir / "Xvfb_screen0"
+        out = self.imagedir / "screen.xwd"
+
+        # a display number of our own; another test or another job on the
+        # same machine may be holding one
+        xvfb = None
+        for _ in range(5):
+            display = ":%d" % random.randint(100, 32000)
+            xvfb = Popen(["Xvfb", display, "-screen", "0", "1024x768x24",
+                          "-fbdir", str(fbdir), "-nolisten", "tcp"],
+                         stdout=DEVNULL, stderr=DEVNULL)
+            for _ in range(100):
+                if screen.exists() or xvfb.poll() is not None:
+                    break
+                sleep(0.1)
+            if screen.exists():
+                break
+            xvfb.terminate()
+            xvfb = None
+
+        dosemu = None
+        try:
+            if xvfb is None:
+                self.skipTest("Xvfb did not come up")
+
+            args = [str(self.dosemu),
+                    "--Fimagedir", str(self.imagedir),
+                    "-f", str(self.imagedir / "dosemu.conf"),
+                    "-n",
+                    "-q",
+                    "-o", str(self.topdir / self.logfiles['log'][0]),
+                    "-X"]
+            if environ.get("NO_KVM", '0') == '1' or self.use_cpu == 'emu':
+                args.extend(["-z", "0"])
+
+            if environ.get("NO_TESTRUN", '0') == '1':
+                print(f'\n\nNO_TESTRUN=1, command line to run test is\n'
+                      f'DISPLAY={display} {" ".join(args)}\n')
+                _exit(0)
+
+            dosemu = Popen(args, env=dict(environ, DISPLAY=display),
+                           stdout=DEVNULL, stderr=DEVNULL)
+            deadline = time() + timeout
+            while time() < deadline:
+                if result.exists() or dosemu.poll() is not None:
+                    break
+                sleep(0.5)
+            # the write goes to the screen before it goes to the file, but
+            # the backend redraws on its own clock
+            sleep(2)
+            copy(str(screen), str(out))
+        finally:
+            for p in (dosemu, xvfb):
+                if p is None:
+                    continue
+                p.terminate()
+                try:
+                    p.wait(timeout=5)
+                except TimeoutExpired:
+                    p.kill()
+
+        self.assertTrue(result.exists(), "test program left no result file")
+        return out
+
+    def readXWD(self, path):
+        """Colour histogram of an XWD screen dump, as {(r, g, b): count}.
+
+        Written out rather than handed to an image library because the test
+        runners are not required to have one.
+        """
+        d = path.read_bytes()
+        h = unpack('>25I', d[:100])
+        hdrsize, width, height = h[0], h[4], h[5]
+        bpp, bpl, ncolors = h[11], h[12], h[19]
+        self.assertEqual(bpp, 32, "unexpected screen format")
+        px = d[hdrsize + ncolors * 12:]
+        hist = Counter()
+        for y in range(height):
+            row = px[y * bpl:(y + 1) * bpl]
+            for x in range(width):
+                b, g, r = row[x * 4], row[x * 4 + 1], row[x * 4 + 2]
+                hist[(r, g, b)] += 1
+        return hist
 
     def assertFilesEqual(self, reffile, dosfile):
         """Compare DOS output to reference file"""
