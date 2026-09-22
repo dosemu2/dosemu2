@@ -2281,7 +2281,12 @@ repag0:
 				    if (REG3)
 					Gen(S_REG, _mode, REG3);
 				    else
-					Gen(S_DI, _mode);
+					/* the memory form writes a word and
+					 * no more, whatever the operand size:
+					 * a dword here reaches two bytes past
+					 * the client's buffer and wipes out
+					 * whatever it kept there */
+					Gen(S_DI, _mode|DATA16);
 				    break;
 				case 2: /* LLDT */
 				    /* Load Local Descriptor Table Register */
