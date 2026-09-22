@@ -120,6 +120,7 @@ struct DPMIclient_struct {
   int is_32;
   dpmi_pm_block_root pm_block_root;
   unsigned short private_data_segment;
+  unsigned short private_data_paras;
   dpmi_pm_block *pm_stack;
   int in_dpmi_pm_stack;
   int in_dpmi_rm_stack;
@@ -4417,16 +4418,45 @@ static void setup_int_exc(int inherit_idt)
   }
 }
 
+/* extension: where the pool the client gave us at startup now is, and how
+ * big it is.  Reported by int 2fh ax=1687 in protected mode, so as a
+ * selector rather than as a segment; it comes back in ax, with si carrying
+ * the size in paragraphs and CF the status.
+ * The client needs this to move the pool: it hands it to us in es at the
+ * mode switch, which a DOS stub has to do before it can shrink its own PSP,
+ * so the pool ends up sitting on top of the memory the shrink frees. */
+unsigned short dpmi_get_private_pool(unsigned short *r_paras)
+{
+  *r_paras = DPMI_CLIENT.private_data_paras;
+  return ConvertSegmentToDescriptor(DPMI_CLIENT.private_data_segment);
+}
+
 static void dpmi_reinit(cpuctx_t *scp)
 {
   unsigned short ds, es, ss, rights;
   int i, err;
   int change = 0;
+  int reloc = 0;
 
   _eflags |= CF;
   D_printf("DPMI: reinit called, %i %i\n", _LWORD(eax), DPMI_CLIENT.is_32);
   D_printf("%s", DPMI_show_state(scp));
   do_dpmi_retf(scp, SEL_ADR(_ss, _esp));
+
+  if (_LWORD(eax) & 0x800) {	/* extension: bx has the pool's new selector */
+    dosaddr_t base = GetSegmentBase(_LWORD(ebx));
+
+    /* we address it as a segment, and DOS calls run on stacks inside it */
+    if (base + (DPMI_CLIENT.private_data_paras << 4) > LOWMEM_SIZE) {
+      error("DPMI: private pool at 0x%x, %i para, does not fit under 1M\n",
+	  base, DPMI_CLIENT.private_data_paras);
+      return;
+    }
+    DPMI_CLIENT.private_data_segment = base >> 4;
+    D_printf("DPMI: private pool moved to 0x%04x, %i para\n",
+	DPMI_CLIENT.private_data_segment, DPMI_CLIENT.private_data_paras);
+    reloc = 1;
+  }
 
   if ((_LWORD(eax) & 1) == DPMI_CLIENT.is_32)
     _eflags &= ~CF;
@@ -4481,6 +4511,10 @@ static void dpmi_reinit(cpuctx_t *scp)
 
   _eflags &= ~CF;
   D_printf("%s", DPMI_show_state(scp));
+  /* last, because the RSP call rewrites the context we just set up and
+   * restores it on return */
+  if (reloc)
+    dpmi_RSP_call(scp, current_client, 3, -1);
 }
 
 void dpmi_init(void)
@@ -4523,6 +4557,7 @@ void dpmi_init(void)
   }
 
   DPMI_CLIENT.private_data_segment = SREG(es);
+  DPMI_CLIENT.private_data_paras = DPMI_private_paragraphs + rsp_get_para();
   /* alloc stack with a guard page */
   DPMI_CLIENT.pm_stack = DPMI_malloc(&host_pm_block_root, DPMI_pm_stack_size +
       HOST_PAGE_SIZE);
