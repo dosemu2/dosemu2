@@ -35,6 +35,7 @@ Build-Depends:
     pkg-config,
     fdpp-dev,
     djdev64-dev,
+    libelf-dev,
     binutils-i686-linux-gnu,
     valgrind
 Homepage: https://github.com/dosemu2/dosemu2
