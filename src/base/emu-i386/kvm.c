@@ -1372,6 +1372,20 @@ static int kvm_post_run(struct vm86_regs *regs, struct kvm_regs *kregs)
       regs->cs = 0;
       return 1;
     }
+    if (ns.cr3 != MONITOR_DOSADDR + offsetof(struct monitor, pde)) {
+      /* The other half of the same switch: the task register is already
+         ours while the page tables are still the client's.  Taking this
+         for our own state puts the client's CR3 in the global, and from
+         there mprotect_kvm() writes it into monitor->cr3, which the code
+         after the monitor's hlt loads to flush the TLB.  The monitor then
+         runs on a page directory that does not map it, so the next
+         instruction fetch faults, the fault cannot be delivered, and the
+         guest triple faults -- with every pte still intact, because the
+         tables are fine and CR3 simply no longer points at them. */
+      g_printf("KVM: interrupt halfway out to a VCPI client\n");
+      regs->cs = 0;
+      return 1;
+    }
     sregs = ns;
   }
 
