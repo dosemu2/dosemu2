@@ -328,6 +328,10 @@ static unsigned int JumpGen(unsigned int P2, unsigned int Interp_LONG_CS,
 		    /* transfer to new PC
 		       (new cs base dynamic, so indirect jmp) */
 		    Gen(L_IMM_R1, mode, d_t);
+		    if (opc == CALLl)
+			/* a call gate carries its own entry point, which
+			 * only the step above could resolve */
+			Gen(O_SIM, mode, CALLl_GATE, 0, P2);
 		    JMPGen(JMP_INDIRECT, mode);
 		    break;
 		}
@@ -2167,6 +2171,8 @@ repag0:
 						AddrGen(A_SR_PROT, _mode, Ofs_CS, P0);
 					}
 					Gen(L_DI_R1, _mode);
+					if (REG1==Ofs_BX && !REALADDR())
+					    Gen(O_SIM, _mode, CALLl_GATE, 0, P0);
 					PC = JumpGen(PC, Interp_LONG_CS, _mode,
 						     (opc<<8)|REG1, len);
 					if (debug_level('e')>2) {
