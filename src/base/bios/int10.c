@@ -1546,6 +1546,7 @@ int int10(void) /* with dualmon */
 void video_mem_setup(void)
 {
   int co, li;
+  Bit32u own_savptr;
 
   WRITE_BYTE(BIOS_CURRENT_SCREEN_PAGE, 0);
 
@@ -1587,8 +1588,12 @@ void video_mem_setup(void)
      lots of tables*/
   WRITE_BYTE(BIOS_VIDEO_COMBO, video_combo);
 
+  /* our own video save pointer table, built into our VGA BIOS */
+  own_savptr = vgaemu_bios.save_area ?
+	MK_FP16(0xc000, vgaemu_bios.save_area) : 0;
+
   if (!config.vga) {
-    WRITE_DWORD(BIOS_VIDEO_SAVEPTR, 0);		/* pointer to video table */
+    WRITE_DWORD(BIOS_VIDEO_SAVEPTR, own_savptr);
     /* point int 1f to the default 8x8 graphics font for high characters */
     SETIVEC(0x1f, 0xc000, vgaemu_bios.font_8 + 128 * 8);
   }
@@ -1597,7 +1602,13 @@ void video_mem_setup(void)
     Bit16u vc;
 
     i10_msg("Now initialising 0x40:a8-ab\n");
-    WRITE_DWORD(BIOS_VIDEO_SAVEPTR, int_bios_area[BIOS_VIDEO_SAVEPTR/4]);
+    p = int_bios_area[BIOS_VIDEO_SAVEPTR/4];
+    /* the host BIOS is not always there to take the table from */
+    if (!p)
+      p = own_savptr;
+    WRITE_DWORD(BIOS_VIDEO_SAVEPTR, p);
+    if (!p)
+      return;
 
     /* many BIOSes use this: take as fallback value */
     WRITE_BYTE(BIOS_VIDEO_COMBO, 0xb);

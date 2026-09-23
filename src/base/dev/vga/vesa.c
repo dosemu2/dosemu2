@@ -205,6 +205,22 @@ void vbe_pre_init(void)
       sizeof vgaemu_bios_functionality_table);
   bios_ptr += sizeof vgaemu_bios_functionality_table;
 
+  /* the video save pointer table, which 40h:a8h then points at */
+  bios_ptr = (bios_ptr + 3) & ~3;
+  i = vgabios_save_area_size();
+  if(bios_ptr + i <= VBE_BIOS_MAXPAGES * PAGE_SIZE) {
+    void *sa = malloc(i);
+
+    vgabios_save_area_build(sa, 0xc000, bios_ptr);
+    MEMCPY_2DOS(dos_vga_bios + bios_ptr, sa, i);
+    free(sa);
+    vgaemu_bios.save_area = bios_ptr;
+    bios_ptr += i;
+  } else {
+    error("VBE: no room for the video save pointer table\n");
+    vgaemu_bios.save_area = 0;
+  }
+
   vgaemu_bios.size = bios_ptr;
 
   WRITE_BYTE(dos_vga_bios + 2, (bios_ptr + ((1 << 9) - 1)) >> 9);

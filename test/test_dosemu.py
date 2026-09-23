@@ -82,6 +82,7 @@ from func_network import network_mtcp
 from func_ipx import ipx_relay
 from func_pktdrvr import pktdriver_api
 from func_pit_mode_2 import pit_mode_2
+from func_video_save_ptr import video_save_pointer_table
 
 
 class OurTestCase(BaseTestCase):
@@ -1596,6 +1597,10 @@ class OurTestCase(BaseTestCase):
     def test_pit_mode_2(self):
         """PIT Mode 2"""
         pit_mode_2(self)
+
+    def test_video_save_pointer_table(self):
+        """Video Save Pointer Table"""
+        video_save_pointer_table(self)
 
 DRDOS701TestCase = drdos701(OurTestCase, {
     "test_command_com_psp_fcbs": KNOWNFAIL,

@@ -216,6 +216,7 @@ typedef struct {
   unsigned font_14_alt;			/* offset 9x14 chars */
   unsigned font_16_alt;			/* offset 9x16 chars */
   unsigned functionality;		/* offset functionality table */
+  unsigned save_area;			/* offset video save pointer table */
 } vgaemu_bios_type;
 
 
@@ -545,6 +546,9 @@ void vgaemu_register_dirty_hook(int (*hook)(int, unsigned char *));
  */
 
 void vbe_pre_init(void);
+/* the video save pointer table, built in vgabios.c, put into the ROM here */
+unsigned vgabios_save_area_size(void);
+void vgabios_save_area_build(void *buf, unsigned seg, unsigned off);
 void vbe_init(vgaemu_display_type *);
 void do_vesa_int(void);
 

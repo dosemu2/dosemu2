@@ -137,7 +137,10 @@ static Bit8u line_to_vpti[MODE_MAX+1]={
 static Bit8u dac_regs[DAC_MAX_MODEL+1]=
 {0x3f,0x3f,0x3f,0xff};
 
-/* standard BIOS Video Parameter Table */
+#endif
+
+/* standard BIOS Video Parameter Table, the one the video save pointer
+ * table at 40h:a8h leads to */
 typedef struct {
     Bit8u  twidth;
     Bit8u  theightm1;
@@ -151,7 +154,9 @@ typedef struct {
     Bit8u  grdc_regs[9];
 } VideoParamTableEntry;
 
-static VideoParamTableEntry video_param_table[30] = {
+/* a flat byte array, so that the entries below can be written out the
+ * way a BIOS listing has them; the struct above says what the bytes are */
+static Bit8u video_param_table[30][sizeof(VideoParamTableEntry)] = {
 {
  /* index=0x00 no mode defined */
  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -528,6 +533,8 @@ static VideoParamTableEntry video_param_table[30] = {
  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x05, 0x0f, 0xff, /* grdc_regs */
 },
 };
+
+#if 0
 
 /* Mono */
 static Bit8u palette0[63+1][3]=
