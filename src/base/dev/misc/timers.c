@@ -60,6 +60,8 @@ typedef struct {
   void *evtmr;
   int tmr_skip;
   int latched_cnt;
+  Bit8u status_latch;
+  int status_valid;
 } pit_latch_struct;
 
 static pit_latch_struct pit[PIT_TIMERS];   /* values of 3 PIT counters */
@@ -332,6 +334,13 @@ Bit8u pit_inp(ioport_t port, void *arg)
   else if (port == 1)
     i_printf("PIT:  someone is reading the CMOS refresh time?!?");
 
+  /* a latched status word is handed over first and leaves the latched
+     count alone: the reads that follow still see the count */
+  if (pit[port].status_valid) {
+    pit[port].status_valid = 0;
+    return pit[port].status_latch;
+  }
+
   if (pit[port].read_latch == -1)
     pit_latch(port);
 
@@ -479,20 +488,34 @@ void pit_control_outp(ioport_t port, Bit8u val, void *arg)
       i_printf("PORT: writing outp(0x43, 0x%x)\n", val);
 #endif
       break;
-    case 3:
-      /* I think this code is more or less correct */
-      if ((val & 0x20) == 0) {        /* latch counts? */
-	if (val & 0x02) pit_latch(0);
-	if (val & 0x04) pit_latch(1);
-	if (val & 0x08) pit_latch(2);
-      }
-      else if ((val & 0x10) == 0) {   /* latch status words? */
-	int or_mask = ((val & 0x20) == 0 ? 0xc0 : 0x80);
-	if (val & 0x02) { pit[0].mode |= or_mask; pit_latch(0); }
-	if (val & 0x04) { pit[1].mode |= or_mask; pit_latch(1); }
-	if (val & 0x08) { pit[2].mode |= or_mask; pit_latch(2); }
+    case 3: {
+      /* Read-back.  D5 and D4 are two independent requests, not a choice:
+       * D5=0 latches the count, D4=0 latches the status, and a command with
+       * both clear latches both.  The counter then hands over the status
+       * byte first and the count after it.  Reading this as either/or costs
+       * a program that asks for both its first byte: it gets the low half
+       * of the count where it expects the status, and everything it reads
+       * after that is off by one.  Strike Commander calibrates its timing
+       * with 0xc2, which is exactly both, and reads status, LSB, MSB into
+       * ch, bl, bh.
+       */
+      int i;
+
+      for (i = 0; i < PIT_TIMERS; i++) {
+	if (!(val & (2 << i)))
+	  continue;
+	if ((val & 0x10) == 0) {	/* status */
+	  pit[i].mode |= 0x80;		/* _pit_latch() builds it for us */
+	  pit_latch(i);
+	  pit[i].status_latch = pit[i].read_latch;
+	  pit[i].status_valid = 1;
+	  pit[i].read_latch = NEVER;
+	}
+	if ((val & 0x20) == 0)		/* count */
+	  pit_latch(i);
       }
       break;
+    }
   }
 }
 
