@@ -271,11 +271,43 @@ _int21_stub:
     movzwl %si, %esi
     movzwl %di, %edi
     movzwl %bp, %ebp
+    cmpb $0x62, %ah			/* Get PSP: comes back a paragraph */
+    je 2f
     ljmpl *%cs:_int21_prev
 1:
     popfl
     popl %eax
     ljmpl *%cs:_int21_prev
+
+    /*
+     * A DPMI host passes DOS calls to real mode as they are, so the few
+     * that answer with a segment answer with a paragraph, and the program
+     * loads it into a segment register. dosemu2 turns those into
+     * selectors in its msdos plugin; nothing does it on a plain host, so
+     * do it here. The call itself goes back through this stub, which
+     * lets it through because the caller is now our own 32bit code.
+     *
+     * Which host we are on is asked of the answer rather than of the
+     * host: lar tells a live selector from a paragraph, and a paragraph
+     * that would pass for one has to be a descriptor we could load, RPL
+     * and all.
+     *
+     * The flags the caller sees are its own: Get PSP has no status to
+     * report.
+     */
+2:
+    int $0x21
+    pushl %eax
+    movzwl %bx, %ebx
+    lar %ebx, %eax
+    jz 3f				/* a selector already */
+    movl $0x0002, %eax			/* DPMI: segment to descriptor */
+    int $0x31
+    jc 3f
+    movzwl %ax, %ebx
+3:
+    popl %eax
+    iretl
 
 /*
  * Where the program's handler irets to, in a 16bit segment of its own so

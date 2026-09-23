@@ -117,6 +117,12 @@ uint16_t ldt_sel_reg;
 static __dpmi_meminfo fake_gdt;
 static uint16_t fake_gdt_sel;
 
+/* what sgdt said, whole */
+static uint32_t gdt_base(void)
+{
+    return gate_gdt[1] | ((uint32_t)gate_gdt[2] << 16);
+}
+
 static int fake_gdt_init(void)
 {
     uint32_t off;
@@ -166,6 +172,11 @@ static int fake_gdt_init(void)
  * table it is really indexing is the LDT. Point the mapping there and its
  * writes land in the right place: dosemu2 catches them on the alias page
  * and applies them itself, in msdos_ldt.c.
+ *
+ * Only where sgdt really did read back zero, though. On a host that
+ * answers it honestly the wrapper has already found the tables by
+ * itself, and a request for low memory is a request for low memory: it
+ * maps the first 64K to reach the BIOS data and the vectors.
  */
 static uint16_t dos_map_lin_seg(struct call *c)
 {
@@ -173,7 +184,7 @@ static uint16_t dos_map_lin_seg(struct call *c)
     uint32_t size = call_argd(c, 4);
     uint32_t lin = call_argd(c, 8);
 
-    if (lin < 0x1000) {
+    if (lin < 0x1000 && !gdt_base()) {
 	if (fake_gdt_init() != 0)
 	    return ERROR_NOT_ENOUGH_MEMORY;
 	return map_seg(fake_gdt.address + lin, size, selp);
