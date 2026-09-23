@@ -68,6 +68,7 @@
 #include "vgaemu.h"
 #include "video.h"
 #include "msdoshlp.h"
+#include "emudpmi.h"
 #include "codegen.h"
 #include "codegen-sim.h"
 
@@ -3369,16 +3370,27 @@ stack_return_from_vm86:
 /*101*/	case 0x101: { /* GRP7 - Extended Opcode 21 */
 			unsigned char opm = arg;
 			switch (opm) {
-			case 0: /* SGDT */
+			case 0: { /* SGDT */
 			    /* Store Global Descriptor Table Register */
-			    sim_write_word(mem_ref, TheCPU.GDTR.Limit);
-			    sim_write_dword(mem_ref+2, TheCPU.GDTR.Base);
-			    break;
-			case 1: /* SIDT */
+			    dosaddr_t base = TheCPU.GDTR.Base;
+			    unsigned limit = TheCPU.GDTR.Limit;
+
+			    /* a table with the LDT's descriptor in it, if
+			     * the dpmi side has one, is what a client
+			     * looking for its descriptors wants to find */
+			    dpmi_get_dtr_alias(0, &base, &limit);
+			    sim_write_word(mem_ref, limit);
+			    sim_write_dword(mem_ref+2, base);
+			    } break;
+			case 1: { /* SIDT */
 			    /* Store Interrupt Descriptor Table Register */
-			    sim_write_word(mem_ref, TheCPU.IDTR.Limit);
-			    sim_write_dword(mem_ref+2, TheCPU.IDTR.Base);
-			    break;
+			    dosaddr_t base = TheCPU.IDTR.Base;
+			    unsigned limit = TheCPU.IDTR.Limit;
+
+			    dpmi_get_dtr_alias(1, &base, &limit);
+			    sim_write_word(mem_ref, limit);
+			    sim_write_dword(mem_ref+2, base);
+			    } break;
 			}
 			break;
 			}

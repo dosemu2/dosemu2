@@ -299,6 +299,8 @@ int dpmi_install_rsp(struct RSPcall_s *callback);
 #define DPMI_EXT_GET_POOL 1
 unsigned short dpmi_get_private_pool(unsigned short *r_paras);
 dosaddr_t DPMIMapHWRam(unsigned addr, unsigned size);
+void dpmi_set_dtr_alias(int idt, dosaddr_t base, unsigned limit);
+int dpmi_get_dtr_alias(int idt, dosaddr_t *base, unsigned *limit);
 int DPMIUnmapHWRam(dosaddr_t vbase);
 
 #endif // __ASSEMBLER__
