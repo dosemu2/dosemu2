@@ -43,6 +43,7 @@ int dpmi_alloc_pool(void);
 void dpmi_free_pool(void);
 dpmi_pm_block *DPMI_malloc(dpmi_pm_block_root *root, unsigned int size);
 dpmi_pm_block *DPMI_mallocLinear(dpmi_pm_block_root *root, unsigned int base, unsigned int size, int committed);
+dpmi_pm_block *DPMI_mallocLow(dpmi_pm_block_root *root, unsigned int size);
 int DPMI_free(dpmi_pm_block_root *root, unsigned int handle);
 dpmi_pm_block *DPMI_realloc(dpmi_pm_block_root *root, unsigned int handle, unsigned int newsize);
 dpmi_pm_block *DPMI_reallocLinear(dpmi_pm_block_root *root, unsigned handle, unsigned newsize, int committed);

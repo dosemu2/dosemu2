@@ -50,6 +50,8 @@ dosaddr_t smalloc_aligned(struct mempool *mp, size_t align, size_t size);
 dosaddr_t smalloc_topdown(struct mempool *mp, size_t size);
 dosaddr_t smalloc_aligned_topdown(struct mempool *mp, dosaddr_t top,
     size_t align, size_t size);
+dosaddr_t smalloc_aligned_bottomup(struct mempool *mp, dosaddr_t bottom,
+    size_t align, size_t size);
 dosaddr_t smrealloc(struct mempool *mp, dosaddr_t ptr, size_t size);
 dosaddr_t smrealloc_aligned(struct mempool *mp, dosaddr_t ptr, int align, size_t size);
 int sminit(struct mempool *mp, dosaddr_t start, size_t size);

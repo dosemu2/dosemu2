@@ -432,13 +432,29 @@ dpmi_pm_block * DPMI_malloc(dpmi_pm_block_root *root, unsigned int size)
     return block;
 }
 
+static void lin_block_init(dpmi_pm_block *block, dosaddr_t base,
+    unsigned int size, int committed)
+{
+    int i;
+
+    block->base = base;
+    mprotect_mapping(MAPPING_DPMI, block->base, size, committed ?
+		DPMI_PROT_RWX : PROT_NONE);
+    block->linear = 1;
+    for (i = 0; i < size / HOST_PAGE_SIZE; i++)
+	block->attrs[i] = committed ? 9 : 8;
+    if (committed)
+	mem_allocd += size;
+    block->handle = pm_block_handle_used++;
+    block->size = size;
+}
+
 /* DPMImallocLinear allocate a memory block at a fixed address. */
 dpmi_pm_block * DPMI_mallocLinear(dpmi_pm_block_root *root,
   dosaddr_t base, unsigned int size, int committed)
 {
     dpmi_pm_block *block;
     dosaddr_t realbase;
-    int i;
 
    /* aligned size to PAGE size */
     size = HOST_PAGE_ALIGN(size);
@@ -473,16 +489,39 @@ dpmi_pm_block * DPMI_mallocLinear(dpmi_pm_block_root *root,
 	free_pm_block(root, block);
 	return NULL;
     }
-    block->base = realbase;
-    mprotect_mapping(MAPPING_DPMI, block->base, size, committed ?
-		DPMI_PROT_RWX : PROT_NONE);
-    block->linear = 1;
-    for (i = 0; i < size / HOST_PAGE_SIZE; i++)
-	block->attrs[i] = committed ? 9 : 8;
-    if (committed)
-	mem_allocd += size;
-    block->handle = pm_block_handle_used++;
-    block->size = size;
+    lin_block_init(block, realbase, size, committed);
+    return block;
+}
+
+/*
+ * DPMI_mallocLow allocates a committed block at the lowest address of
+ * the linear pool. The 16bit extenders were written for machines where
+ * a linear address was a physical one, and some programs on them keep
+ * only the memory that lies low: BioForge throws away every block that
+ * ends above 30Mb. Below phys_low lie ext mem and XMS, which KVM maps
+ * elsewhere, so the pool starts there.
+ */
+dpmi_pm_block * DPMI_mallocLow(dpmi_pm_block_root *root, unsigned int size)
+{
+    dpmi_pm_block *block;
+    dosaddr_t realbase;
+    dosaddr_t bottom = roundUpToNextPowerOfTwo(LOWMEM_SIZE + EXTMEM_SIZE +
+	    XMS_SIZE);
+    dosaddr_t top = dpmi_lin_rsv_base + dpmi_lin_mem_rsv();
+
+    size = HOST_PAGE_ALIGN(size);
+    if (!size || size > dpmi_free_memory())
+	return NULL;
+    realbase = smalloc_aligned_bottomup(&main_pool, bottom, HOST_PAGE_SIZE,
+	    size);
+    if (realbase == (dosaddr_t)-1)
+	return NULL;
+    if ((uint64_t)realbase + size > top) {
+	smfree(&main_pool, realbase);
+	return NULL;
+    }
+    block = alloc_pm_block(root, size);
+    lin_block_init(block, realbase, size, 1);
     return block;
 }
 

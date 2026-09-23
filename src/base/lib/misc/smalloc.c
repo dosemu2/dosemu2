@@ -32,6 +32,9 @@
 #ifndef _min
 #define _min(x, y) ((x) < (y) ? (x) : (y))
 #endif
+#ifndef _max
+#define _max(x, y) ((x) > (y) ? (x) : (y))
+#endif
 #ifndef PAGE_SIZE
 #define PAGE_SIZE 4096
 #endif
@@ -383,6 +386,22 @@ static struct memnode *sm_alloc_aligned_topdown(struct mempool *mp,
   return mn;
 }
 
+static dosaddr_t smfind_free_addr_bottomup(struct mempool *mp,
+    dosaddr_t bottom, size_t align, size_t size)
+{
+  struct memnode *mn;
+  for (mn = &mp->mn; mn; mn = mn->next) {
+    uint64_t start, end = (uint64_t)mn->mem_area + mn->size;
+    if (mn->used)
+      continue;
+    start = _max(mn->mem_area, bottom);
+    start = (start + align - 1) & ~((uint64_t)align - 1);
+    if (start + size <= end)
+      return start;
+  }
+  return (dosaddr_t)-1;
+}
+
 static struct memnode *sm_alloc_topdown(struct mempool *mp, size_t size)
 {
   return sm_alloc_aligned_topdown(mp, (dosaddr_t)-1, 1, size);
@@ -429,6 +448,27 @@ dosaddr_t smalloc_aligned_topdown(struct mempool *mp, dosaddr_t top,
   if (!mn)
     return (dosaddr_t)-1;
   assert((mn->mem_area & (align - 1)) == 0);
+  return mn->mem_area;
+}
+
+/* the lowest aligned area at or above bottom */
+dosaddr_t smalloc_aligned_bottomup(struct mempool *mp, dosaddr_t bottom,
+    size_t align, size_t size)
+{
+  struct memnode *mn;
+  dosaddr_t ptr;
+  assert(__builtin_popcount(align) == 1);
+  ptr = smfind_free_addr_bottomup(mp, bottom, align, size);
+  if (ptr == (dosaddr_t)-1) {
+    int pr = get_oom_pr(mp, size);
+    if (pr < 0)
+      pr = 0;
+    do_smerror(pr, mp, "SMALLOC: no space %zu above %#x\n", size, bottom);
+    return (dosaddr_t)-1;
+  }
+  mn = sm_alloc_fixed(mp, ptr, size);
+  if (!mn)
+    return (dosaddr_t)-1;
   return mn->mem_area;
 }
 

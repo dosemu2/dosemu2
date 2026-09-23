@@ -1850,6 +1850,15 @@ dpmi_pm_block DPMImalloc(unsigned size)
 	return *ptr;
     return dummy;
 }
+static dpmi_pm_block DPMImallocLow(unsigned size)
+{
+    dpmi_pm_block dummy, *ptr;
+    memset(&dummy, 0, sizeof(dummy));
+    ptr = DPMI_mallocLow(&DPMI_CLIENT.pm_block_root, size);
+    if (ptr)
+	return *ptr;
+    return dummy;
+}
 dpmi_pm_block DPMImallocLinear(dosaddr_t base, unsigned size, int committed)
 {
     dpmi_pm_block dummy, *ptr;
@@ -3115,7 +3124,14 @@ err:
       dpmi_pm_block block;
       unsigned int mem_required = (_LWORD(ebx) << 16) | _LWORD(ecx);
 
-      block = DPMImalloc(mem_required);
+      /* A 16bit pharlap client, one of the 286 extenders, gets the
+       * lowest memory there is, as it would on the machines it was
+       * written for. */
+      block.size = 0;
+      if (config.pharlap && !DPMI_CLIENT.is_32)
+	block = DPMImallocLow(mem_required);
+      if (!block.size)
+	block = DPMImalloc(mem_required);
       if (!block.size) {
 	D_printf("DPMI: client allocate memory failed.\n");
 	_eflags |= CF;
