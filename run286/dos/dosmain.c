@@ -118,6 +118,10 @@ struct dos_ldr {
 static struct dos_ldr ldr;
 
 static uint8_t *slurp(const char *path, size_t *size);
+/* Low address space held back while the image is allocated, so that the
+ * program's own arena can have it instead. */
+#define LOW_RESERVE	(12 * 1024 * 1024)
+
 static int load_segments(struct module *m);
 static int commit_segments(struct module *m);
 static int dos_resolve_ord(void *ctx, const char *mod, uint16_t ord,
@@ -828,20 +832,41 @@ static int read_cfg_trace(char *logp, size_t logsz)
     return n > 1;
 }
 
+/* Low address space held back while the image is allocated, so that the
+ * program's own arena can have it instead. */
+#define LOW_RESERVE	(12 * 1024 * 1024)
+
 static int load_segments(struct module *m)
 {
     const struct ne_image *ne = &m->ne;
     const uint8_t *file = m->file;
+    __dpmi_meminfo hole = {};
     unsigned long total = 0, off;
-    int i;
+    int i, ret;
 
     /* A 16bit selector cannot reach past 64K, so give every segment that
      * much room: DosReallocSeg() then only ever moves a limit, and nothing
      * the program holds a pointer into has to be copied anywhere. */
     total = (unsigned long)ne->cseg * SEG_STRIDE;
 
+    /*
+     * Where the image lands decides how much room is left below it, and
+     * the programs care: BioForge builds its arena out of blocks that end
+     * below linear 30Mb and throws away everything else. A host hands out
+     * address space in the order it is asked for, so take the low ground
+     * first, put the image above it, and give it straight back; the arena
+     * then gets the space the image would have stood on. A host with
+     * nothing to spare down there just says no, and we load where we
+     * would have loaded anyway.
+     */
+    hole.size = LOW_RESERVE;
+    if (__dpmi_allocate_memory(&hole) == -1)
+	hole.size = 0;
     m->mem.size = total;
-    if (__dpmi_allocate_memory(&m->mem) == -1) {
+    ret = __dpmi_allocate_memory(&m->mem);
+    if (hole.size)
+	__dpmi_free_memory(hole.handle);
+    if (ret == -1) {
 	trc("run286: cannot allocate %lu bytes of DPMI memory\n", total);
 	return -1;
     }
