@@ -5287,8 +5287,17 @@ static void do_dpmi_hlt(cpuctx_t *scp, uint8_t *lina, void *sp)
 	  REG(ebp) = _ebp;
 	  REG(eflags) = flags_to_e_rm(_eflags);
 	  SREG(fs) = SREG(gs) = 0;
-	  /* zero out also the "undefined" registers? */
-	  REG(eax) = REG(ebx) = REG(ecx) = REG(edx) = REG(esi) = REG(edi) = 0;
+	  /* The spec calls these undefined after the switch, but a mode
+	   * switch on the real cpu does not touch them, and a 16bit client
+	   * relies on that: it saves and restores the 16bit halves around
+	   * the excursion and expects the upper halves of the 32bit
+	   * registers to come back untouched. Pass them through. */
+	  REG(eax) = _eax;
+	  REG(ebx) = _ebx;
+	  REG(ecx) = _ecx;
+	  REG(edx) = _edx;
+	  REG(esi) = _esi;
+	  REG(edi) = _edi;
 	  dpmi_set_pm(0);
 #if SHOWREGS
 	  if (debug_level('M') > 5)
@@ -6518,13 +6527,16 @@ done:
     _gs	 = 0;
     _ebp = REG(ebp);
     _eflags = eflags_to_pm(REG(eflags));
-    /* zero out also the "undefined" registers? */
-    _eax = 0;
-    _ebx = 0;
-    _ecx = 0;
-    _edx = 0;
-    _esi = 0;
-    _edi = 0;
+    /* See the protected to real mode switch above: the registers the
+     * spec leaves undefined survive a mode switch on the real cpu, and
+     * real mode code only ever writes their lower halves, so hand them
+     * back as they are. */
+    _eax = REG(eax);
+    _ebx = REG(ebx);
+    _ecx = REG(ecx);
+    _edx = REG(edx);
+    _esi = REG(esi);
+    _edi = REG(edi);
 
   } else if (lina == DPMI_ADD + HLT_OFF(DPMI_save_restore_rm)) {
     unsigned int buf = SEGOFF2LINEAR(SREG(es), LWORD(edi));
