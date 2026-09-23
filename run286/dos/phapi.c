@@ -246,6 +246,19 @@ static int lin_alloc(__dpmi_meminfo *m, uint32_t size)
     return __dpmi_allocate_linear_memory(m, 1);
 }
 
+/*
+ * The probe below only asks whether the address space is there, so it
+ * takes the block uncommitted: a host that really hands out the pages
+ * walks its page tables for every step of the search, and the search
+ * runs again after every allocation.
+ */
+static int lin_try(__dpmi_meminfo *m, uint32_t size)
+{
+    m->size = size;
+    m->address = 0;
+    return __dpmi_allocate_linear_memory(m, 0);
+}
+
 static uint32_t lin_probe(void)
 {
     __dpmi_meminfo m = {};
@@ -254,7 +267,7 @@ static uint32_t lin_probe(void)
     while (hi - lo > 0x1000) {
 	uint32_t mid = lo + (hi - lo) / 2;
 
-	if (lin_alloc(&m, mid & ~0xfff) == 0) {
+	if (lin_try(&m, mid & ~0xfff) == 0) {
 	    __dpmi_free_memory(m.handle);
 	    lo = mid;
 	} else {
