@@ -421,6 +421,9 @@ static void report_trap(struct call *c, int exception)
  * The ones a program hooks itself are left alone, and so are the two the
  * loader needs for itself.
  */
+static __dpmi_paddr exc_prev[EXC_SLOTS];
+static uint32_t exc_hooked;
+
 static void hook_exceptions(void)
 {
     unsigned i;
@@ -432,10 +435,29 @@ static void hook_exceptions(void)
 	    continue;
 	if (__dpmi_get_processor_exception_handler_vector(i, &pm) == -1)
 	    continue;
+	exc_prev[i] = pm;
 	pm.selector = gate_cs32;
 	pm.offset32 = exc_stubs + i * EXC_SLOT_SIZE;
-	__dpmi_set_processor_exception_handler_vector(i, &pm);
+	if (__dpmi_set_processor_exception_handler_vector(i, &pm) == 0)
+	    exc_hooked |= 1u << i;
     }
+}
+
+/*
+ * Give the vectors back before we go. Our stubs live in memory the host
+ * frees with us, and an exception taken on the way out lands on a
+ * selector that no longer exists: dosemu2 says "CS selector invalid" and
+ * takes the session down instead of letting the program exit.
+ */
+static void unhook_exceptions(void)
+{
+    unsigned i;
+
+    for (i = 0; i < EXC_SLOTS; i++) {
+	if (exc_hooked & (1u << i))
+	    __dpmi_set_processor_exception_handler_vector(i, &exc_prev[i]);
+    }
+    exc_hooked = 0;
 }
 
 /*
@@ -448,6 +470,8 @@ static void hook_exceptions(void)
  * whatever was there. The stub narrows the registers for calls made from
  * 16bit code and passes ours through untouched.
  */
+static int int21_hooked;
+
 static void hook_int21(void)
 {
     __dpmi_paddr pm;
@@ -467,8 +491,22 @@ static void hook_int21(void)
 		"program may get a stray high half of edx\n");
 	return;
     }
+    int21_hooked = 1;
     trc("run286: int 21h through our stub, chaining to %04x:%08x\n",
 	    int21_prev[2], (unsigned)(int21_prev[0] | (int21_prev[1] << 16)));
+}
+
+/* and back to whoever had it, for the same reason as the exceptions */
+static void unhook_int21(void)
+{
+    __dpmi_paddr pm;
+
+    if (!int21_hooked)
+	return;
+    pm.selector = int21_prev[2];
+    pm.offset32 = int21_prev[0] | (int21_prev[1] << 16);
+    __dpmi_set_protected_mode_interrupt_vector(0x21, &pm);
+    int21_hooked = 0;
 }
 
 /* What the LDT alias says about one entry, for a fault that names it. */
@@ -1059,6 +1097,8 @@ int main(int argc, char **argv)
     trc("run286: back from the program after %u API calls, rc %d\n",
 	    l->ncall, rc);
     trace_interrupts("taken");
+    unhook_exceptions();
+    unhook_int21();
     ne_free(&m->ne);
     return 0;
 }

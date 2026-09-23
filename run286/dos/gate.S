@@ -170,6 +170,10 @@ _gate_entry:
  * above any 16bit segment. A 286 extender hands its client a 16bit
  * stack, so do the same.
  */
+/* the C half indexes these by slot, so the first one has to sit on a
+ * slot boundary too: .balign inside the loop aligns to the section,
+ * not to the label */
+.balign INT_SLOT_SIZE
 .global _int_stubs
 _int_stubs:
 .set int_n, 0
@@ -300,6 +304,7 @@ _int_ret16:
  * return address, the error code and the faulting frame on the stack it
  * chose; we do not return, we report and unwind ne_enter().
  */
+.balign EXC_SLOT_SIZE
 .global _exc_stubs
 _exc_stubs:
 .set exc_n, 0

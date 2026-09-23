@@ -1,6 +1,7 @@
 # The DOS-side loader. Run `make` here with dj64dev installed.
 # DJTGT=dj32 builds it as a plain 32bit DOS program instead, which runs
 # on any DPMI host, CWSDPMI and Windows included, not just on dosemu2.
+# The objects of the two targets do not mix: `make clean` in between.
 DJTGT ?= dj64
 VPATH = ..
 SOURCES = dosmain.c phapi.c doscalls.c neexe.c neload.c thunks_p.c thunks_a.c thunks_c.c
