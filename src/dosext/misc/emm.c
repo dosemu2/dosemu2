@@ -1920,7 +1920,12 @@ ems_fn(struct vm86_regs *state)
       Kdebug1(("bios_emm: Get Page Frame Segment\n"));
 
       SETHI_BYTE(state->eax, EMM_NO_ERR);
-      SETLO_WORD(state->ebx, EMM_SEGMENT);
+      /* With no pages in the upper memory area the only windows we have are
+         the conventional ones, so that is where the frame is.  Answering
+         with the configured upper frame there names 64K a program cannot
+         map anything into. */
+      SETLO_WORD(state->ebx, !config.ems_uma_pages && config.ems_cnv_pages ?
+                 cnv_start_seg : EMM_SEGMENT);
       break;
     }
   case GET_PAGE_COUNTS:{	/* 0x42 */
