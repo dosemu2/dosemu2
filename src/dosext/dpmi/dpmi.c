@@ -137,6 +137,8 @@ struct DPMIclient_struct {
   unsigned short RSP_cs[DPMI_MAX_CLIENTS], RSP_ds[DPMI_MAX_CLIENTS];
   int RSP_state, RSP_installed;
   int win3x_mode;
+  /* fs and gs a 16bit client had when it last switched to real mode */
+  unsigned short raw_fs, raw_gs;
   Bit8u imr[2];
   Bit8u orig_imr;
   #define DF_PHARLAP 1
@@ -5303,6 +5305,14 @@ static void do_dpmi_hlt(cpuctx_t *scp, uint8_t *lina, void *sp)
 	  REG(ebp) = _ebp;
 	  REG(eflags) = flags_to_e_rm(_eflags);
 	  SREG(fs) = SREG(gs) = 0;
+	  /* A 16bit client knows nothing of fs and gs and cannot save them
+	   * around the switch, but the 386 code it runs can: the cpu keeps
+	   * them through a mode switch that does not load them. See the
+	   * switch back. */
+	  if (!DPMI_CLIENT.is_32) {
+	    DPMI_CLIENT.raw_fs = _fs;
+	    DPMI_CLIENT.raw_gs = _gs;
+	  }
 	  /* The spec calls these undefined after the switch, but a mode
 	   * switch on the real cpu does not touch them, and a 16bit client
 	   * relies on that: it saves and restores the 16bit halves around
@@ -6541,6 +6551,19 @@ done:
     _es	 = LWORD(ecx);
     _fs	 = 0;
     _gs	 = 0;
+    /* The spec zeroes fs and gs here, but a 16bit client, a 286 extender,
+     * uses this switch to reflect the interrupts it takes to real mode
+     * and then irets to the interrupted code with only the registers a
+     * 286 has. Its 386 program loses fs and gs in the middle of whatever
+     * it was doing: BioForge writes its frame through fs, and a timer
+     * tick in that loop leaves it writing through a null selector. Give
+     * back what the client had when it left. */
+    if (!DPMI_CLIENT.is_32) {
+      if (ValidAndUsedSelector(DPMI_CLIENT.raw_fs))
+	_fs = DPMI_CLIENT.raw_fs;
+      if (ValidAndUsedSelector(DPMI_CLIENT.raw_gs))
+	_gs = DPMI_CLIENT.raw_gs;
+    }
     _ebp = REG(ebp);
     _eflags = eflags_to_pm(REG(eflags));
     /* See the protected to real mode switch above: the registers the
