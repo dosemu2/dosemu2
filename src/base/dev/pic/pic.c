@@ -268,6 +268,44 @@ unsigned pic_get_isr(void)
     return ret;
 }
 
+/* is this line requested and unmasked, whatever its priority */
+int pic_irq_requested(int irq)
+{
+    int ret;
+    PICCommonState *p = pic;
+
+    if (irq >= 8) {
+        irq -= 8;
+        p++;
+    }
+    pthread_mutex_lock(&pic_mtx);
+    ret = !!((1 << irq) & (p->irr & ~p->imr));
+    pthread_mutex_unlock(&pic_mtx);
+    return ret;
+}
+
+/* Take the keyboard line out of turn.  The timer outranks it and is
+   pending almost all the time while a VCPI client runs, so IRQ1 never
+   wins a fair contest: measured one delivery against 64 events sent.
+   Rotating the priority is what the chip itself offers for this. */
+int pic_get_inum_kbd(void)
+{
+    int inum;
+    uint8_t saved;
+
+    pthread_mutex_lock(&pic_mtx);
+    if (!slave_pic)
+        slave_pic = &pic[1];
+    saved = pic[0].priority_add;
+    pic[0].priority_add = 1;		/* IRQ1 first */
+    inum = pic_read_irq(&pic[0]);
+    if (pic[0].priority_add == 1)	/* untouched by the ack */
+        pic[0].priority_add = saved;
+    pthread_mutex_unlock(&pic_mtx);
+    r_printf("PIC: running keyboard interrupt %x out of turn\n", inum);
+    return inum;
+}
+
 int pic_pending(void)
 {
     int ret;

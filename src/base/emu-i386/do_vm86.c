@@ -682,6 +682,18 @@ static void pic_run(void)
         clear_VIP();
         return;
     }
+
+    /* A keystroke belongs to whoever owns the screen, and while a VCPI
+       client runs that is the client: our int 9 in v86 would read the
+       scancode out of the 8042 and leave it in the BIOS buffer, which the
+       client never reads.  Measured on Strike Commander: of 64 keyboard
+       events exactly one reached the client.
+
+       Only the keyboard is held back.  Holding every line starves the DOS
+       that runs in v86 under the client: that run made a third fewer mode
+       switches and then stopped advancing at all. */
+    if (kvm_vcpi_active() && pic_irq_requested(1))
+        return;
 #ifdef USE_MHPDBG
     mhp_debug(DBG_POLL, 0, 0);
     if (mhpdbg_is_stopped())
