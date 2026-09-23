@@ -12,20 +12,6 @@
 #include <libc/asmdefs.h>
 #include "asm.h"
 
-/*
- * dj64 keeps the C half on the host and reaches us with a far call, so
- * the frame carries a selector that a dj32 build, which is one flat 32bit
- * program calling near, does not. That moves both the arguments and the
- * way back by a dword.
- */
-#ifdef DJ32
-#define ARG 8
-#define CRET ret
-#else
-#define ARG 12
-#define CRET lret
-#endif
-
 .text
 
 /*
@@ -47,17 +33,17 @@ _ne_enter:
     movw %ss, %ax
     movl %eax, _gate_ret_ss
 
-    movl ARG+0(%ebp), %eax		/* cs */
+    movl ARG1, %eax			/* cs */
     movw %ax, _gate_jmp + 2
-    movl ARG+4(%ebp), %eax		/* ip */
+    movl ARG2, %eax			/* ip */
     movw %ax, _gate_jmp
-    movl ARG+20(%ebp), %eax		/* es */
-    movl ARG+8(%ebp), %edx		/* ss */
-    movl ARG+12(%ebp), %ebx		/* sp */
-    movl ARG+16(%ebp), %esi		/* ds */
+    movl ARG6, %eax			/* es */
+    movl ARG3, %edx			/* ss */
+    movl ARG4, %ebx			/* sp */
+    movl ARG5, %esi			/* ds */
     movl %eax, %es
-    movl ARG+24(%ebp), %eax		/* ax: the environment selector */
-    movl ARG+28(%ebp), %ecx		/* cx: size of the data segment */
+    movl ARG7, %eax			/* ax: the environment selector */
+    movl ARG8, %ecx			/* cx: size of the data segment */
     /* from here on our own DS is gone; everything is read through %cs: */
     movl %esi, %ds
     movl %edx, %ss
@@ -99,7 +85,7 @@ _desc_probe:
     popl %edi
     popl %esi
     popl %ebx
-    CRET
+    RET_I
 
 /*
  * The int 0x66 handler. Entered from the program's 16bit stub with a 32bit
@@ -160,7 +146,7 @@ _gate_entry:
     popl %esi
     popl %ebx
     popl %ebp
-    CRET
+    RET_I
 
 /*
  * One stub per hooked interrupt. The host enters these in our bitness,
@@ -370,7 +356,7 @@ _exc_common:
     popl %esi
     popl %ebx
     popl %ebp
-    CRET
+    RET_I
 
 .data
 
