@@ -112,6 +112,40 @@ struct rep_stack {
 		addr += df; source += df; \
 	} while (--ecx && (eflags & X86_EFLAGS_ZF)==repcond)
 
+/*
+ * A string instruction is the one write the jit does not route through
+ * wri_8/16/32, so nothing asks msdos_ldt_access() about it: the bytes go
+ * straight into the alias page, the host LDT keeps whatever the entry held
+ * before, and a far call through that selector faults. Ultima VIII puts a
+ * call gate into its LDT this way. The vga windows in this same function
+ * are spelled out for the same reason, so spell the LDT out too and hand
+ * every unit of the copy to the monitor.
+ */
+static void ldt_movs(dosaddr_t dst, dosaddr_t src, unsigned int cnt, int size)
+{
+	int df = ((EFLAGS & EFLAGS_DF) ? -size : size);
+	unsigned int i;
+
+	for (i = 0; i < cnt; i++) {
+		uint32_t v = (size == 1 ? read_8(src) :
+			      size == 2 ? read_16(src) : read_32(src));
+		emu_ldt_write(dst, v, size);
+		dst += df;
+		src += df;
+	}
+}
+
+static void ldt_stos(dosaddr_t dst, uint32_t val, unsigned int cnt, int size)
+{
+	int df = ((EFLAGS & EFLAGS_DF) ? -size : size);
+	unsigned int i;
+
+	for (i = 0; i < cnt; i++) {
+		emu_ldt_write(dst, val, size);
+		dst += df;
+	}
+}
+
 // the rep stub gets passed an argument on the stack:
 // the original op | 0x10 for operand override, | 0x40 for REPNE
 void rep_movs_stos(struct rep_stack *stack)
@@ -150,6 +184,10 @@ void rep_movs_stos(struct rep_stack *stack)
 			e_VgaMovs(addr, source, ecx, df, v);
 			ecx = 0;
 		}
+		else if (__builtin_expect(msdos_ldt_access(addr), 0)) {
+			ldt_movs(addr, source, ecx, size);
+			ecx = 0;
+		}
 		else if (ecx == len) {
 			if (EFLAGS & EFLAGS_DF) repmovs(std,b,cld);
 			else repmovs(,b,);
@@ -168,7 +206,11 @@ void rep_movs_stos(struct rep_stack *stack)
 	}
 	else if ((op & 0xfe) == 0xaa) { /* stos */
 		unsigned int eax = stack->eax;
-		if (ecx == len) {
+		if (__builtin_expect(msdos_ldt_access(addr), 0)) {
+			ldt_stos(addr, eax, ecx, size);
+			ecx = 0;
+		}
+		else if (ecx == len) {
 			if (vga_write_access(addr)) {
 				if (EFLAGS & EFLAGS_DF)
 					vga_memset(addr - len + 1, eax, ecx);
