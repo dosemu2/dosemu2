@@ -53,6 +53,14 @@ static unsigned short d16, d32;
  * allocates all that are available via direct ldt writes, and then
  * the subsequent DPMI allocations fail. */
 #define XTRA_LDT_LIM (DPMI_page_size * 4)
+/* 286|DOS-Extender and the programs on it do the same as krnl386.exe and
+ * treat every free entry below the limit as theirs, and BioForge gives
+ * each object it allocates a selector of its own, a couple of thousand
+ * more than the limit above leaves while it loads a room. Under pharlap
+ * show them the table but for the last pages, which stay for our own
+ * DPMI allocations: with the whole table the two sides hand out the
+ * same entries. */
+#define PHARLAP_LDT_RSV (DPMI_page_size * 3)
 
 /* A fake GDT, built only when the pharlap option is on. The 286|DOS-Extender
  * does not ask DPMI where the descriptor tables are, it does sldt and then
@@ -168,6 +176,7 @@ unsigned short msdos_ldt_init(int page_size)
 {
     char tmpnm[] = "ldt_alias_%PXXXXXX";
     unsigned lim_p_1;  // limit+1
+    unsigned lim;
     struct pmaddr_s pma;
     DPMI_INTDESC desc;
     struct SHM_desc shm;
@@ -216,7 +225,11 @@ unsigned short msdos_ldt_init(int page_size)
     alias_sel = AllocateDescriptors(1);
     assert(alias_sel);
     lim_p_1 = ((alias_sel >> 3) + 1) * LDT_ENTRY_SIZE;
-    SetSegmentLimit(alias_sel, PAGE_ALIGN(lim_p_1) + XTRA_LDT_LIM - 1);
+    lim = PAGE_ALIGN(lim_p_1) + XTRA_LDT_LIM - 1;
+    if (config.pharlap &&
+	    lim < LDT_ENTRIES * LDT_ENTRY_SIZE - PHARLAP_LDT_RSV - 1)
+	lim = LDT_ENTRIES * LDT_ENTRY_SIZE - PHARLAP_LDT_RSV - 1;
+    SetSegmentLimit(alias_sel, lim);
     SetSegmentBaseAddress(alias_sel, shm.addr);
     /* pre-fill back-buffer */
     for (i = 0x10; i <= (alias_sel >> 3); i++)
