@@ -26,6 +26,11 @@ int kvm_vm86(struct vm86_struct *info);
 int kvm_dpmi(cpuctx_t *scp);
 int true_kvm_vm86(struct vm86_struct *info);
 int true_kvm_dpmi(cpuctx_t *scp);
+void kvm_reset_to_vm86(void);
+void kvm_vcpi_pm_switch(dosaddr_t addr);
+dosaddr_t kvm_vcpi_get_pmi(dosaddr_t pagetable, dosaddr_t gdt, unsigned *pages);
+void kvm_getset_debugregs(uint32_t debugregs[8], int set);
+int kvm_vcpi_active(void);
 void mprotect_kvm(int cap, dosaddr_t targ, size_t mapsize, int protect);
 void mmap_kvm(int cap, unsigned phys_addr, size_t mapsize, void *addr, dosaddr_t targ, int protect);
 void set_kvm_memory_regions(void);
@@ -50,6 +55,12 @@ static inline int kvm_vm86(struct vm86_struct *info) { return -1; }
 static inline int kvm_dpmi(cpuctx_t *scp) { return -1; }
 static inline int true_kvm_vm86(struct vm86_struct *info) { return -1; }
 static inline int true_kvm_dpmi(cpuctx_t *scp) { return -1; }
+static inline void kvm_reset_to_vm86(void) {}
+static inline void kvm_vcpi_pm_switch(dosaddr_t addr) {}
+static inline dosaddr_t kvm_vcpi_get_pmi(dosaddr_t pagetable, dosaddr_t gdt,
+    unsigned *pages) { return 0; }
+static inline void kvm_getset_debugregs(uint32_t debugregs[8], int set) {}
+static inline int kvm_vcpi_active(void) { return 0; }
 static inline void mprotect_kvm(int cap, dosaddr_t targ, size_t mapsize, int protect) {}
 static inline void mmap_kvm(int cap, unsigned phys_addr, size_t mapsize, void *addr, dosaddr_t targ, int protect) {}
 static inline void munmap_kvm(int cap, dosaddr_t targ, size_t mapsize) {}

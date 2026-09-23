@@ -604,6 +604,15 @@ void run_vm86(void)
 			_ESI, _EDI, _ES, _EFLAGS);
     }
 
+    /* A VCPI client owns the CPU: its registers live in the VM, not in
+       our vm86 context, so there is no fault to look at and no interrupt
+       to deliver by rewriting cs:eip.  Just let it run on; it is given
+       its interrupts through the monitor, see true_kvm_vm86(). */
+    if (kvm_vcpi_active()) {
+        _do_vm86();
+        return;
+    }
+
     cnt = 0;
     while ((retval = handle_GP_hlt())) {
 	cnt++;
@@ -673,6 +682,18 @@ static void pic_run(void)
         clear_VIP();
         return;
     }
+
+    /* A keystroke belongs to whoever owns the screen, and while a VCPI
+       client runs that is the client: our int 9 in v86 would read the
+       scancode out of the 8042 and leave it in the BIOS buffer, which the
+       client never reads.  Measured on Strike Commander: of 64 keyboard
+       events exactly one reached the client.
+
+       Only the keyboard is held back.  Holding every line starves the DOS
+       that runs in v86 under the client: that run made a third fewer mode
+       switches and then stopped advancing at all. */
+    if (kvm_vcpi_active() && pic_irq_requested(1))
+        return;
 #ifdef USE_MHPDBG
     mhp_debug(DBG_POLL, 0, 0);
     if (mhpdbg_is_stopped())
@@ -718,7 +739,10 @@ static void pic_run(void)
 void loopstep_run_vm86(void)
 {
     if (!dosemu_frozen && !signal_pending()) {
-	if (in_dpmi_pm())
+	/* a VCPI client comes first: a DPMI client of ours may well be
+	   "in PM" at the same time, but the CPU is not ours to hand to it
+	   until the VCPI client drops back to v86 */
+	if (in_dpmi_pm() && !kvm_vcpi_active())
 	    run_dpmi();
 	else
 	    run_vm86();

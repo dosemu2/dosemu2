@@ -55,11 +55,15 @@
 #include "cpu-emu.h"
 #include "memory.h"
 #include "mapping/mapping.h"
+#include "misc/pgalloc.h"
 #include "emm.h"
 #include "dos2linux.h"
 #include "utilities.h"
 #include "int.h"
 #include "hlt.h"
+#include "pic.h"
+#include "kvm.h"
+#include "coopth.h"
 
 #define Addr_8086(x,y)  MK_FP32((x),(y) & 0xffff)
 #define Addr(s,x,y)     Addr_8086(((s)->x), ((s)->y))
@@ -115,6 +119,7 @@
 #define ALTERNATE_MAP_REGISTER  0x5B	/* V4.0 */
 #define PREPARE_FOR_WARMBOOT    0x5C	/* V4.0 */
 #define OS_SET_FUNCTION	        0x5D	/* V4.0 */
+#define VCPI_INTERFACE          0xDE
 
 #define GET_ATT			0
 #define SET_ATT			1
@@ -369,6 +374,103 @@ static inline void *realloc_memory_object(void *object, size_t oldsize, size_t b
   return addr;
 }
 
+/*
+ * Physical addresses for EMS pages.  Unlike XMS, whose blocks can be locked
+ * and so always carry a physical address (see map_EMB() in xms.c), EMS pages
+ * have no lock function and dosemu2 never gave them one.  VCPI AX=DE06h needs
+ * one though: a client asks for the physical address of a page frame window
+ * and then points the DMA controller at it, which has to keep reaching that
+ * logical page even after the window is remapped.
+ *
+ * So the handle that is mapped into the window gets pinned, on demand, to a
+ * page of a small pool below 16M, where the DMA controller can reach it.  The
+ * pin holds until the handle goes away, and a second query for the same
+ * logical page returns the same address.
+ */
+static void *vcpi_pool;
+static struct vcpi_pin {
+  int handle;
+  int logical_page;
+  int page;			/* pool page, -1 when the slot is free */
+} *vcpi_pins;
+static int vcpi_pool_pages;
+
+static void vcpi_pool_init(void)
+{
+  int i;
+
+  if (!config.vcpi || !VCPI_POOL_SIZE)
+    return;
+  vcpi_pool_pages = VCPI_POOL_SIZE / EMM_PAGE_SIZE;
+  vcpi_pins = malloc(vcpi_pool_pages * sizeof(*vcpi_pins));
+  if (!vcpi_pins) {
+    vcpi_pool_pages = 0;
+    return;
+  }
+  vcpi_pool = pgainit(VCPI_POOL_SIZE >> PAGE_SHIFT);
+  for (i = 0; i < vcpi_pool_pages; i++)
+    vcpi_pins[i].page = -1;
+}
+
+static void vcpi_unpin_handle(int handle)
+{
+  int i;
+
+  if (!vcpi_pool)
+    return;
+  for (i = 0; i < vcpi_pool_pages; i++) {
+    unsigned pa;
+
+    if (vcpi_pins[i].page == -1 || vcpi_pins[i].handle != handle)
+      continue;
+    pa = vcpi_pool_base + (vcpi_pins[i].page << PAGE_SHIFT);
+    E_printf("VCPI: unpinning handle %d page 0x%x from 0x%08x\n",
+	     handle, vcpi_pins[i].logical_page, pa);
+    e_invalidate_full_pa(pa, EMM_PAGE_SIZE);
+    unalias_mapping_pa(MAPPING_DPMI, pa, EMM_PAGE_SIZE);
+    pgafree(vcpi_pool, vcpi_pins[i].page);
+    vcpi_pins[i].page = -1;
+  }
+}
+
+/* returns the physical address of a logical page, or -1 */
+static unsigned vcpi_pin_page(int handle, int logical_page)
+{
+  int i, slot = -1, page;
+  unsigned pa;
+  void *src;
+
+  if (!vcpi_pool || !handle_info[handle].object)
+    return -1;
+  for (i = 0; i < vcpi_pool_pages; i++) {
+    if (vcpi_pins[i].page == -1) {
+      if (slot == -1)
+	slot = i;
+      continue;
+    }
+    if (vcpi_pins[i].handle == handle &&
+	vcpi_pins[i].logical_page == logical_page)
+      return vcpi_pool_base + (vcpi_pins[i].page << PAGE_SHIFT);
+  }
+  if (slot == -1)
+    return -1;
+  page = pgaalloc(vcpi_pool, EMM_PAGE_SIZE >> PAGE_SHIFT, handle);
+  if (page < 0)
+    return -1;
+  pa = vcpi_pool_base + (page << PAGE_SHIFT);
+  src = (char *)handle_info[handle].object + logical_page * EMM_PAGE_SIZE;
+  if (alias_mapping_pa(MAPPING_EMS, pa, EMM_PAGE_SIZE, PROT_RWX, src) == -1) {
+    pgafree(vcpi_pool, page);
+    return -1;
+  }
+  vcpi_pins[slot].handle = handle;
+  vcpi_pins[slot].logical_page = logical_page;
+  vcpi_pins[slot].page = page;
+  E_printf("VCPI: pinned handle %d page 0x%x to 0x%08x\n",
+	   handle, logical_page, pa);
+  return pa;
+}
+
 static int emm_allocate_handle(int pages_needed)
 {
   int i, j;
@@ -425,6 +527,7 @@ static int emm_deallocate_handle(int handle)
       emm_map[i].handle = NULL_HANDLE;
     }
   }
+  vcpi_unpin_handle(handle);
   numpages = handle_info[handle].numpages;
   object = handle_info[handle].object;
   destroy_memory_object(object,numpages*EMM_PAGE_SIZE);
@@ -901,6 +1004,9 @@ reallocate_pages(struct vm86_regs * state)
   for (i = 0; i < phys_pages; i++)
      if (emm_map[i].handle == handle)
         reunmap_page(i);
+
+  /* the object may move, so the pinned physical pages have to go */
+  vcpi_unpin_handle(handle);
 
   Kdebug0(("want reallocate_pages handle %d num %d called object=%p\n",
 	   handle, newcount, handle_info[handle].object));
@@ -1903,6 +2009,175 @@ os_set_function(struct vm86_regs * state)
 
 /* end of EMS 4.0 functions */
 
+/* MyJemm investigation: trace calls we do not implement, so that the
+   JEMM/VCPI API surface a client actually uses becomes visible. */
+#define EMS_TRACE(what) \
+  E_printf("EMS: " what " ax=%04x bx=%04x cx=%04x dx=%04x si=%04x di=%04x " \
+	   "ds=%04x es=%04x from %04x:%04x\n", \
+	   (unsigned)LO_WORD(state->eax), (unsigned)LO_WORD(state->ebx), \
+	   (unsigned)LO_WORD(state->ecx), (unsigned)LO_WORD(state->edx), \
+	   (unsigned)LO_WORD(state->esi), (unsigned)LO_WORD(state->edi), \
+	   (unsigned)state->ds, (unsigned)state->es, \
+	   (unsigned)state->cs, (unsigned)LO_WORD(state->eip))
+
+/*
+ * Partial VCPI interface, as the JEMM memory manager of some Origin
+ * games uses it.  JEMM is a plain EMS manager plus a couple of
+ * extensions; of VCPI it implements only the query for the physical
+ * address of an EMS page, which a client needs to point the DMA
+ * controller at memory that is currently mapped into the page frame.
+ * The protected-mode entry (AX=DE01h/DE0Ch) hands the client the KVM
+ * monitor, so it only answers where dosemu2 runs both v86 and protected
+ * mode inside KVM; anywhere else a client that wants protected mode has
+ * to use DPMI.  See https://github.com/dosemu2/dosemu2/issues/353 and
+ * PR #1880 for the analysis.
+ *
+ * A page of a window answers with the pinned address of the handle that
+ * is mapped there (see vcpi_pin_page()), so the answer depends on what is
+ * mapped at the time of the call and stays valid afterwards.  Any other
+ * page of the first megabyte answers with its own address, which is what
+ * it is: dosemu2 maps the first megabyte identically.
+ */
+/* The client takes the CPU over for real, so the monitor has to be the one
+   running both v86 and protected mode. */
+static int vcpi_pm_available(void)
+{
+  return config.cpu_vm == CPUVM_KVM && config.cpu_vm_dpmi == CPUVM_KVM;
+}
+
+static void vcpi_interface(struct vm86_regs *state)
+{
+  switch (LO_BYTE_d(state->eax)) {
+  case 0x00:			/* VCPI presence detection */
+    /* VCPI version 1.0 */
+    SETHI_BYTE(state->eax, EMM_NO_ERR);
+    SETLO_BYTE(state->ebx, 0x00);
+    SETHI_BYTE(state->ebx, 0x01);
+    break;
+
+  case 0x01:{			/* get protected-mode interface */
+      dosaddr_t pagetable = SEGOFF2LINEAR(state->es, LO_WORD(state->edi));
+      dosaddr_t gdt = SEGOFF2LINEAR(state->ds, LO_WORD(state->esi));
+      unsigned pages;
+
+      if (!vcpi_pm_available()) {
+	EMS_TRACE("VCPI protected mode needs KVM");
+	SETHI_BYTE(state->eax, EMM_FUNC_NOSUP);
+	break;
+      }
+      /* Fills the client's page table with the entries for the pages of
+	 ours it has to map into its own first 4M, writes the three GDT
+	 descriptors it has to install, and returns the offset of the
+	 entry point within the first of them. */
+      state->ebx = kvm_vcpi_get_pmi(pagetable, gdt, &pages);
+      SETLO_WORD(state->edi, LO_WORD(state->edi) + pages * 4);
+      SETHI_BYTE(state->eax, EMM_NO_ERR);
+      E_printf("VCPI: PM interface at offset 0x%08x, %u page table entries\n",
+	       (unsigned)state->ebx, pages);
+      break;
+    }
+
+  case 0x06:{			/* get physical address of 4K page in 1st MB */
+      unsigned page = LO_WORD(state->ecx);
+      unsigned addr = page << PAGE_SHIFT;
+      int i;
+
+      if (page >= LOWMEM_SIZE / PAGE_SIZE) {
+	SETHI_BYTE(state->eax, EMM_ILL_PHYS);
+	break;
+      }
+      for (i = 0; i < phys_pages; i++) {
+	unsigned base = PHYS_PAGE_ADDR(i);
+	unsigned pa;
+
+	if (addr < base || addr >= base + EMM_PAGE_SIZE)
+	  continue;
+	if (emm_map[i].handle == NULL_HANDLE)
+	  break;
+	pa = vcpi_pin_page(emm_map[i].handle, emm_map[i].logical_page);
+	if (pa == (unsigned)-1) {
+	  error("VCPI: no physical page left for handle %d\n",
+		emm_map[i].handle);
+	  SETHI_BYTE(state->eax, EMM_OUT_OF_PHYS);
+	  return;
+	}
+	addr = pa + (addr - base);
+	break;
+      }
+      SETHI_BYTE(state->eax, EMM_NO_ERR);
+      state->edx = addr;
+      E_printf("VCPI: page 0x%02x is at physical address 0x%08x\n",
+	       page, (unsigned)state->edx);
+      break;
+    }
+
+  case 0x0c:			/* switch to protected mode */
+    if (!vcpi_pm_available()) {
+      EMS_TRACE("VCPI protected mode needs KVM");
+      SETHI_BYTE(state->eax, EMM_FUNC_NOSUP);
+      break;
+    }
+    /* ESI is a linear address, not DS:SI: the client builds the structure
+       wherever it likes in the first megabyte and hands over the address
+       whole.  SCCD.EXE of Strike Commander does exactly that, with a
+       "mov esi,[cs:0x5e8]" right before the call. */
+    E_printf("VCPI: switch to PM, client cs:eip=%04x:%08x, cr3=%08x\n",
+	     READ_WORD(state->esi + 0x14), READ_DWORD(state->esi + 0x10),
+	     READ_DWORD(state->esi));
+    /* DE0Ch is one-way: the client does not come back to the instruction
+       after its "int 67h", it continues in protected mode and returns to
+       v86 wherever it likes, through the protected-mode DE0Ch.  So the
+       int 67h thread has to be let go of here, or it sits attached to a
+       v86 return that never happens and the next DE0Ch stacks another one
+       on top of it, five deep and out of recursion depth. */
+    coopth_leave();
+    /* Does not return here: the monitor jumps to the client's entry point
+       and we are next called when it comes back through AX=DE0Ch. */
+    kvm_vcpi_pm_switch(state->esi);
+    break;
+
+  case 0x08:			/* set debug registers */
+  case 0x09:{			/* get debug registers */
+      /* Eight dwords: DR0..DR3, two reserved, DR6, DR7.  The client owns
+	 the debug registers while it is in protected mode, so these only
+	 make sense where the monitor is the one running it. */
+      uint32_t dregs[8];
+      int set = LO_BYTE_d(state->eax) == 0x08;
+      dosaddr_t buf = set ? SEGOFF2LINEAR(state->ds, LO_WORD(state->esi)) :
+			    SEGOFF2LINEAR(state->es, LO_WORD(state->edi));
+
+      if (!vcpi_pm_available()) {
+	EMS_TRACE("VCPI debug registers need KVM");
+	SETHI_BYTE(state->eax, EMM_FUNC_NOSUP);
+	break;
+      }
+      if (set)
+	MEMCPY_2UNIX(dregs, buf, sizeof(dregs));
+      kvm_getset_debugregs(dregs, set);
+      if (!set)
+	MEMCPY_2DOS(buf, dregs, sizeof(dregs));
+      SETHI_BYTE(state->eax, EMM_NO_ERR);
+      break;
+    }
+
+  case 0x0a:			/* get 8259A interrupt vector mappings */
+    /* whatever the PICs were last programmed with: the client asks because
+       it is about to take over the interrupt tables, and DOS programs do
+       remap the PICs. */
+    SETHI_BYTE(state->eax, EMM_NO_ERR);
+    SETLO_WORD(state->ebx, pic0_get_base());
+    SETLO_WORD(state->ecx, pic1_get_base());
+    break;
+
+  default:
+    /* Everything else, the protected-mode entry above all, needs a real
+       VCPI implementation, which is KVM-only work; see PR #1880. */
+    EMS_TRACE("unimplemented VCPI fn");
+    SETHI_BYTE(state->eax, EMM_FUNC_NOSUP);
+    break;
+  }
+}
+
 int
 ems_fn(struct vm86_regs *state)
 {
@@ -2268,7 +2543,17 @@ ems_fn(struct vm86_regs *state)
 		break;
 */
 
+  case VCPI_INTERFACE:		/* 0xDE */
+    EMS_TRACE("VCPI");
+    if (config.vcpi) {
+      vcpi_interface(state);
+      break;
+    }
+    SETHI_BYTE(state->eax, EMM_FUNC_NOSUP);
+    break;
+
   default:{
+      EMS_TRACE("unsupported fn");
       Kdebug1(("bios_emm: EMM function NOT supported 0x%04x\n",
 	 (unsigned) LO_WORD(state->eax)));
          SETHI_BYTE(state->eax, EMM_FUNC_NOSUP);
@@ -2350,6 +2635,8 @@ void ems_init(void)
 
   open_mapping(MAPPING_EMS);
   E_printf("EMS: initializing memory\n");
+
+  vcpi_pool_init();
 
   memcheck_addtype('E', "EMS page frame");
   /* set up standard EMS frame in UMA */
