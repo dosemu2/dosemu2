@@ -9,6 +9,7 @@ from func_build_freedos import build_freedos
 from func_build_pcmos import build_pcmos
 from func_cpu_smsw_mem import cpu_smsw_mem
 from func_cpu_trap_flag import cpu_trap_flag
+from func_cpu_undoc_shift import cpu_undoc_shift
 from func_cpu_methods import cpu_create_items
 from func_fpu_bart_exceptions import fpu_bart_exceptions_fpex, fpu_bart_exceptions_fpexes
 from fpu.qemu import fpu_create_items
@@ -30,6 +31,11 @@ class OurTestCase(BaseTestCase):
     def test_build_pcmos(self):
         """Build PC-MOS"""
         build_pcmos(self)
+
+    @mark('cputest')
+    def test_cpu_undoc_shift(self):
+        """CPU undocumented /6 shift"""
+        cpu_undoc_shift(self)
 
     @mark('fputest')
     def test_fpu_bart_exceptions_fpex(self):
