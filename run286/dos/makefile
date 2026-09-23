@@ -1,4 +1,7 @@
-# dj64 build of the DOS-side loader. Run `make` here with dj64dev installed.
+# The DOS-side loader. Run `make` here with dj64dev installed.
+# DJTGT=dj32 builds it as a plain 32bit DOS program instead, which runs
+# on any DPMI host, CWSDPMI and Windows included, not just on dosemu2.
+DJTGT ?= dj64
 VPATH = ..
 SOURCES = dosmain.c phapi.c doscalls.c neexe.c neload.c thunks_p.c thunks_a.c thunks_c.c
 AS_SOURCES = gate.S
@@ -7,6 +10,7 @@ EXE = run286.exe
 
 # the below vars must be named exactly like this for dj64.mk
 CFLAGS = -Wall -ggdb3 -I..
+DJCFLAGS = $(CFLAGS)
 OBJECTS = $(SOURCES:.c=.o)
 AS_OBJECTS = $(AS_SOURCES:.S=.o)
 PDHDR = asm.h
@@ -21,10 +25,10 @@ clean: clean_dj64
 run: $(TGT)
 	dosemu -td -l $(realpath libtmp.so) -g 1
 
-DJMK = $(shell pkg-config --silence-errors --variable=makeinc dj64)
+DJMK = $(shell pkg-config --silence-errors --variable=makeinc $(DJTGT))
 ifeq ($(wildcard $(DJMK)),)
 ifeq ($(filter clean,$(MAKECMDGOALS)),)
-$(error dj64 not installed)
+$(error $(DJTGT) not installed)
 endif
 clean_dj64:
 else
