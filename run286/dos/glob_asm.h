@@ -29,6 +29,8 @@ __ASM(unsigned, int_last_ss) SEMIC
 __ASM(unsigned, int_last_esp) SEMIC
 __ASM_ARR(uint16_t, int_target, 32) SEMIC	/* INT_SLOTS pairs */
 __ASM_FUNC(int_stubs) SEMIC			/* one entry per hooked vector */
+__ASM_ARR(uint16_t, int21_prev, 3) SEMIC	/* the int 21h handler we chain to */
+__ASM_FUNC(int21_stub) SEMIC			/* narrows DOS calls made by 16bit code */
 __ASM_FUNC(int_ret16) SEMIC
 __ASM_FUNC(int_stack) SEMIC
 __ASM_FUNC(int_stack_end) SEMIC

@@ -438,6 +438,39 @@ static void hook_exceptions(void)
     }
 }
 
+/*
+ * Own int 21h in protected mode, ahead of the host.
+ *
+ * dj64 makes us a 32bit DPMI client, and a DPMI host is told the bitness
+ * once, for the client as a whole. The program is 16bit: where DOS takes
+ * a DS:DX it writes DX and leaves the high half of EDX as it found it, so
+ * the host follows a pointer built half from the program and half from
+ * whatever was there. The stub narrows the registers for calls made from
+ * 16bit code and passes ours through untouched.
+ */
+static void hook_int21(void)
+{
+    __dpmi_paddr pm;
+
+    if (__dpmi_get_protected_mode_interrupt_vector(0x21, &pm) == -1) {
+	trc("run286: cannot read the int 21h vector, DOS calls from the "
+		"program may get a stray high half of edx\n");
+	return;
+    }
+    int21_prev[0] = pm.offset32 & 0xffff;
+    int21_prev[1] = pm.offset32 >> 16;
+    int21_prev[2] = pm.selector;
+    pm.selector = gate_cs32;
+    pm.offset32 = int21_stub;
+    if (__dpmi_set_protected_mode_interrupt_vector(0x21, &pm) == -1) {
+	trc("run286: cannot take the int 21h vector, DOS calls from the "
+		"program may get a stray high half of edx\n");
+	return;
+    }
+    trc("run286: int 21h through our stub, chaining to %04x:%08x\n",
+	    int21_prev[2], (unsigned)(int21_prev[0] | (int21_prev[1] << 16)));
+}
+
 /* What the LDT alias says about one entry, for a fault that names it. */
 static void dump_ldt_entry(const char *what, unsigned off)
 {
@@ -1009,9 +1042,9 @@ int main(int argc, char **argv)
 		ldt_size ? ldt_size - 1 : 0);
     }
     if (gate_thunk_err)
-	trc("run286: no THUNK_16_32x, DOS calls from the program may "
-		"get a stray high half of edx\n");
+	trc("run286: no THUNK_16_32x, narrowing DOS calls ourselves\n");
     hook_exceptions();
+    hook_int21();
     /* what a handler of the program's would have found in DS and ES had
      * it interrupted the program rather than us */
     int_ds = m->seg[m->ne.autodata - 1].sel;

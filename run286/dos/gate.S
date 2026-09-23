@@ -227,6 +227,40 @@ _int_common:
     ljmpw *%cs:_int_target(, %ecx, 4)
 
 /*
+ * int 21h, on the way to whoever had the vector.
+ *
+ * We are a 32bit DPMI client because dj64 makes us one, but the program
+ * is 16bit and writes only DX where DOS is handed a DS:DX. The host, told
+ * once that the client is 32bit, reads the whole of EDX and follows a
+ * pointer built half from the program and half from whatever was in the
+ * high word. A 286 extender owns int 21h and passes on 16bit registers,
+ * so do that here: narrow them when the interrupted code is 16bit, and
+ * leave our own calls alone.
+ */
+.global _int21_stub
+_int21_stub:
+    pushl %eax
+    pushfl
+    lar 12(%esp), %eax			/* the interrupted CS */
+    jnz 1f				/* unreadable: not ours to judge */
+    testl $0x400000, %eax		/* the D bit, so 32bit code */
+    jnz 1f
+    popfl
+    popl %eax
+    movzwl %ax, %eax
+    movzwl %bx, %ebx
+    movzwl %cx, %ecx
+    movzwl %dx, %edx
+    movzwl %si, %esi
+    movzwl %di, %edi
+    movzwl %bp, %ebp
+    ljmpl *%cs:_int21_prev
+1:
+    popfl
+    popl %eax
+    ljmpl *%cs:_int21_prev
+
+/*
  * Where the program's handler irets to, in a 16bit segment of its own so
  * that a 16bit iret lands on it. Puts back the stack we came from and
  * returns to the host.
@@ -365,6 +399,9 @@ _int_last:	.long 0
 _int_last_ss:	.long 0
 .global _int_last_esp
 _int_last_esp:	.long 0
+.global _int21_prev
+_int21_prev: .word 0, 0, 0
+
 .global _gate_thunk_err
 _gate_thunk_err: .long 0
 _gate_thunk_name: .asciz "THUNK_16_32x"
