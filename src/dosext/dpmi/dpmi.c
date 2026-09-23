@@ -4065,6 +4065,14 @@ static void do_pm_int(cpuctx_t *scp, int i)
     return;
   }
 
+  /* If the client is in real mode, its real-mode registers are the only
+   * record of where it was interrupted. The protected-mode handler we are
+   * about to run may switch back to real mode - a DOS call from an int 8
+   * handler is a common case - and that overwrites them. Park them on our
+   * real-mode stack for the duration of the handler, the way a real-mode
+   * call into the client does. */
+  if (!in_dpmi_pm())
+    save_rm_regs();
   old_ss = _ss;
   old_esp = _esp;
   sp = enter_lpms(&DPMI_CLIENT.stack_frame);
@@ -5140,6 +5148,8 @@ static void return_from_hwint(cpuctx_t *scp, void * const sp)
       leavedos(38);
     }
     dpmi_set_pm(pm);
+    if (!pm)
+      restore_rm_regs();
     ssp++;  // reserve
     ssp++;  // reserve
     val = *ssp++;
@@ -5157,6 +5167,8 @@ static void return_from_hwint(cpuctx_t *scp, void * const sp)
       leavedos(38);
     }
     dpmi_set_pm(pm);
+    if (!pm)
+      restore_rm_regs();
     _HWORD(esp) = *ssp++;
     _HWORD(eip) = *ssp++;
     val = *ssp++;
