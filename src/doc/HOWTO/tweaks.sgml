@@ -419,4 +419,24 @@ Apply the following patch to 7cities.exe:
 </sect2>
 </sect1>
 
+<sect1>
+<title>Crusader: No Remorse</title>
+<sect2>
+<title>
+Game quits with "DOS interrupt error - check the install guide for more info."
+</title>
+<para>
+The game asks DOS for the address of the InDOS flag and then folds the
+returned segment into a 16bit address, which overflows whenever the DOS
+kernel sits high. It then watches an unrelated byte, takes DOS for busy on
+every timer tick and never services its own timers, so its start-up check
+of the timer fails.
+Solution: set
+<screen>
+$_dos_up = (off)
+</screen>
+</para>
+</sect2>
+</sect1>
+
 </article>
