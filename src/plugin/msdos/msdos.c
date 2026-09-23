@@ -422,6 +422,10 @@ static void do_common_start(cpuctx_t *scp, int is_32)
     case 2:
 	msdos_set_client(_LWORD(ebx));
 	break;
+    case 3:
+	/* our lowmem block moved with the DPMI host's private pool */
+	MSDOS_CLIENT.lowmem_seg = _LWORD(edx);
+	break;
     default:
 	error("unsupported rsp %i\n", _LWORD(eax));
 	break;
@@ -1705,17 +1709,36 @@ int msdos_pre_extender(cpuctx_t *scp,
 	    return MSDOS_DONE;
 	case 0x1687: {
 	    struct pmaddr_s pma;
+	    unsigned short paras;
+	    /* extension: with our cookie in cx, bx on input is a flag word,
+	     * and DPMI_EXT_GET_POOL asks for the private data pool we are
+	     * already holding.  It then comes back as a selector in ax with
+	     * its size in paragraphs in si.  Anyone who does not know about
+	     * this passes neither, and still sees ax=0 and si=0, meaning that
+	     * no further lowmem is needed. */
+	    int want_pool = _LWORD(ecx) == DPMI_EXT_COOKIE &&
+		    (_LWORD(ebx) & DPMI_EXT_GET_POOL);
+
 	    _LWORD(eax) = 0;
+	    _LWORD(esi) = 0;
 	    /* 32bit DPMI supported (0x1),
 	     * entering from 16bit-PM supported (0x100),
 	     * entering from 32bit-PM supported (0x200),
 	     * IVT reinit supported (0x400),
+	     * private pool reported and relocatable (0x800),
 	     */
-	    _LWORD(ebx) = 1 | 0x700;
+	    _LWORD(ebx) = 1 | 0xf00;
 	    _LWORD(ecx) = 4;
 	    _HI(dx) = DPMI_VERSION;
 	    _LO(dx) = DPMI_MINOR_VERSION;
-	    _LWORD(esi) = 0;
+	    if (want_pool) {
+		_LWORD(eax) = dpmi_get_private_pool(&paras);
+		_LWORD(esi) = paras;
+		if (!_LWORD(eax)) {
+		    _eflags |= CF;	/* out of descriptors */
+		    return MSDOS_DONE;
+		}
+	    }
 	    pma = doshlp_get_entry(reinit_hlp.entry);
 	    _es = pma.selector;
 	    _LWORD(edi) = pma.offset;

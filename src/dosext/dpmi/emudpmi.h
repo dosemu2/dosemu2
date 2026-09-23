@@ -291,6 +291,13 @@ struct RSPcall_s {
 };
 
 int dpmi_install_rsp(struct RSPcall_s *callback);
+/* A client that knows about our additions to int 2fh ax=1687 in protected
+ * mode says so by passing this in cx, and then bx on input is a flag word.
+ * Neither register is an input to the standard call, so without the cookie
+ * nothing is read and nobody trips over the extension by accident. */
+#define DPMI_EXT_COOKIE 0xd05e
+#define DPMI_EXT_GET_POOL 1
+unsigned short dpmi_get_private_pool(unsigned short *r_paras);
 dosaddr_t DPMIMapHWRam(unsigned addr, unsigned size);
 int DPMIUnmapHWRam(dosaddr_t vbase);
 
