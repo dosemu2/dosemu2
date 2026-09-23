@@ -634,15 +634,7 @@ extern int SpecPrejits;
  */
 //#define CPL	(REALMODE()? 0:(V86MODE()? 3:(TheCPU.cs&3)))
 #define CPL	(V86MODE()? 3:(TheCPU.cs&3))
-/* POPF lets a client write the IOPL field although it runs at CPL 3, so
- * that a client of a 286|DOS-Extender, which believes it owns the machine
- * and tells a 386 from a 286 by writing the field and reading it back, sees
- * what it would see in ring 0. What it wrote it reads back, and nothing
- * more: the field must not decide who may touch the interrupt flag or run
- * CLI, so outside ring 0 the level the cpu acts on stays the one the host
- * gave the client. Real and virtual 8086 mode keep the field as it is. */
-#define IOPL_RAW ((EFLAGS & EFLAGS_IOPL_MASK) >> EFLAGS_IOPL_SHIFT)
-#define IOPL	((PROTMODE() && CPL) ? 0 : IOPL_RAW)
+#define IOPL	((EFLAGS & EFLAGS_IOPL_MASK) >> EFLAGS_IOPL_SHIFT)
 #else	/* simple */
 #define CPL	3
 #define IOPL	0

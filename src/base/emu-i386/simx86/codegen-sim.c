@@ -3207,8 +3207,16 @@ stack_return_from_vm86:
 			    }
 			}
 			else {
-			    /* the IOPL field is not masked: see IOPL in
-			     * emu86.h for why a client may write it */
+			    /* The IOPL field is not masked here although the
+			     * client runs at CPL 3. A client of a 286|DOS-
+			     * Extender believes it owns the machine and tells
+			     * a 386 from a 286 by clearing bits 12-13 and
+			     * reading them back; masked, it reads the 3 it
+			     * was given and calls the cpu a 286. What it
+			     * writes it reads back, and the level it leaves
+			     * there is the one CLI, STI, IN, OUT and the
+			     * interrupt flag go by, exactly as in ring 0,
+			     * which is where the real extender runs it. */
 			    int amask = (CPL<=IOPL? 0:EFLAGS_IF) |
 					(EFLAGS_VM|EFLAGS_RF);
 			    if (mode & DATA16)
