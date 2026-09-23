@@ -517,6 +517,7 @@ static void unhook_int21(void)
 static void dump_ldt_entry(const char *what, unsigned off)
 {
     unsigned alias = gate_ldt_alias & 0xffff;
+    unsigned char desc[8];
     char buf[32];
     char *p = buf;
     unsigned i;
@@ -528,6 +529,14 @@ static void dump_ldt_entry(const char *what, unsigned off)
     for (i = 0; i < 8; i++)
 	p += sprintf(p, "%02x ", _farpeekb(alias, off + i));
     trc("run286:   %s entry %#x: %s\n", what, off, buf);
+    /* the alias is what the program wrote; ask the host what it kept */
+    if (__dpmi_get_descriptor((off | 7), desc) == 0) {
+	for (i = 0, p = buf; i < 8; i++)
+	    p += sprintf(p, "%02x ", desc[i]);
+	trc("run286:   %s as the host has it: %s\n", what, buf);
+    } else {
+	trc("run286:   %s: the host will not show %#x\n", what, off | 7);
+    }
 }
 
 /*
