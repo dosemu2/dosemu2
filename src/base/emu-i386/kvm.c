@@ -38,6 +38,7 @@
 #include "illumos/kvm_para.h"
 #endif
 
+#include "memory.h"
 #include "kvm.h"
 #include "kvmmon_offsets.h"
 #include "emu.h"
@@ -211,6 +212,7 @@ static struct kvm_cpuid2 *cpuid;
 static struct kvm_run *run;
 static int kvmfd, vmfd, vcpufd;
 static struct kvm_sregs sregs;
+static unsigned long xeip_n;
 
 static int cmi_offs;
 #define MMIO_RING(r) (struct kvm_coalesced_mmio_ring *)((char *)run + cmi_offs * PAGE_SIZE)
@@ -1307,6 +1309,19 @@ void kvm_leave(int pm)
   }
 }
 
+/* LOCAL-ONLY: kvm_post_run() returning 0 keeps kvm_run() spinning without
+   ever handing control back to dosemu's main loop, so count every such exit
+   and say where it came from. */
+#define XPR(n, what) do { \
+    static unsigned long xpr_n; \
+    if (++xpr_n % 500 == 0) \
+      error("XPR %s %lu cs=%04x:%08llx fl=%08llx cr3=%08llx tr=%08x vcpi=%d\n", \
+            what, xpr_n, sregs.cs.selector, (unsigned long long)kregs->rip, \
+            (unsigned long long)kregs->rflags, \
+            (unsigned long long)sregs.cr3, (unsigned)sregs.tr.base, \
+            kvm_in_vcpi()); \
+  } while (0)
+
 static int kvm_post_run(struct vm86_regs *regs, struct kvm_regs *kregs)
 {
   int ret;
@@ -1328,6 +1343,7 @@ static int kvm_post_run(struct vm86_regs *regs, struct kvm_regs *kregs)
       leavedos_main(99);
     }
     if (events.exception.pending || events.exception.injected) {
+      XPR(0, "exception pending");
       g_printf("KVM: exception pending, not ready for return %i %i\n",
           events.exception.pending, events.exception.injected);
       return 0;
@@ -1342,6 +1358,7 @@ static int kvm_post_run(struct vm86_regs *regs, struct kvm_regs *kregs)
   }
   if (!inj_ready && (kregs->rflags & (X86_EFLAGS_IF | X86_EFLAGS_VIF))) {
     /* pending exceptions checked above, so here can be STI/MOVss hold-off */
+    XPR(1, "ring3 hold-off");
     g_printf("KVM: not ready for injection on ring3\n");
     return 0;
   }
@@ -1364,6 +1381,7 @@ static int kvm_post_run(struct vm86_regs *regs, struct kvm_regs *kregs)
            client: its own page tables and IDT are in, its task register is
            not.  A signal can land here although the code runs with
            interrupts off, and there is nothing to report: let it finish. */
+        XPR(2, "halfway in");
         return 0;
       }
       g_printf("KVM: interrupt in VCPI code\n");
@@ -1391,6 +1409,7 @@ static int kvm_post_run(struct vm86_regs *regs, struct kvm_regs *kregs)
 
   /* don't interrupt GDT code */
   if (!(kregs->rflags & X86_EFLAGS_VM) && !(sregs.cs.selector & 4)) {
+    XPR(3, "GDT code");
     g_printf("KVM: interrupt in GDT code, resuming\n");
     return 0;
   }
@@ -1622,7 +1641,31 @@ static unsigned int kvm_run(void)
   }
 
   while (!exit_reason) {
-    int ret = ioctl(vcpufd, KVM_RUN, NULL);
+    int ret;
+    {
+      /* Stas's one-liner from PR #1880, widened: watch the first 16 bytes of
+         the HMA around every KVM_RUN and shout the first time the guest
+         changes them. */
+      static unsigned char xhma[16];
+      static int xhma_seen;
+      if (!xhma_seen) {
+        memcpy(xhma, lowmem_base + (0xffffu << 4) + 0x10, sizeof(xhma));
+        xhma_seen = 1;
+      } else if (memcmp(xhma, lowmem_base + (0xffffu << 4) + 0x10,
+                        sizeof(xhma)) != 0) {
+        int j;
+        char b[160], c[160];
+        b[0] = c[0] = 0;
+        for (j = 0; j < 16; j++) {
+          snprintf(b + strlen(b), sizeof(b) - strlen(b), " %02x",
+                   lowmem_base[(0xffffu << 4) + 0x10 + j]);
+          snprintf(c + strlen(c), sizeof(c) - strlen(c), " %02x", xhma[j]);
+        }
+        error("XHMA ffff:0010 now%s was%s\n", b, c);
+        memcpy(xhma, lowmem_base + (0xffffu << 4) + 0x10, sizeof(xhma));
+      }
+    }
+    ret = ioctl(vcpufd, KVM_RUN, NULL);
     int errn = errno;
 
     /* KVM should only exit for four reasons:
@@ -1654,6 +1697,23 @@ static unsigned int kvm_run(void)
     }
 
     process_pending_mmio();
+
+    {
+      /* LOCAL-ONLY: when the guest stops coming back, the last exit is all
+         there is to go on, so keep a running sample of where it happens. */
+      static unsigned long xexit_n;
+      if (++xexit_n % 5000 == 0) {
+        struct kvm_regs kr;
+        struct kvm_sregs ks;
+        if (ioctl(vcpufd, KVM_GET_REGS, &kr) != -1 &&
+            ioctl(vcpufd, KVM_GET_SREGS, &ks) != -1)
+          error("XEXIT %lu reason=%u cs=%04x:%08llx fl=%08llx cr0=%08llx"
+                " cr3=%08llx vcpi=%d\n", xexit_n, run->exit_reason,
+                ks.cs.selector, (unsigned long long)kr.rip,
+                (unsigned long long)kr.rflags, (unsigned long long)ks.cr0,
+                (unsigned long long)ks.cr3, kvm_in_vcpi());
+      }
+    }
 
     switch (run->exit_reason) {
     case KVM_EXIT_HLT:
@@ -1816,6 +1876,57 @@ static void kvm_vme_tf_popf_fixup(struct vm86_regs *regs)
 }
 
 /* Emulate vm86() using KVM */
+/* LOCAL-ONLY: while a VCPI client owns the CPU, CR3 is the client's, so a
+   guest address the probe wants to read is a linear address of the client's
+   own page tables and not a physical one.  Walk them, or every reading of
+   the guest's memory from here describes a different address space than the
+   guest sees. */
+/* LOCAL-ONLY: a page table of a VCPI client sits at a guest *physical*
+   address in the pinned pool, and mem_base follows VA, not PA, so neither
+   READ_* nor MEM_BASE32 finds it.  physaddr_to_unixaddr() is the one that
+   knows where a physical page was aliased, and says so when it is nowhere. */
+static void *xphys(unsigned pa)
+{
+  void *p = physaddr_to_unixaddr(pa);
+
+  return p == MAP_FAILED ? NULL : p;
+}
+
+static dosaddr_t xwalk(uint32_t cr3, dosaddr_t lin, int *ok)
+{
+  uint32_t pde, pte;
+  uint32_t *p;
+
+  *ok = 0;
+  p = xphys((cr3 & 0xfffff000) + ((lin >> 22) << 2));
+  if (!p)
+    return 0;
+  pde = *p;
+  if (!(pde & 1))
+    return 0;
+  if (pde & 0x80) {
+    *ok = 1;
+    return (pde & 0xffc00000) | (lin & 0x3fffff);
+  }
+  p = xphys((pde & 0xfffff000) + (((lin >> 12) & 0x3ff) << 2));
+  if (!p)
+    return 0;
+  pte = *p;
+  if (!(pte & 1))
+    return 0;
+  *ok = 1;
+  return (pte & 0xfffff000) | (lin & 0xfff);
+}
+
+/* the same read the guest itself would do: through its own tables */
+static int xrd16(uint32_t cr3, dosaddr_t lin)
+{
+  int ok;
+  dosaddr_t ph = xwalk(cr3, lin, &ok);
+  uint16_t *p = ok ? xphys(ph) : NULL;
+  return p ? (int)*p : -1;
+}
+
 int true_kvm_vm86(struct vm86_struct *info)
 {
   struct vm86_regs *regs;
@@ -1841,6 +1952,184 @@ int true_kvm_vm86(struct vm86_struct *info)
     regs->eflags &= (SAFE_MASK | X86_EFLAGS_VIF | X86_EFLAGS_VIP);
     regs->eflags |= X86_EFLAGS_FIXED | X86_EFLAGS_VM | X86_EFLAGS_IF;
   } else if (regs->cs == 0) {	/* returning to a client we interrupted */
+    if (++xeip_n % 2000 == 0) {
+      char w[64] = "";
+      int i;
+      for (i = 0; i < 12; i++)
+        snprintf(w + strlen(w), sizeof(w) - strlen(w), " %02x",
+                 READ_BYTE(0xefd00 + i));
+      error("XHEAD %lu efd00:%s\n", xeip_n, w);
+    }
+    {
+      /* LOCAL-ONLY: catch the moment a heap region is registered, so the
+         caller can be named instead of guessed at.  The allocator's region
+         table sits at DGROUP+0xfdf/0xfe1/0xfe3 and DGROUP has measured as
+         0x24dc in every run of this game, so watch those words directly:
+         reading memory costs nothing, an ioctl per exit would. */
+      static unsigned seen[3];
+      static unsigned seen_ds;
+      struct kvm_sregs ks0;
+      int r;
+      /* the table is addressed through the guest's own DS, which changes
+         with the program that is running, so read DS rather than trusting
+         the one this game happened to have in earlier runs */
+      if (xeip_n % 16 || ioctl(vcpufd, KVM_GET_SREGS, &ks0) == -1)
+        goto no_watch;
+      if (ks0.ds.selector != seen_ds) {
+        seen_ds = ks0.ds.selector;
+        for (r = 0; r < 3; r++)
+          seen[r] = READ_WORD((ks0.ds.selector << 4) + 0xfdf + 2 * r);
+        goto no_watch;
+      }
+      for (r = 0; r < 3; r++) {
+        unsigned v = READ_WORD((ks0.ds.selector << 4) + 0xfdf + 2 * r);
+        if (v == seen[r])
+          continue;
+        seen[r] = v;
+        if (!v)
+          continue;
+        {
+          struct kvm_regs kr;
+          struct kvm_sregs ks = ks0;
+          if (ioctl(vcpufd, KVM_GET_REGS, &kr) != -1) {
+            char t[200] = "";
+            int i;
+            for (i = 0; i < 24; i++)
+              snprintf(t + strlen(t), sizeof(t) - strlen(t), " %02x",
+                       READ_BYTE((ks.ss.selector << 4) +
+                                 ((kr.rsp + i) & 0xffff)));
+            /* which VGA window is live decides what the guest reads back
+               from a0000: the bank when it is mapped there, nothing at all
+               on real hardware when it is not */
+            error("XREG slot%d=%04x at %lu cs=%04x:%04llx ds=%04x ss=%04x:%04llx"
+                  " frame=%04x cb0=%04x hnd=%04x cbc=%08x vgabank=%04x+%04x"
+                  " a0010=%04x int67=%04x:%04x stk:%s\n",
+                  r, v, xeip_n, ks.cs.selector,
+                  kr.rip & 0xffff, ks.ds.selector, ks.ss.selector,
+                  kr.rsp & 0xffff,
+                  READ_WORD((ks.ds.selector << 4) + 0xcb2),
+                  READ_WORD((ks.ds.selector << 4) + 0xcb0),
+                  READ_WORD((ks.ds.selector << 4) + 0xcac),
+                  READ_DWORD((ks.ds.selector << 4) + 0xcbc),
+                  vga.mem.map[VGAEMU_MAP_BANK_MODE].base_page,
+                  vga.mem.bank_pages, READ_WORD(0xa0010),
+                  READ_WORD(0x67 * 4 + 2), READ_WORD(0x67 * 4), t);
+          }
+        }
+      }
+no_watch:
+      ;
+    }
+    if (xeip_n % 500 == 0) {
+      struct kvm_regs kr;
+      struct kvm_sregs ks;
+      if (ioctl(vcpufd, KVM_GET_REGS, &kr) != -1 &&
+          ioctl(vcpufd, KVM_GET_SREGS, &ks) != -1) {
+        char b[80] = "";
+        if (kr.rflags & X86_EFLAGS_VM) {
+          dosaddr_t lin = (ks.cs.selector << 4) + (kr.rip & 0xffff);
+          int i;
+          for (i = -6; i < 14; i++)
+            snprintf(b + strlen(b), sizeof(b) - strlen(b), "%s%02x",
+                     i == 0 ? "|" : " ", READ_BYTE(lin + i));
+        }
+        if ((kr.rflags & X86_EFLAGS_VM) && ks.cs.selector != 0x13c6)
+        {
+          char h[760] = "";
+          int i;
+          for (i = 0; i < 8; i++)
+            snprintf(h + strlen(h), sizeof(h) - strlen(h), " %02x",
+                     READ_BYTE((ks.fs.selector << 4) + i));
+          snprintf(h + strlen(h), sizeof(h) - strlen(h), " stk:");
+          for (i = 0; i < 16; i++)
+            snprintf(h + strlen(h), sizeof(h) - strlen(h), " %02x",
+                     READ_BYTE((ks.ss.selector << 4) + ((kr.rsp + i) & 0xffff)));
+          /* the allocator keeps its roving pointer at ds:0xfdc and the
+             base of every region it was given at ds:0xfdf, 0xfe1, 0xfe3 --
+             three regions at most.  Print them: they say where the heap is
+             supposed to live, which is what the broken links must be
+             checked against. */
+          {
+            /* a region's first free node sits one paragraph above its base
+               and carries size-2, so the region's extent can be read rather
+               than guessed at */
+            int r;
+            char g[64] = "";
+            for (r = 0; r < 3; r++) {
+              unsigned b = READ_WORD((ks.ds.selector << 4) + 0xfdf + 2 * r);
+              if (!b)
+                continue;
+              snprintf(g + strlen(g), sizeof(g) - strlen(g), " %04x+%04x/%d",
+                       b, READ_WORD(((b + 1) << 4)) + 2,
+                       xrd16(ks.cr3, (b + 1) << 4));
+            }
+            snprintf(h + strlen(h), sizeof(h) - strlen(h), " ext:%s", g);
+          }
+          {
+            /* where the client's own page tables put the UMA: if the game's
+               second heap really sits on backfilled RAM, a0000 does not
+               translate to a0000 and the video window never sees it */
+            static const dosaddr_t probe_lin[] = { 0xa0000, 0xc0000, 0xe0000 };
+            char q[96] = "";
+            int k;
+            for (k = 0; k < 3; k++) {
+              int ok;
+              dosaddr_t ph = xwalk(ks.cr3, probe_lin[k], &ok);
+              snprintf(q + strlen(q), sizeof(q) - strlen(q), " %05x->%s",
+                       probe_lin[k], ok ? "" : "x");
+              if (ok)
+                snprintf(q + strlen(q), sizeof(q) - strlen(q), "%08x", ph);
+            }
+            {
+              /* the raw first entry tells an unreadable page directory from
+                 one that is simply not present */
+              uint32_t *pd = xphys(ks.cr3 & 0xfffff000);
+              snprintf(h + strlen(h), sizeof(h) - strlen(h),
+                       " cr3=%08llx pde0=%s", (unsigned long long)ks.cr3,
+                       pd ? "" : "unreadable");
+              if (pd)
+                snprintf(h + strlen(h), sizeof(h) - strlen(h), "%08x", *pd);
+            }
+            snprintf(h + strlen(h), sizeof(h) - strlen(h), " pg:%s", q);
+          }
+          snprintf(h + strlen(h), sizeof(h) - strlen(h),
+                   " ds=%04x frm=%04x cb0=%04x rov=%04x reg=%04x,%04x,%04x prev:",
+                   ks.ds.selector,
+                   READ_WORD((ks.ds.selector << 4) + 0xcb2),
+                   READ_WORD((ks.ds.selector << 4) + 0xcb0),
+                   READ_WORD((ks.ds.selector << 4) + 0xfdc),
+                   READ_WORD((ks.ds.selector << 4) + 0xfdf),
+                   READ_WORD((ks.ds.selector << 4) + 0xfe1),
+                   READ_WORD((ks.ds.selector << 4) + 0xfe3));
+          {
+            /* the list is doubly linked: size at [0], prev at [4], next at
+               [6], and it starts at the rover.  Read it the way the guest
+               does, through its own page tables: every node above 0xa000
+               lives in the VCPI pool and READ_* would show the host's UMA
+               there instead. */
+            unsigned seg = READ_WORD((ks.ds.selector << 4) + 0xfdc);
+            for (i = 0; i < 10; i++) {
+              dosaddr_t a = seg << 4;
+              int sz = xrd16(ks.cr3, a);
+              int pv = xrd16(ks.cr3, a + 4);
+              int nx = xrd16(ks.cr3, a + 6);
+              snprintf(h + strlen(h), sizeof(h) - strlen(h),
+                       " %04x:%04x<%04x>%04x", seg, sz & 0xffff,
+                       pv & 0xffff, nx & 0xffff);
+              if (pv < 0)
+                break;
+              seg = pv;
+            }
+          }
+          error("XEIP %lu cs=%04x:%08llx cx=%04x dx=%04x di=%04x si=%04x "
+                "fs=%04x es=%04x hdr:%s%s\n", xeip_n, ks.cs.selector,
+                (unsigned long long)kr.rip, (unsigned)(kr.rcx & 0xffff),
+                (unsigned)(kr.rdx & 0xffff), (unsigned)(kr.rdi & 0xffff),
+                (unsigned)(kr.rsi & 0xffff), ks.fs.selector, ks.es.selector,
+                h, b);
+        }
+      }
+    }
     run->request_interrupt_window = 0;
     if (pic_pending()) {
       if (run->ready_for_interrupt_injection && run->if_flag) {
