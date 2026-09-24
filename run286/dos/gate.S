@@ -46,8 +46,15 @@ _ne_enter:
     movl ARG8, %ecx			/* cx: size of the data segment */
     /* from here on our own DS is gone; everything is read through %cs: */
     movl %esi, %ds
-    movl %edx, %ss
-    movl %ebx, %esp
+    /*
+     * SS and ESP out of one instruction. Loaded one at a time there is a
+     * moment when the two do not belong together, and an interrupt
+     * arriving in it is pushed at an offset that is nowhere in the
+     * segment SS now holds. The pair goes on the stack we are leaving.
+     */
+    pushl %edx				/* the program's SS */
+    pushl %ebx				/* and its SP */
+    lss (%esp), %esp
     ljmpw *%cs:_gate_jmp
 
 /* int desc_probe(void) - what the machine says its tables are, and the
@@ -112,10 +119,9 @@ _gate_entry:
     call _run286_import
     testl %eax, %eax
     jnz 1f
-    popl %ecx				/* program ESP */
-    popl %edx				/* program SS */
-    movl %edx, %ss
-    movl %ecx, %esp
+    /* the program's stack, both halves at once: the two words are where
+     * the call was made from, in the order lss wants them */
+    lss (%esp), %esp
     /*
      * Origin's wrapper frees a descriptor while it is still in ES and
      * carries on with it: on a 286 the entry it freed was its own to
@@ -213,11 +219,13 @@ _int_common:
     shll $INT_STACK_SHIFT, %ebp
     movl _int_stk_esp, %esi
     subl %ebp, %esi
-    movl _int_stk_ss, %ebp
-    movw %bp, %ss
-    movl %esi, %esp
-    pushl %edx				/* the stack we came from */
+    /* onto it with one instruction, for the reason ne_enter gives */
+    pushl _int_stk_ss
+    pushl %esi
+    lss (%esp), %esp
+    /* the stack we came from, in the order lss will want it */
     pushl %eax
+    pushl %edx
     /* the frame the program's handler will iret from */
     pushw %bx
     pushw _int_ret_sel
@@ -303,10 +311,8 @@ _int21_stub:
 .code16
 .global _int_ret16
 _int_ret16:
-    popl %eax				/* the stack we came from */
-    popl %edx
-    movw %ax, %ss
-    movl %edx, %esp
+    /* the stack we came from, both halves at once */
+    lss (%esp), %esp
     popl %gs
     popl %fs
     popl %es
