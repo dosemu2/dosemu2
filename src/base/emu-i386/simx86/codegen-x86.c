@@ -286,6 +286,30 @@ static unsigned char *CodeGen_x86(unsigned char *CodePtr, unsigned char *BaseGen
 	case L_NOP:
 		G1(0x90,Cp);
 		break;
+	case O_CHKWR:
+		/* a rep with a zero count accesses nothing */
+		if (mode & (MREP|MREPNE)) {
+			// cmp{wl} $0,Ofs_ECX(%%ebx)
+			if (mode & ADDR16)
+				G1(OPERoverride,Cp);
+			G4M(0x83,0x7b,Ofs_ECX,0x00,Cp);
+			// je past the check
+			G2M(JE_JZ,TAILSIZE+27,Cp);
+		}
+		// btl $bit,Ofs_SEGRO(%%ebx)
+		G3M(0x0f,0xba,0xa3,Cp); G4(Ofs_SEGRO,Cp);
+		G1((IG->p0 - Ofs_XES) >> 3,Cp);
+		// jnc skip return
+		G2M(0x73,TAILSIZE+17,Cp);
+		// movb EXCP0D_GPF, Ofs_ERR(%%ebx)
+		G2M(0xc6,0x83,Cp); G4(Ofs_ERR,Cp); G1(EXCP0D_GPF,Cp);
+		// movl $0, Ofs_SCP_ERR(%%ebx): the error code is 0
+		G2M(0xc7,0x83,Cp); G4(offsetof(SynCPU,scp_err),Cp); G4(0,Cp);
+		// movl {exit_addr},%%eax; mov %%eax, Ofs_KEY(%%ebx);
+		G1(0xb8,Cp); G4(IG->p1,Cp); G3M(0x89,0x43,Ofs_KEY,Cp);
+		// pop %%edx; ret
+		G2M(0x5a,0xc3,Cp);
+		break;
 	// Special case: CR0&0x3f
 	case L_CR0:
 		// movl Ofs_CR0(%%ebx),%%eax

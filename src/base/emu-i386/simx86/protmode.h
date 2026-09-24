@@ -231,6 +231,10 @@ typedef struct {
 #define SELECTOR_PADDRESS(sel) GetPhysicalAddress(sel)
 //
 extern unsigned char e_ofsseg(int ofs);
+/* bit of TheCPU.seg_ro for a selector ofs (Ofs_ES..Ofs_GS) and for the
+ * base ofs of its cache (Ofs_XES..Ofs_XGS) */
+#define SEGRO_BIT(ofs)	(1u << (((ofs) - Ofs_ES) >> 1))
+#define SEGRO_XBIT(xofs) (1u << (((xofs) - Ofs_XES) >> 3))
 //
 int SetSegProt_check(int ofs, unsigned long sel);
 void SetSegProt_set(int ofs, unsigned long sel);

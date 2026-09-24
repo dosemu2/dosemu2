@@ -80,6 +80,10 @@ typedef struct {
 	unsigned int eip;
 
 	unsigned int mode;
+	/* one bit per segment register, in the order es,cs,ss,ds,fs,gs, set
+	 * while it holds a protected mode selector that cannot be written
+	 * through: code, or data without the writable bit */
+	unsigned int seg_ro;
 	unsigned int sreg1;
 	unsigned int dreg1;
 	unsigned int xreg1;
@@ -200,6 +204,7 @@ extern struct _SynCPU TheCPU_struct;
 
 #define Ofs_TEMP	(offsetof(SynCPU,temp))
 #define Ofs_ERR		(offsetof(SynCPU,err))
+#define Ofs_SEGRO	(offsetof(SynCPU,seg_ro))
 #define Ofs_SCP_ERR		(offsetof(SynCPU,scp_err))
 #define Ofs_int_revectored	(offsetof(SynCPU,int_revectored))
 

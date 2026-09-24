@@ -594,6 +594,13 @@ static TNode *_Interp86(unsigned int PC, unsigned int Interp_LONG_CS,
 	return DoClose(PC, Interp_LONG_CS, basemode, flags, nextG);
 }
 
+/* the instruction writes through seg: #GP if that is a selector that
+ * cannot be written through */
+#define CHKWR(m, seg) do { \
+	if (!((m) & MREALA)) \
+		Gen(O_CHKWR, (m), (seg)); \
+} while (0)
+
 static unsigned int InterpOne(unsigned int PC, unsigned int Interp_LONG_CS,
 			      unsigned short ocs, int basemode)
 {
@@ -666,7 +673,7 @@ override:
 /*10*/	case ADCbfrm:
 /*38*/	case CMPbfrm:
 intop28:		{ int m = _mode | MBYTE;
-			PC += ModRM(opc, PC, m);	// DI=mem
+			PC += ModRM(opc, PC, m|(opc!=CMPbfrm? MWRITE:0));	// DI=mem
 			if (REG3) {
 			    int op = ArOpsFR[D_MO(opc)];
 			    Gen(L_REG, m, REG1);	// mov al,[ebx+reg]
@@ -721,7 +728,7 @@ intop3a:		{ int m = _mode | MBYTE;
 /*01*/	case ADDwfrm:
 /*11*/	case ADCwfrm:
 /*39*/	case CMPwfrm:
-intop29:		PC += ModRM(opc, PC, _mode);	// DI=mem
+intop29:		PC += ModRM(opc, PC, _mode|(opc!=CMPwfrm? MWRITE:0));	// DI=mem
 			if (REG3) {
 			    int op = ArOpsFR[D_MO(opc)];
 			    Gen(L_REG, _mode, REG1);	// mov (e)ax,[ebx+reg]
@@ -845,7 +852,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			Gen(O_SIM, _mode, opc, REG3, P0);
 			break;
 /*63*/	case ARPL:
-			PC += ModRM(opc, PC, _mode);
+			PC += ModRM(opc, PC, _mode|MWRITE);
 			Gen(L_REG, _mode|DATA16, REG1);
 			Gen(O_SIM, _mode, opc, REG3, P0);
 			break;
@@ -1080,7 +1087,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 /*8f*/	case POPrm:
 			// now calculate address. This way when using %esp
 			//	as index we use the value AFTER the pop
-			PC += ModRM(opc, PC, _mode|MPOPRM);
+			PC += ModRM(opc, PC, _mode|MPOPRM|MWRITE);
 			if (REG3 == Ofs_ESP) {
 				Gen(O_POP1, _mode|MOPT);
 				Gen(O_POP2, _mode, Ofs_ESP);
@@ -1134,7 +1141,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 /*80*/	case IMMEDbrm: {
 			int m = _mode | MBYTE;
 			int op = D_MO(Fetch(PC+1));
-			PC += ModRM(opc, PC, m);
+			PC += ModRM(opc, PC, m|(op!=7? MWRITE:0));
 			if (REG3) {
 				op = ArOpsFR[op];
 				// op [ebx+reg],#imm
@@ -1151,7 +1158,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			break;
 /*81*/	case IMMEDwrm: {
 			int op = D_MO(Fetch(PC+1));
-			PC += ModRM(opc, PC, _mode);
+			PC += ModRM(opc, PC, _mode|(op!=7? MWRITE:0));
 			if (REG3) {
 				op = ArOpsFR[op];
 				// op [ebx+reg],#imm
@@ -1170,7 +1177,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 /*83*/	case IMMEDisrm: {
 			int op = D_MO(Fetch(PC+1));
 			long v;
-			PC += ModRM(opc, PC, _mode);
+			PC += ModRM(opc, PC, _mode|(op!=7? MWRITE:0));
 			v = (signed char)Fetch(PC);
 			if (REG3) {
 				op = ArOpsFR[op];
@@ -1191,7 +1198,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			    Gen(L_NOP, _mode); PC+=2;
 			}
 			else {
-			    PC += ModRM(opc, PC, _mode|MBYTE|MLOAD);// al=[rm]
+			    PC += ModRM(opc, PC, _mode|MBYTE|MLOAD|MWRITE);// al=[rm]
 			    if (REG3) {
 				Gen(O_XCHG, _mode|MBYTE, REG1);
 				Gen(S_REG, _mode|MBYTE, REG3);
@@ -1207,7 +1214,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			    Gen(L_NOP, _mode); PC+=2;
 			}
 			else {
-			    PC += ModRM(opc, PC, _mode|MLOAD);	// (e)ax=[rm]
+			    PC += ModRM(opc, PC, _mode|MLOAD|MWRITE);	// (e)ax=[rm]
 			    if (REG3) {
 				Gen(O_XCHG, _mode, REG1);
 				Gen(S_REG, _mode, REG3);
@@ -1223,7 +1230,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			    Gen(L_REG2REG, MBYTE, REG1, REG3); PC+=2;
 			} else {
 			    Gen(L_REG, _mode|MBYTE, REG1);
-			    PC += ModRM(opc, PC, _mode|MBYTE|MSTORE); // [rm]=al
+			    PC += ModRM(opc, PC, _mode|MBYTE|MSTORE|MWRITE); // [rm]=al
 			}
 			break;
 /*89*/	case MOVwfrm:
@@ -1231,7 +1238,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			    Gen(L_REG2REG, _mode, REG1, REG3); PC+=2;
 			} else {
 			    Gen(L_REG, _mode, REG1);
-			    PC += ModRM(opc, PC, _mode|MSTORE); // [rm]=(e)ax
+			    PC += ModRM(opc, PC, _mode|MSTORE|MWRITE); // [rm]=(e)ax
 			}
 			break;
 /*8a*/	case MOVbtrm:
@@ -1251,7 +1258,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			}
 			break;
 /*8c*/	case MOVsrtrm:
-			PC += ModRM(opc, PC, _mode|SEGREG);
+			PC += ModRM(opc, PC, _mode|SEGREG|MWRITE);
 			if (REG3) {
 			    if (_mode & DATA16)
 				Gen(L_REG2REG, _mode, REG1, REG3);
@@ -1346,18 +1353,21 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			break;
 /*a2*/	case MOValm:
 			AddrGen(A_DI_0, _mode|IMMED, OVERR_DS, AddrFetchWL_U(_mode,PC+1));
+			CHKWR(_mode, OVERR_DS);
 			Gen(L_REG, _mode|MBYTE, Ofs_AL);
 			Gen(S_DI, _mode|MBYTE);
 			INC_WL_PCA(_mode,1);
 			break;
 /*a3*/	case MOVaxm:
 			AddrGen(A_DI_0, _mode|IMMED, OVERR_DS, AddrFetchWL_U(_mode,PC+1));
+			CHKWR(_mode, OVERR_DS);
 			Gen(L_REG, _mode, Ofs_EAX);
 			Gen(S_DI, _mode);
 			INC_WL_PCA(_mode,1);
 			break;
 
 /*a4*/	case MOVSb: {	int m = _mode|(MBYTE|MOVSSRC|MOVSDST);
+			CHKWR(m, Ofs_XES);
 			Gen(O_MOVS_SetA, m&~MOVSDST, OVERR_DS);
 			Gen(L_DI_R1, m);
 			Gen(O_MOVS_SetA, m&~MOVSSRC, OVERR_DS);
@@ -1366,6 +1376,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			PC++;
 			} break;
 /*a5*/	case MOVSw: {	int m = _mode|(MOVSSRC|MOVSDST);
+			CHKWR(m, Ofs_XES);
 			Gen(O_MOVS_SetA, m&~MOVSDST, OVERR_DS);
 			Gen(L_DI_R1, m);
 			Gen(O_MOVS_SetA, m&~MOVSSRC, OVERR_DS);
@@ -1389,12 +1400,14 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			PC++; } break;
 /*aa*/	case STOSb: {	int m = _mode|(MBYTE|MOVSDST);
 			Gen(L_REG, m|MOPT, Ofs_AL);
+			CHKWR(m, Ofs_XES);
 			Gen(O_MOVS_SetA, m, OVERR_DS);
 			Gen(S_DI, m);
 			Gen(O_MOVS_SavA, m|MOPT, OVERR_DS);
 			PC++; } break;
 /*ab*/	case STOSw: {	int m = _mode|MOVSDST;
 			Gen(L_REG, m|MOPT, Ofs_EAX);
+			CHKWR(m, Ofs_XES);
 			Gen(O_MOVS_SetA, m, OVERR_DS);
 			Gen(S_DI, m); PC++;
 			Gen(O_MOVS_SavA, m|MOPT, OVERR_DS);
@@ -1450,7 +1463,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 /*c0*/	case SHIFTbi: {
 			int m = _mode | MBYTE;
 			unsigned char count = 0;
-			PC += ModRM(opc, PC, m|MLOAD);
+			PC += ModRM(opc, PC, m|MLOAD|MWRITE);
 			if (opc==SHIFTb) { m |= IMMED; count = 1; }
 			else if (opc==SHIFTbi) {
 				m |= IMMED; count = Fetch(PC)&0x1f; PC++;
@@ -1494,7 +1507,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 /*c1*/	case SHIFTwi: {
 			int m = _mode;
 			unsigned char count = 0;
-			PC += ModRM(opc, PC, m|MLOAD);
+			PC += ModRM(opc, PC, m|MLOAD|MWRITE);
 			if (opc==SHIFTw) { m |= IMMED; count = 1; }
 			else if (opc==SHIFTwi) {
 				m |= IMMED; count = Fetch(PC)&0x1f; PC++;
@@ -1575,14 +1588,14 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			if (debug_level('e')>2) e_printf("RET: ret=%08x\n",PC-Interp_LONG_CS);
 			break;
 /*c6*/	case MOVbirm:
-			PC += ModRM(opc, PC, _mode|MBYTE);
+			PC += ModRM(opc, PC, _mode|MBYTE|MWRITE);
 			if (REG3)
 			    Gen(L_IMM, _mode|MBYTE, REG3, Fetch(PC));
 			else
 			    Gen(S_DI_IMM, _mode|MBYTE, Fetch(PC));
 			PC++; break;
 /*c7*/	case MOVwirm:
-			PC += ModRM(opc, PC, _mode);
+			PC += ModRM(opc, PC, _mode|MWRITE);
 			if (REG3)
 			    Gen(L_IMM, _mode, REG3, DataFetchWL_U(_mode,PC));
 			else
@@ -1788,6 +1801,7 @@ repag0:
 					PC++; break;
 				case MOVSb:
 					repmod |= (MBYTE|MOVSSRC|MOVSDST);
+					CHKWR(repmod, Ofs_XES);
 					if (repmod & (MREPNE|MREP)) {
 						Gen(O_MOVS_SetA, repmod, OVERR_DS);
 						Gen(O_MOVS_MovD, repmod);
@@ -1802,6 +1816,7 @@ repag0:
 					PC++; break;
 				case MOVSw:
 					repmod |= (MOVSSRC|MOVSDST);
+					CHKWR(repmod, Ofs_XES);
 					if (repmod & (MREPNE|MREP)) {
 						Gen(O_MOVS_SetA, repmod, OVERR_DS);
 						Gen(O_MOVS_MovD, repmod);
@@ -1842,6 +1857,7 @@ repag0:
 					PC++; break;
 				case STOSb:
 					repmod |= (MBYTE|MOVSDST);
+					CHKWR(repmod, Ofs_XES);
 					Gen(O_MOVS_SetA, repmod, OVERR_DS);
 					Gen(L_REG, repmod|MBYTE, Ofs_AL);
 					if (repmod & (MREPNE|MREP)) {
@@ -1854,6 +1870,7 @@ repag0:
 					PC++; break;
 				case STOSw:
 					repmod |= MOVSDST;
+					CHKWR(repmod, Ofs_XES);
 					Gen(O_MOVS_SetA, repmod, OVERR_DS);
 					Gen(L_REG, repmod, Ofs_EAX);
 					if (repmod & (MREPNE|MREP)) {
@@ -1940,7 +1957,7 @@ repag0:
 			Gen(O_SETFL, _mode, CMC);
 			break;
 /*f6*/	case GRP1brm: {
-			PC += ModRM(opc, PC, _mode|MBYTE|MLOAD);	// al=[rm]
+			PC += ModRM(opc, PC, _mode|MBYTE|MLOAD|((D_MO(Fetch(PC+1))&6)==2? MWRITE:0));	// al=[rm]
 			switch(REG1) {
 			case Ofs_AL:	/*0*/	/* TEST */
 			case Ofs_CL:	/*1*/	/* undocumented */
@@ -1976,7 +1993,7 @@ repag0:
 			} }
 			break;
 /*f7*/	case GRP1wrm: {
-			PC += ModRM(opc, PC, _mode|MLOAD);	// (e)ax=[rm]
+			PC += ModRM(opc, PC, _mode|MLOAD|((D_MO(Fetch(PC+1))&6)==2? MWRITE:0));	// (e)ax=[rm]
 			switch(REG1) {
 			case Ofs_AX:	/*0*/	/* TEST */
 			case Ofs_CX:	/*1*/	/* undocumented */
@@ -2072,7 +2089,7 @@ repag0:
 					PC += 2;
 					break;
 				}
-				PC += ModRM(opc, PC, _mode|MBYTE|MLOAD);//al=[rm]
+				PC += ModRM(opc, PC, _mode|MBYTE|MLOAD|MWRITE);//al=[rm]
 				Gen(O_INC, _mode|MBYTE);
 				Gen(S_DI, _mode|MBYTE);
 				break;
@@ -2083,7 +2100,7 @@ repag0:
 					PC += 2;
 					break;
 				}
-				PC += ModRM(opc, PC, _mode|MBYTE|MLOAD);//al=[rm]
+				PC += ModRM(opc, PC, _mode|MBYTE|MLOAD|MWRITE);//al=[rm]
 				Gen(O_DEC, _mode|MBYTE);
 				Gen(S_DI, _mode|MBYTE);
 				break;
@@ -2105,7 +2122,7 @@ repag0:
 					PC += 2;
 					break;
 				}
-				PC += ModRM(opc, PC, _mode|MLOAD);
+				PC += ModRM(opc, PC, _mode|MLOAD|MWRITE);
 				Gen(O_INC, _mode);
 				Gen(S_DI, _mode);
 				break;
@@ -2116,7 +2133,7 @@ repag0:
 					PC += 2;
 					break;
 				}
-				PC += ModRM(opc, PC, _mode|MLOAD);
+				PC += ModRM(opc, PC, _mode|MLOAD|MWRITE);
 				Gen(O_DEC, _mode);
 				Gen(S_DI, _mode);
 				break;
@@ -2196,6 +2213,7 @@ repag0:
 /*6c*/	case INSb:
 /*6d*/	case INSw: {	int m = _mode|MOVSDST;
 			if (opc == INSb) m |= MBYTE;
+			CHKWR(m, Ofs_XES);
 			Gen(O_MOVS_SetA, m, OVERR_DS);
 			Gen(O_SIM, m, opc, 0, P0);
 			Gen(S_DI, m);
@@ -2257,7 +2275,15 @@ repag0:
 				PC += 2;
 			}
 			else {
-				PC += ModRM(opc, PC, _mode|NOFLDR);
+				/* per escape opcode, the reg values that
+				   store: fst(p), fist(t)(p), fbstp,
+				   fnstenv, fnsave, fnstcw, fnstsw */
+				static const unsigned char fpst[8] = {
+					0, 0xcc, 0, 0x8e, 0, 0xce, 0, 0xce
+				};
+				int w = fpst[opc & 7] & (1 << D_MO(b)) ?
+					MWRITE : 0;
+				PC += ModRM(opc, PC, _mode|NOFLDR|w);
 			}
 			b &= 7;
 			if (Fp87_illegal_op(exop, b)) {
@@ -2282,7 +2308,7 @@ repag0:
 				    if (!PROTMODE()) {
 					PC += 3; goto illegal_op;
 				    }
-				    PC++; PC += ModRM(opc, PC, _mode);
+				    PC++; PC += ModRM(opc, PC, _mode|MWRITE);
 				    Gen(O_SIM, _mode, 0x100, opm, P0);
 				    if (REG3)
 					Gen(S_REG, _mode, REG3);
@@ -2314,7 +2340,7 @@ repag0:
 				case 1: /* SIDT */
 				    /* Store Global Descriptor Table Register */
 				    /* Store Interrupt Descriptor Table Register */
-				    PC++; PC += ModRM(opc, PC, _mode);
+				    PC++; PC += ModRM(opc, PC, _mode|MWRITE);
 				    Gen(O_SIM, _mode, 0x100+opc2, opm, P0);
 				    break;
 				case 2: /* LGDT */ /* PM privileged AND real _mode */
@@ -2325,7 +2351,7 @@ repag0:
 				case 4: /* SMSW, 80286 compatibility */
 				    /* Store Machine Status Word */
 				    Gen(L_CR0, _mode);
-				    PC++; PC += ModRM(opc, PC, _mode|DATA16|MSTORE);
+				    PC++; PC += ModRM(opc, PC, _mode|DATA16|MSTORE|MWRITE);
 				    break;
 				case 5: /* Illegal */
 				case 6: /* LMSW, 80286 compatibility, Privileged */
@@ -2454,7 +2480,7 @@ repag0:
 			case SETLEbrm:		/*9e*/
 			case SETNLEbrm:		/*9f*/
 				Gen(O_SETCC, _mode, (opc2&0x0f));
-				PC++; PC += ModRM(opc, PC, _mode|MBYTE|MSTORE);
+				PC++; PC += ModRM(opc, PC, _mode|MBYTE|MSTORE|MWRITE);
 				break;
 ///
 			case 0xa0: /* PUSHfs */
@@ -2489,7 +2515,7 @@ repag0:
 			case 0xab: /* BTS */
 			case 0xb3: /* BTR */
 			case 0xbb: /* BTC */
-				PC++; PC += ModRM(opc, PC, _mode);
+				PC++; PC += ModRM(opc, PC, _mode|(opc2!=0xa3? MWRITE:0));
 				if (REG3) {
 				    Gen(L_REG, _mode, REG3);
 				}
@@ -2517,7 +2543,7 @@ repag0:
 				case 0x28: /* BTS imm8 */
 				case 0x30: /* BTR imm8 */
 				case 0x38: /* BTC imm8 */
-					PC++; PC += ModRM(opc, PC, _mode|MLOAD);
+					PC++; PC += ModRM(opc, PC, _mode|MLOAD|(opm!=0x20? MWRITE:0));
 					Gen(O_BITOP, _mode, opm, Fetch(PC));
 					if (opm != 0x20) {
 					    if (REG3) {
@@ -2540,7 +2566,7 @@ repag0:
 			    /* Double Precision Shift Left by IMMED */
 			case 0xad: /* SHRDcl */
 			    /* Double Precision Shift Left by CL */
-				PC++; PC += ModRM(opc, PC, _mode|MLOAD);
+				PC++; PC += ModRM(opc, PC, _mode|MLOAD|MWRITE);
 				if (opc2&1) {
 					Gen(O_SHFD, _mode, (opc2&8), REG1);
 				}
@@ -2579,7 +2605,7 @@ repag0:
 				Gen(O_IMUL, _mode|MEMADR, REG1);	// reg*[edi]->reg signed
 				break;
 			case 0xb0:		/* CMPXCHGb */
-				PC++; PC += ModRM(opc, PC, _mode|MBYTE|MLOAD);
+				PC++; PC += ModRM(opc, PC, _mode|MBYTE|MLOAD|MWRITE);
 				Gen(O_CMPXCHG, _mode | MBYTE, REG1);
 				if (REG3)
 				    Gen(S_REG, _mode | MBYTE, REG3);
@@ -2587,7 +2613,7 @@ repag0:
 				    Gen(S_DI, _mode | MBYTE);
 				break;
 			case 0xb1:		/* CMPXCHGw */
-				PC++; PC += ModRM(opc, PC, _mode|MLOAD);
+				PC++; PC += ModRM(opc, PC, _mode|MLOAD|MWRITE);
 				Gen(O_CMPXCHG, _mode, REG1);
 				if (REG3)
 				    Gen(S_REG, _mode, REG3);
@@ -2657,7 +2683,7 @@ repag0:
 			/* case 0xb8:      JMP absolute to IA64 code */
 			/* case 0xb9: UD1 */
 			case 0xc0: /* XADDb */
-				PC++; PC += ModRM(opc, PC, _mode|MBYTE|MLOAD);
+				PC++; PC += ModRM(opc, PC, _mode|MBYTE|MLOAD|MWRITE);
 				Gen(O_XCHG, _mode | MBYTE, REG1);
 				Gen(O_ADD_R, _mode | MBYTE, REG1);
 				if (REG3)
@@ -2666,7 +2692,7 @@ repag0:
 				    Gen(S_DI, _mode|MBYTE);
 				break;
 			case 0xc1: /* XADDw */
-				PC++; PC += ModRM(opc, PC, _mode|MLOAD);
+				PC++; PC += ModRM(opc, PC, _mode|MLOAD|MWRITE);
 				Gen(O_XCHG, _mode, REG1);
 				Gen(O_ADD_R, _mode, REG1);
 				if (REG3)
@@ -2682,7 +2708,7 @@ repag0:
 				if (D_MO(modrm) != 1 || D_HO(modrm) == 3) {
 					PC += 3; goto illegal_op;
 				}
-				PC++; PC += ModRM(opc, PC, _mode);
+				PC++; PC += ModRM(opc, PC, _mode|MWRITE);
 				Gen(O_SIM, _mode, 0x1c7, 1, P0);
 				break;
 				}

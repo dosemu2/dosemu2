@@ -70,8 +70,13 @@ int _ModRM(unsigned char opc, unsigned int PC, int mode, signed char overr_ds, s
 {
 	unsigned char mod,cab=Fetch(PC+1);
 	int l=2;
-	int dsp, base, index, shift;
+	int dsp, base, index, shift, seg;
+	/* a write through a selector that cannot be written through is a
+	 * #GP; only the caller knows the instruction writes, and only
+	 * protected mode has such selectors */
+	int chkwr = (mode & MWRITE) && !(mode & (MREALA|MLEA));
 
+	mode &= ~MWRITE;
 	if (!(mode&NOFLDR)) {
 		mod = D_MO(cab);
 		if (mode & MBYTE)		// not for movx
@@ -122,6 +127,7 @@ int _ModRM(unsigned char opc, unsigned int PC, int mode, signed char overr_ds, s
 		}
 	}
 	if (mod == 0 && l > 3) {
+		seg = overr_ds;
 		if (index == Ofs_ESP)
 			AddrGen(A_DI_0, mode|IMMED, overr_ds, dsp);
 		else
@@ -131,6 +137,7 @@ int _ModRM(unsigned char opc, unsigned int PC, int mode, signed char overr_ds, s
 	else {
 		int overr = (base == Ofs_ESP || base == Ofs_EBP) ?
 			overr_ss : overr_ds;
+		seg = overr;
 		if (mod==1) {
 			dsp=(signed char)Fetch(PC+l); l++;
 		}
@@ -143,6 +150,8 @@ int _ModRM(unsigned char opc, unsigned int PC, int mode, signed char overr_ds, s
 			AddrGen(A_DI_2, mode|IMMED, overr, dsp, base,
 				index, shift);
 	}
+	if (chkwr)
+		Gen(O_CHKWR, mode, seg);
 	if (mode & MLOAD)
 		Gen(L_DI_R1, mode);		// mov al,[edi]
 	else if (mode & MSTORE)

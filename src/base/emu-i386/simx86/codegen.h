@@ -71,6 +71,7 @@
 #define L_DI_R1		22
 #define S_DI		23
 #define L_NOP		24
+#define O_CHKWR		25	// #GP if the segment is not writable
 
 #define O_ADD_R		30
 #define O_OR_R		31
@@ -187,6 +188,7 @@
 #define MTRAP	0x04000000	// INT01 Sstep active: generate EXCP01_SSTP
 #define MINHI	0x08000000	// inhibits IRQs (MOVss/POPss/STI)
 #define MOPT	0x10000000	// optimize this op
+#define MWRITE	0x20000000	// for ModRM: the operand is written to
 
 // values for TNode.flags and IMeta.flags
 #define F_FPOP	0x0001	// has at least one FP instruction

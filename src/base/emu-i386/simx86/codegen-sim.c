@@ -503,6 +503,18 @@ static unsigned int Gen_sim(IGen *IG, unsigned int *pmem_ref)
 	case L_NOP:
 		GTRACE0("L_NOP");
 		break;
+	case O_CHKWR:
+		GTRACE1("O_CHKWR",IG->p0);
+		/* a rep with a zero count accesses nothing */
+		if ((mode & (MREP|MREPNE)) &&
+		    !(mode & ADDR16 ? CPUWORD(Ofs_CX) : CPULONG(Ofs_ECX)))
+			break;
+		if (TheCPU.seg_ro & SEGRO_XBIT(IG->p0)) {
+			TheCPU.err = EXCP0D_GPF;
+			TheCPU.scp_err = 0;
+			P0 = IG->p1;
+		}
+		break;
 	// Special case: CR0&0x3f
 	case L_CR0:
 		GTRACE0("L_CR0");

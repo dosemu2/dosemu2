@@ -324,6 +324,11 @@ void Gen(int op, int mode, ...)
 		}
 		break;
 
+	case O_CHKWR:
+		IG->p0 = va_arg(ap,unsigned int);	// segment base ofs
+		IG->p1 = I->npc;			// where to fault
+		break;
+
 	case O_FOP:
 	case O_INT: {
 		unsigned char exop = (unsigned char)va_arg(ap,unsigned int);

@@ -85,6 +85,7 @@ int SetSegReal(unsigned short sel, int ofs)
 	sd = (SDTR *)CPUOFFS(e_ofsseg(ofs));
 
 	CPUWORD(ofs) = sel;
+	TheCPU.seg_ro &= ~SEGRO_BIT(ofs);
 	sd->BoundL = sel<<4;
 	sd->BoundH = sd->BoundL + 0xffff;
 
@@ -225,6 +226,11 @@ void SetSegProt_set(int ofs, unsigned long sel)
 			sel, sd->BoundL, sd->BoundH, wFlags, lbig&1);
 	}
 	CPUWORD(ofs) = sel;
+	if (sel >= 4 && (wFlags & DF_USER) &&
+	    ((wFlags & DF_CODE) || !(wFlags & DF_DWRITEABLE)))
+		TheCPU.seg_ro |= SEGRO_BIT(ofs);
+	else
+		TheCPU.seg_ro &= ~SEGRO_BIT(ofs);
 	if (ofs==Ofs_SS) {
 		TheCPU.StackMask = (lbig? 0xffffffff : 0x0000ffff);
 		if (debug_level('e')>1) e_printf("MAKESEG SS: big=%d basemode=%04x\n",lbig&1,TheCPU.mode);
