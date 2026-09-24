@@ -160,10 +160,13 @@ static void set_irq_level(void *opaque, int n, int level)
     pic_set_irq(opaque, n, level);
 }
 
+static int int_out_queued;
+
 static void int_raise(void *arg)
 {
     int level = (uintptr_t)arg;
     /* If we are here, guest code already interrupted. So nothing to do. */
+    __atomic_store_n(&int_out_queued, 0, __ATOMIC_RELEASE);
     r_printf("int level from thread set to %i\n", level);
 }
 
@@ -172,7 +175,16 @@ static void set_int_out(void *opaque, int n, int level)
     pthread_t thr = (pthread_t)opaque;
 
     r_printf("PIC: int out set to %i\n", level);
-    if (!pthread_equal(thr, pthread_self()))
+    if (pthread_equal(thr, pthread_self()))
+        return;
+    /* What the guest needs here is the wakeup that add_thread_callback()
+     * does; int_raise() itself has nothing left to do.  A device thread that
+     * moves the line faster than the main thread drains the queue fills it
+     * up and turns every further move into an error message, so keep at most
+     * one entry in flight and let the rest be plain wakeups. */
+    if (__atomic_exchange_n(&int_out_queued, 1, __ATOMIC_ACQ_REL))
+        add_thread_callback(NULL, NULL, "pic");
+    else
         add_thread_callback(int_raise, (void *)(uintptr_t)level, "pic");
 }
 
