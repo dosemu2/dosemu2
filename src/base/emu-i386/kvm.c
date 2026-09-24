@@ -1372,6 +1372,14 @@ static int kvm_post_run(struct vm86_regs *regs, struct kvm_regs *kregs)
            interrupts off, and there is nothing to report: let it finish. */
         return 0;
       }
+      if (!kvm_in_vcpi()) {
+        /* The client has already said it is done (pm_to_v86 clears the
+           flag first) but the stub is still on its way out under the
+           client's CR3 and TR.  None of this state is ours or the
+           client's to hand back: let the stub finish. */
+        g_printf("KVM: interrupt on the way out of a VCPI client\n");
+        return 0;
+      }
       g_printf("KVM: interrupt in VCPI code\n");
       /* the client owns the registers and they stay in the VM; cs=0 says
          that this is where we were */
