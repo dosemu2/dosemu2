@@ -1596,8 +1596,10 @@ static void DPMI_restore_rm_regs(struct RealModeCallStructure *rmreg, unsigned m
 #undef SRMR
 }
 
+void evr_note(const char *tag, cpuctx_t *scp);
 static void save_rm_regs(void)
 {
+  evr_note("save-rm", &DPMI_CLIENT.stack_frame);
   if (DPMI_CLIENT.in_dpmi_rm_stack < DPMI_rm_stacks) {
     D_printf("DPMI: switching to realmode stack, in_dpmi_rm_stack=%i\n",
       DPMI_CLIENT.in_dpmi_rm_stack);
@@ -1618,6 +1620,7 @@ static void restore_rm_regs(void)
     leavedos(25);
   }
   DPMI_restore_rm_regs(&DPMI_CLIENT.rm_stack[--DPMI_CLIENT.in_dpmi_rm_stack], ~0);
+  evr_note("restore-rm", &DPMI_CLIENT.stack_frame);
   D_printf("DPMI: return from realmode procedure, in_dpmi_rm_stack=%i\n",
       DPMI_CLIENT.in_dpmi_rm_stack);
 }
@@ -1743,8 +1746,9 @@ static int post_rm_call(int old_client)
 
 /* PROBE: ring of host events around client contexts, not for merge */
 struct evr_ent { const char *tag; unsigned cs, eip, ss, esp, ebp, esi, edi,
-  eax, ecx, pms, pmp, irq, n; };
-#define EVR_SZ 256
+  eax, ecx, pms, pmp, irq, n, sr, rms, rcs, rip, rax, rcx, rbp; };
+extern unsigned sim_ring_n(void);
+#define EVR_SZ 400
 static struct evr_ent evr[EVR_SZ];
 static unsigned evr_n, evr_dumped;
 void evr_note(const char *tag, cpuctx_t *scp);
@@ -1755,6 +1759,9 @@ void evr_note(const char *tag, cpuctx_t *scp)
   e->ebp = _ebp; e->esi = _esi; e->edi = _edi; e->eax = _eax; e->ecx = _ecx;
   e->pms = DPMI_CLIENT.in_dpmi_pm_stack; e->pmp = DPMI_pm_procedure_running;
   e->irq = in_dpmi_irq; e->n = evr_n;
+  e->sr = sim_ring_n(); e->rms = DPMI_CLIENT.in_dpmi_rm_stack;
+  e->rcs = SREG(cs); e->rip = LWORD(eip); e->rax = LWORD(eax);
+  e->rcx = LWORD(ecx); e->rbp = LWORD(ebp);
   evr_n++;
 }
 void sim_ring_dump(void);
@@ -1771,9 +1778,10 @@ static void evr_dump(cpuctx_t *scp)
   for (i = first; i < evr_n; i++) {
     struct evr_ent *e = &evr[i % EVR_SZ];
     error("EVR %u %-10s %04x:%08x ss:esp %04x:%08x ebp %08x esi %08x edi %08x"
-	" eax %08x ecx %08x lpms %u pmproc %u irq %u\n", e->n, e->tag, e->cs,
+	" eax %08x ecx %08x lpms %u pmproc %u irq %u sr %u rmstk %u"
+	" rm %04x:%04x ax %04x cx %04x bp %04x\n", e->n, e->tag, e->cs,
 	e->eip, e->ss, e->esp, e->ebp, e->esi, e->edi, e->eax, e->ecx, e->pms,
-	e->pmp, e->irq);
+	e->pmp, e->irq, e->sr, e->rms, e->rcs, e->rip, e->rax, e->rcx, e->rbp);
   }
 }
 
@@ -3062,6 +3070,7 @@ err:
   case 0x0300:	/* Simulate Real Mode Interrupt */
   case 0x0301:	/* Call Real Mode Procedure With Far Return Frame */
   case 0x0302:	/* Call Real Mode Procedure With Iret Frame */
+    evr_note(_LWORD(eax) == 0x300 ? "api-0300" : "api-0301", scp);
     save_rm_regs();
     {
       struct RealModeCallStructure *rmreg = SEL_ADR_X(_es, _edi);
@@ -6452,6 +6461,12 @@ void dpmi_realmode_hlt(unsigned int lina)
   if ((debug_level('t')==0)||(lina!=DPMI_ADD + HLT_OFF(DPMI_return_from_dos)))
 #endif
   D_printf("DPMI: realmode hlt: %#x, in_dpmi=%i\n", lina, in_dpmi);
+  evr_note(lina == DPMI_ADD + HLT_OFF(DPMI_return_from_dos) ? "rm-ret-dos" :
+      (lina >= DPMI_ADD + HLT_OFF(DPMI_return_from_rmint) &&
+       lina < DPMI_ADD + HLT_OFF(DPMI_return_from_rmint) + DPMI_MAX_CLIENTS) ?
+      "rm-ret-int" : (lina >= DPMI_ADD + HLT_OFF(DPMI_return_from_realmode) &&
+      lina < DPMI_ADD + HLT_OFF(DPMI_return_from_realmode) + DPMI_MAX_CLIENTS) ?
+      "rm-ret-proc" : "rm-hlt", scp);
   if (lina == DPMI_ADD + HLT_OFF(DPMI_return_from_dos)) {
 
 #ifdef TRACE_DPMI

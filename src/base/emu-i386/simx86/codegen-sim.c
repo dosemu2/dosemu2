@@ -2791,6 +2791,8 @@ struct sr_ent { unsigned pc, ebp, esi, edi, eax, ecx, esp, err; };
 static struct sr_ent sr_ring[SR_SZ];
 static unsigned sr_n;
 void sim_ring_dump(void);
+unsigned sim_ring_n(void);
+unsigned sim_ring_n(void) { return sr_n; }
 void sim_ring_dump(void)
 {
 	unsigned i, first = sr_n > SR_SZ ? sr_n - SR_SZ : 0;
