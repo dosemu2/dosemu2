@@ -154,6 +154,22 @@ static void msdos_init(int num, int is_32, unsigned short mseg,
 static void msdos_done(int prev);
 static void msdos_set_client(int num);
 
+/*
+ * The offset that comes with a handler is as wide as the code segment the
+ * handler lives in, which is not always the client's own width: a 16bit
+ * program running under a 32bit extender passes a 16bit offset in DX and
+ * leaves the rest of EDX holding whatever it held. Take the width from
+ * the handler's own selector, as callbacks.c does for its return frame.
+ */
+static uint32_t handler_off(unsigned short sel, uint32_t off)
+{
+    unsigned int lp[2];
+
+    if (GetDescriptor(sel, lp) < 0 || !(lp[1] & 0x00400000))	/* the D bit */
+	return off & 0xffff;
+    return off;
+}
+
 static void *cbk_args(int idx)
 {
     switch (idx) {
@@ -1106,13 +1122,13 @@ int msdos_pre_extender(cpuctx_t *scp,
 	    D_printf("MSDOS: PS2MOUSE function 0x%x\n", _LO(ax));
 	    switch (_LO(ax)) {
 	    case 0x07:		/* set handler addr */
-		if (_es && D_16_32(_ebx)) {
+		if (_es && handler_off(_es, _ebx)) {
 		    far_t rma = MSDOS_CLIENT.rmcbs[RMCB_PS2MS];
 		    D_printf
 			("MSDOS: PS2MOUSE: set handler addr 0x%x:0x%x\n",
-			 _es, D_16_32(_ebx));
+			 _es, handler_off(_es, _ebx));
 		    MSDOS_CLIENT.PS2mouseCallBack.selector = _es;
-		    MSDOS_CLIENT.PS2mouseCallBack.offset = D_16_32(_ebx);
+		    MSDOS_CLIENT.PS2mouseCallBack.offset = handler_off(_es, _ebx);
 		    SET_RMREG(es, rma.segment);
 		    SET_RMLWORD(bx, rma.offset);
 		} else {
@@ -1809,11 +1825,11 @@ int msdos_pre_extender(cpuctx_t *scp,
 	case 0x14:{		/* swap call back */
 		struct pmaddr_s old_callback = MSDOS_CLIENT.mouseCallBack;
 		MSDOS_CLIENT.mouseCallBack.selector = _es;
-		MSDOS_CLIENT.mouseCallBack.offset = D_16_32(_edx);
+		MSDOS_CLIENT.mouseCallBack.offset = handler_off(_es, _edx);
 		if (_es) {
 		    far_t rma = MSDOS_CLIENT.rmcbs[RMCB_MS];
 		    D_printf("MSDOS: set mouse callback %#x:%#x of client %i "
-			    "to %#x:%#x\n", _es, D_16_32(_edx),
+			    "to %#x:%#x\n", _es, handler_off(_es, _edx),
 			    msdos_client_num, rma.segment, rma.offset);
 		    SET_RMREG(es, rma.segment);
 		    SET_RMLWORD(dx, rma.offset);
