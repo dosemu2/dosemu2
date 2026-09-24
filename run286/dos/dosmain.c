@@ -15,6 +15,7 @@
 #include <sys/fmemcpy.h>
 #include <sys/segments.h>
 #include <sys/farptr.h>
+#include <go32.h>
 #include "neload.h"
 #include "asm.h"
 #include "run286.h"
@@ -27,18 +28,78 @@
 static FILE *trace_fp;
 int run286_trace;
 
+/*
+ * The trace goes out through DOS, and the program calls our imports from
+ * its interrupt handlers too: BioForge's timer handler calls
+ * DosRealFarCall on every tick. A tick that lands while DOS is inside a
+ * call the program made (an open, a read) must not enter DOS again: DOS
+ * is not reentrant, and the outer call comes back with the registers of
+ * our write, so the program's BP turns zero and it dies on its next
+ * retf. While the InDOS flag is up, keep the text and write it out with
+ * the next line that finds DOS free.
+ */
+static unsigned indos_addr;
+static char trc_held[16384];
+static unsigned trc_held_len, trc_dropped;
+
+static void trc_init_indos(void)
+{
+    __dpmi_regs r;
+
+    memset(&r, 0, sizeof(r));
+    r.h.ah = 0x34;
+    if (__dpmi_int(0x21, &r) == 0)
+	indos_addr = r.x.es * 16 + r.x.bx;
+}
+
+static int dos_busy(void)
+{
+    return indos_addr && _farpeekb(_dos_ds, indos_addr);
+}
+
+static void trc_out(const char *s)
+{
+    if (trace_fp) {
+	fputs(s, trace_fp);
+	fflush(trace_fp);
+    } else {
+	fputs(s, stdout);
+	fflush(stdout);
+    }
+}
+
 void trc(const char *fmt, ...)
 {
+    char line[1024];
     va_list ap;
 
     va_start(ap, fmt);
-    if (trace_fp) {
-	vfprintf(trace_fp, fmt, ap);
-	fflush(trace_fp);
-    } else {
-	vprintf(fmt, ap);
-    }
+    vsnprintf(line, sizeof(line), fmt, ap);
     va_end(ap);
+    if (dos_busy()) {
+	size_t len = strlen(line);
+
+	if (trc_held_len + len < sizeof(trc_held)) {
+	    memcpy(trc_held + trc_held_len, line, len + 1);
+	    trc_held_len += len;
+	} else {
+	    trc_dropped++;
+	}
+	return;
+    }
+    if (trc_held_len) {
+	trc_held_len = 0;
+	trc_out(trc_held);
+    }
+    if (trc_dropped) {
+	char note[80];
+
+	snprintf(note, sizeof(note), "run286: %u trace lines lost while "
+		"DOS was busy\n", trc_dropped);
+	trc_dropped = 0;
+	trc_out(note);
+    }
+    trc_out(line);
 }
 
 /*
@@ -1021,6 +1082,7 @@ int main(int argc, char **argv)
     l->trace = getenv("RUN286_TRACE") != NULL || read_cfg_trace(logf,
 	    sizeof(logf));
     run286_trace = l->trace;
+    trc_init_indos();
     if (l->trace) {
 	const char *log = getenv("RUN286_LOG");
 
