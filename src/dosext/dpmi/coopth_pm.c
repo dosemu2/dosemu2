@@ -51,7 +51,10 @@ static struct co_pm_pth coopthpm_pth[COOPTH_POOL_SIZE];
 static int is_active(int tid, int idx)
 {
     cpuctx_t *scp = dpmi_get_scp();
-    return (_cs == dpmi_sel() && _eip == coopthpm_pth[idx].hlt_off);
+    /* either of our code selectors: the 32bit code of a 16bit client
+     * enters us through the 32bit one (THUNK_16_32) */
+    return ((_cs == dpmi_sel16() || _cs == dpmi_sel32()) &&
+	    _eip == coopthpm_pth[idx].hlt_off);
 }
 
 static int to_sleep(int tid)

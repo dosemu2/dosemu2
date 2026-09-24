@@ -67,8 +67,10 @@ static unsigned short EMM_SEG;
 #define Scratch_Para_SIZE 32 // 512 bytes
 #define Scratch_SIZE (Scratch_Para_SIZE << 4)
 
+/* the descriptor itself: our LDT copy is not kept up to date if someone
+ * else monitors the LDT */
 #define API_32(scp) (MSDOS_CLIENT.is_32 || (MSDOS_CLIENT.ext__thunk_16_32 && \
-    msdos_ldt_is32(_cs_)))
+    dpmi_segment_is32(_cs_)))
 #define API_16_32(x) (API_32(scp) ? (x) : (x) & 0xffff)
 #define SEL_ADR_X(s, a, u) SEL_ADR_CLNT(s, a, API_32(scp))
 #define D_16_32(reg) API_16_32(reg)
@@ -653,7 +655,9 @@ static u_short *get_winos2_alias(void) { return &MSDOS_CLIENT.ldt_alias_winos2; 
 static void get_ext_API(cpuctx_t *scp)
 {
     struct pmaddr_s pma;
-    char *ptr = SEL_ADR_CLNT(_ds, _esi, MSDOS_CLIENT.is_32);
+    /* ESI of 32bit code, also in a 16bit client (THUNK_16_32x) */
+    char *ptr = SEL_ADR_CLNT(_ds, _esi, MSDOS_CLIENT.is_32 ||
+	    dpmi_segment_is32(_cs_));
     D_printf("MSDOS: GetVendorAPIEntryPoint: %s\n", ptr);
     if (!strcmp("MS-DOS", ptr)) {
 	_LO(ax) = 0;

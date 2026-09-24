@@ -72,7 +72,7 @@ static int current_client;
 #define PREV_DPMI_CLIENT (DPMIclient[prev_clnt()])
 
 #define DEFAULT_INT(i) (!DPMI_CLIENT.Interrupt_Table[i].selector || \
-    (DPMI_CLIENT.Interrupt_Table[i].selector == dpmi_sel() && \
+    (IS_DPMI_SEL(DPMI_CLIENT.Interrupt_Table[i].selector) && \
     DPMI_CLIENT.Interrupt_Table[i].offset < DPMI_SEL_OFF(DPMI_sel_end)))
 
 #define _isset_IF() (!!(_eflags & IF))
@@ -193,8 +193,9 @@ static void make_retf_frame(cpuctx_t *scp, void *sp,
 	uint32_t cs, uint32_t eip);
 static void make_xretf_frame(cpuctx_t *scp, void *sp,
 	uint32_t cs, uint32_t eip);
-static void make_iret_frame(cpuctx_t *scp, void *sp,
-	uint32_t cs, uint32_t eip);
+static void make_iret_frame_x(cpuctx_t *scp, void *sp,
+	uint32_t cs, uint32_t eip, int is_32);
+static void sub_esp(cpuctx_t *scp, int len, int is_32);
 static void do_pm_int(cpuctx_t *scp, int i);
 static void msdos_set_client(cpuctx_t *scp, int num);
 static int rsp_get_para(void);
@@ -330,6 +331,50 @@ SEGDESC _Segments(uint8_t *ldt_buffer, unsigned short ldt_entry)
 static SEGDESC Segments(unsigned short ldt_entry)
 {
   return _Segments(ldt_buffer, ldt_entry);
+}
+
+/* THUNK_16_32 extension: a 32bit handler of a 16bit client gets
+ * 32bit frames, returning to our 32bit code selector. */
+static int handler_is_32(unsigned short sel)
+{
+  if (DPMI_CLIENT.is_32)
+    return 1;
+  if (!ext__thunk_16_32 || !(sel & 4) || sel == _dpmi_sel16)
+    return 0;
+  return Segments(sel >> 3).is_32;
+}
+
+static unsigned short frame_sel(int is_32)
+{
+  return is_32 ? _dpmi_sel32 : _dpmi_sel16;
+}
+
+/* our code selector of the bitness of whoever asks for an entry */
+static unsigned short caller_sel(cpuctx_t *scp)
+{
+  if (!DPMI_CLIENT.is_32 && (_cs & 4) && Segments(_cs >> 3).is_32)
+    return _dpmi_sel32;
+  return dpmi_sel();
+}
+
+/* a host's default entry, handed to the 32bit code of a 16bit client */
+static DPMI_INTDESC entry_for_caller(cpuctx_t *scp, DPMI_INTDESC desc)
+{
+  if (desc.selector == _dpmi_sel16 && ext__thunk_16_32)
+    desc.selector = caller_sel(scp);
+  return desc;
+}
+
+#define IS_DPMI_SEL(s) ((s) == _dpmi_sel16 || (s) == _dpmi_sel32)
+
+/* our own code, entered from the 32bit code of a 16bit client: the
+ * same entry through our 32bit selector, for a 32bit frame */
+static unsigned short handler_sel(cpuctx_t *scp, unsigned short sel)
+{
+  if (sel == _dpmi_sel16 && ext__thunk_16_32 &&
+      caller_sel(scp) == _dpmi_sel32)
+    return _dpmi_sel32;
+  return sel;
 }
 
 static void *SEL_ADR_LDT(unsigned short sel, unsigned int reg, int is_32)
@@ -1305,6 +1350,7 @@ static void *enter_lpms(cpuctx_t *scp)
 {
   unsigned short pmstack_sel;
   uint32_t pmstack_esp;
+  int stk32;
   if (!DPMI_CLIENT.in_dpmi_pm_stack) {
     D_printf("DPMI: Switching to locked stack\n");
     pmstack_sel = DPMI_CLIENT.PMSTACK_SEL;
@@ -1347,11 +1393,14 @@ static void *enter_lpms(cpuctx_t *scp)
     pmstack_esp = D_16_32(DPMI_pm_stack_size);
   }
 
+  /* staying on a 32bit stack of a 16bit client (its 32bit code, with
+   * THUNK_16_32) keeps the whole ESP */
+  stk32 = DPMI_CLIENT.is_32 || Segments(pmstack_sel >> 3).is_32;
   _ss = pmstack_sel;
-  _esp = D_16_32(pmstack_esp);
+  _esp = stk32 ? pmstack_esp : LO_WORD(pmstack_esp);
   DPMI_CLIENT.in_dpmi_pm_stack++;
 
-  return SEL_ADR_CLNT(pmstack_sel, pmstack_esp, DPMI_CLIENT.is_32);
+  return SEL_ADR_CLNT(pmstack_sel, pmstack_esp, stk32);
 }
 
 static void leave_lpms(cpuctx_t *scp)
@@ -1682,7 +1731,9 @@ void fake_pm_int(void)
 
 static void get_ext_API(cpuctx_t *scp)
 {
-      char *ptr = SEL_ADR_CLNT(_ds, _esi, DPMI_CLIENT.is_32);
+      /* THUNK_16_32: the 32bit code of a 16bit client passes ESI */
+      char *ptr = SEL_ADR_CLNT(_ds, _esi, DPMI_CLIENT.is_32 ||
+          (ext__thunk_16_32 && caller_sel(scp) == _dpmi_sel32));
       D_printf("DPMI: GetVendorAPIEntryPoint: %s\n", ptr);
       _eflags &= ~CF;
       if (!strcmp("VIRTUAL SUPPORT", ptr)) {
@@ -1696,11 +1747,11 @@ static void get_ext_API(cpuctx_t *scp)
 	_LO(ax) = 0;
       } else if (!strcmp("THUNK_16_32", ptr)) {
 	_LO(ax) = 0;
-	_es = dpmi_sel();
+	_es = caller_sel(scp);
 	_edi = DPMI_SEL_OFF(DPMI_API_extension);
       } else if (!strcmp("LDT_MONITOR", ptr)) {
 	_LO(ax) = 0;
-	_es = dpmi_sel();
+	_es = caller_sel(scp);
 	_edi = DPMI_SEL_OFF(DPMI_API_extension);
       } else if (!strcmp("DPMI_REINIT", ptr)) {
 	_LO(ax) = 0;
@@ -1815,8 +1866,8 @@ void dpmi_set_interrupt_vector(unsigned char num, DPMI_INTDESC desc)
         if (DEFAULT_INT(num) || num < 0x20)
             kvm_set_idt_default(num);
         else
-            kvm_set_idt(num, desc.selector, desc.offset32, DPMI_CLIENT.is_32,
-                    num >= 8);
+            kvm_set_idt(num, desc.selector, desc.offset32,
+                    handler_is_32(desc.selector), num >= 8);
         break;
       case CPUVM_NATIVE:
         if (num == 0x80 && desc.selector != dpmi_sel())
@@ -2293,15 +2344,15 @@ static void dpmi_pusha(cpuctx_t *scp, void *sp, int is_32)
     }
 }
 
-static void dpmi_pushsr(cpuctx_t *scp, void *sp)
+static void dpmi_pushsr(cpuctx_t *scp, void *sp, int is_32)
 {
-    if (DPMI_CLIENT.is_32) {
+    if (is_32) {
         unsigned int *ssp = sp;
         *--ssp = _ds;
         *--ssp = _es;
         *--ssp = _fs;
         *--ssp = _gs;
-        _esp -= 4*4;
+        sub_esp(scp, 4*4, 1);
     } else {
         unsigned short *ssp = sp;
         *--ssp = _LWORD(ds);
@@ -2316,16 +2367,18 @@ static void do_ldt_call(cpuctx_t *scp, ldt_calldesc call, int ent,
         int num, int cnt)
 {
     void *sp;
+    /* the 32bit code of a 16bit client returns through our 32bit code */
+    int c32 = handler_is_32(_cs);
 
     sp = SEL_ADR(_ss, _esp);
-    make_iret_frame(scp, sp, _cs, _eip);
+    make_iret_frame_x(scp, sp, _cs, _eip, c32);
     sp = SEL_ADR(_ss, _esp);
-    dpmi_pushsr(scp, sp);
+    dpmi_pushsr(scp, sp, c32);
     sp = SEL_ADR(_ss, _esp);
     dpmi_pusha(scp, sp, 1);
     sp = SEL_ADR(_ss, _esp);
-    make_retf_frame(scp, sp, dpmi_sel(),
-            DPMI_CLIENT.is_32 ? DPMI_SEL_OFF(DPMI_return_from_LDTcall) :
+    make_retf_frame(scp, sp, frame_sel(c32),
+            c32 ? DPMI_SEL_OFF(DPMI_return_from_LDTcall) :
             DPMI_SEL_OFF(DPMI_return_from_LDTcall16));
     _do_ldt_call(scp, call, ent, num);
     D_printf("DPMI: LDT call %i to %x:%x sel=%x,%i\n",
@@ -2803,7 +2856,7 @@ err:
       _eax = 0x8021;
       break;
     }
-    desc = dpmi_get_exception_handler(_LO(bx));
+    desc = entry_for_caller(scp, dpmi_get_exception_handler(_LO(bx)));
     _LWORD(ecx) = desc.selector;
     _edx = desc.offset32;
     D_printf("DPMI: Getting Excp %#x = %#x:%#x\n", _LO(bx),_LWORD(ecx),_edx);
@@ -2823,7 +2876,8 @@ err:
     break;
   }
   case 0x0204: {	/* Get Protected Mode Interrupt vector */
-      DPMI_INTDESC desc = dpmi_get_interrupt_vector(_LO(bx));
+      DPMI_INTDESC desc = entry_for_caller(scp,
+          dpmi_get_interrupt_vector(_LO(bx)));
       _LWORD(ecx) = desc.selector;
       _edx = desc.offset32;
     }
@@ -2842,7 +2896,7 @@ err:
       _eax = 0x8021;
       break;
     }
-    desc = dpmi_get_pm_exc_addr(_LO(bx));
+    desc = entry_for_caller(scp, dpmi_get_pm_exc_addr(_LO(bx)));
     _LWORD(ecx) = desc.selector;
     _edx = desc.offset32;
     D_printf("DPMI: Getting Ext PM Excp %#x = %#x:%#x\n", _LO(bx),_LWORD(ecx),_edx);
@@ -3444,15 +3498,23 @@ err:
     D_printf("DPMI: dpmi function failed, CF=1\n");
 }
 
-static void make_iret_frame(cpuctx_t *scp, void *sp,
-	uint32_t cs, uint32_t eip)
+static void sub_esp(cpuctx_t *scp, int len, int is_32)
 {
-  if (DPMI_CLIENT.is_32) {
+  if (DPMI_CLIENT.is_32 || (is_32 && Segments(_ss >> 3).is_32))
+    _esp -= len;
+  else
+    _LWORD(esp) -= len;
+}
+
+static void make_iret_frame_x(cpuctx_t *scp, void *sp,
+	uint32_t cs, uint32_t eip, int is_32)
+{
+  if (is_32) {
     unsigned int *ssp = sp;
     *--ssp = dpmi_flags_to_stack(_eflags);
     *--ssp = cs;
     *--ssp = eip;
-    _esp -= 12;
+    sub_esp(scp, 12, 1);
   } else {
     unsigned short *ssp = sp;
     *--ssp = dpmi_flags_to_stack(_eflags);
@@ -3533,6 +3595,7 @@ static void remove_xretf_frame(cpuctx_t *scp, void *sp)
 static void dpmi_realmode_callback(int rmcb_client, int num)
 {
     void *sp;
+    int h32;
     int changed = 0;
     cpuctx_t *scp = &DPMI_CLIENT.stack_frame;
 
@@ -3555,8 +3618,9 @@ static void dpmi_realmode_callback(int rmcb_client, int num)
      * will produce an exception 10 as soon as we return from the
      * callback! */
     _eflags =  REG(eflags)&(~(AC|VM|TF|NT));
-    make_iret_frame(scp, sp, dpmi_sel(),
-	    DPMI_SEL_OFF(DPMI_return_from_rm_callback));
+    h32 = handler_is_32(DPMIclient[rmcb_client].realModeCallBack[num].selector);
+    make_iret_frame_x(scp, sp, frame_sel(h32),
+	    DPMI_SEL_OFF(DPMI_return_from_rm_callback), h32);
     _cs = DPMIclient[rmcb_client].realModeCallBack[num].selector;
     _eip = DPMIclient[rmcb_client].realModeCallBack[num].offset;
     SetSelector(DPMIclient[rmcb_client].realModeCallBack[num].rm_ss_selector,
@@ -4062,6 +4126,7 @@ static void do_pm_int(cpuctx_t *scp, int i)
   unsigned int old_esp;
   unsigned char imr;
   int protect_vtmr = 0;
+  int h32;
 
   D_printf("DPMI: run_pm_int(0x%02x) called, in_dpmi_pm=0x%02x\n",i,in_dpmi_pm());
 
@@ -4081,7 +4146,8 @@ static void do_pm_int(cpuctx_t *scp, int i)
   DPMI_CLIENT.imr[1] = port_inb(0xa1);
 
   D_printf("DPMI: Calling protected mode handler for int 0x%02x\n", i);
-  if (DPMI_CLIENT.is_32) {
+  h32 = handler_is_32(DPMI_CLIENT.Interrupt_Table[i].selector);
+  if (h32) {
     unsigned int *ssp = sp;
     *--ssp = imr | (i << 8);
     *--ssp = 0;	/* reserved */
@@ -4096,7 +4162,7 @@ static void do_pm_int(cpuctx_t *scp, int i)
     *--ssp = _cs;
     *--ssp = _eip;
     *--ssp = dpmi_flags_to_stack(_eflags);
-    *--ssp = dpmi_sel();
+    *--ssp = frame_sel(1);
     *--ssp = DPMI_SEL_OFF(DPMI_return_from_pm);
     _esp -= 48;
   } else {
@@ -4173,6 +4239,7 @@ static void run_pm_dos_int(int i)
 {
   void  *sp;
   uint32_t ret_eip;
+  int h32;
   cpuctx_t *scp = &DPMI_CLIENT.stack_frame;
 
   D_printf("DPMI: run_pm_dos_int(0x%02x) called\n",i);
@@ -4222,7 +4289,8 @@ static void run_pm_dos_int(int i)
   }
 
   D_printf("DPMI: Calling protected mode handler for DOS int 0x%02x\n", i);
-  make_iret_frame(scp, sp, dpmi_sel(), ret_eip);
+  h32 = handler_is_32(DPMI_CLIENT.Interrupt_Table[i].selector);
+  make_iret_frame_x(scp, sp, frame_sel(h32), ret_eip, h32);
   _cs = DPMI_CLIENT.Interrupt_Table[i].selector;
   _eip = DPMI_CLIENT.Interrupt_Table[i].offset;
   _eflags &= ~(TF | NT | AC);
@@ -4738,7 +4806,7 @@ static void return_from_exception(cpuctx_t *scp)
 
   sp = SEL_ADR(_ss,_esp);
 
-  if (DPMI_CLIENT.is_32) {
+  if (_cs == _dpmi_sel32) {
     unsigned int *ssp = sp;
     /* popping error code */
     ssp++;
@@ -4828,7 +4896,8 @@ static void do_default_cpu_exception(cpuctx_t *scp, int trapno)
       cpu_exception_rm(scp, trapno);
       return;
     }
-    make_iret_frame(scp, sp, _cs, _eip);
+    make_iret_frame_x(scp, sp, _cs, _eip,
+        handler_is_32(DPMI_CLIENT.Interrupt_Table[trapno].selector));
     dpmi_cli();
     _eflags &= ~(TF | NT | AC);
     _cs = DPMI_CLIENT.Interrupt_Table[trapno].selector;
@@ -4849,6 +4918,7 @@ static void do_pm_cpu_exception(cpuctx_t *scp, INTDESC entry)
   unsigned int *ssp;
   unsigned short old_ss;
   unsigned int old_esp;
+  int h32 = handler_is_32(entry.selector);
 
   old_ss = _ss;
   old_esp = _esp;
@@ -4867,22 +4937,22 @@ static void do_pm_cpu_exception(cpuctx_t *scp, INTDESC entry)
   *--ssp = _cs;  // xflags<<16 are always 0
   *--ssp = _eip;
   *--ssp = _err;
-  if (DPMI_CLIENT.is_32) {
-    *--ssp = dpmi_sel();
+  if (h32) {
+    *--ssp = frame_sel(h32);
     *--ssp = DPMI_SEL_OFF(DPMI_return_from_ext_exception);
   } else {
     *--ssp = 0;
-    *--ssp = (dpmi_sel() << 16) | DPMI_SEL_OFF(DPMI_return_from_ext_exception);
+    *--ssp = (frame_sel(h32) << 16) | DPMI_SEL_OFF(DPMI_return_from_ext_exception);
   }
   /* Standard exception stack frame - DPMI 0.9 */
-  if (DPMI_CLIENT.is_32) {
+  if (h32) {
     *--ssp = old_ss;
     *--ssp = old_esp;
     *--ssp = dpmi_flags_to_stack(_eflags);
     *--ssp = _cs;
     *--ssp = _eip;
     *--ssp = _err;
-    *--ssp = dpmi_sel();
+    *--ssp = frame_sel(h32);
     *--ssp = DPMI_SEL_OFF(DPMI_return_from_exception);
   } else {
     *--ssp = 0;
@@ -4893,9 +4963,9 @@ static void do_pm_cpu_exception(cpuctx_t *scp, INTDESC entry)
     *--ssp = (old_ss << 16) | (unsigned short) old_esp;
     *--ssp = ((unsigned short) dpmi_flags_to_stack(_eflags) << 16) | _cs;
     *--ssp = (_LWORD_(eip) << 16) | _err;
-    *--ssp = (dpmi_sel() << 16) | DPMI_SEL_OFF(DPMI_return_from_exception);
+    *--ssp = (frame_sel(h32) << 16) | DPMI_SEL_OFF(DPMI_return_from_exception);
   }
-  ADD_16_32(_esp, -0x58);
+  sub_esp(scp, 0x58, h32);
 
   _cs = entry.selector;
   _eip = entry.offset;
@@ -4980,29 +5050,30 @@ static void do_legacy_cpu_exception(cpuctx_t *scp, INTDESC entry)
   unsigned int *ssp;
   unsigned short old_ss;
   unsigned int old_esp;
+  int h32 = handler_is_32(entry.selector);
 
   old_ss = _ss;
   old_esp = _esp;
   ssp = enter_lpms(scp);
 
   /* Standard exception stack frame - DPMI 0.9 */
-  if (DPMI_CLIENT.is_32) {
+  if (h32) {
     *--ssp = old_ss;
     *--ssp = old_esp;
     *--ssp = dpmi_flags_to_stack(_eflags);
     *--ssp = _cs;
     *--ssp = _eip;
     *--ssp = _err;
-    *--ssp = dpmi_sel();
+    *--ssp = frame_sel(h32);
     *--ssp = DPMI_SEL_OFF(DPMI_return_from_exception);
-    ADD_16_32(_esp, -0x20);
+    sub_esp(scp, 0x20, 1);
   } else {
     *--ssp = old_esp >> 16;  // save high esp word or it can be corrupted
     *--ssp = (old_ss << 16) | (unsigned short) old_esp;
     *--ssp = ((unsigned short) dpmi_flags_to_stack(_eflags) << 16) | _cs;
     *--ssp = (_LWORD_(eip) << 16) | _err;
-    *--ssp = (dpmi_sel() << 16) | DPMI_SEL_OFF(DPMI_return_from_exception);
-    ADD_16_32(_esp, -0x14);
+    *--ssp = (frame_sel(h32) << 16) | DPMI_SEL_OFF(DPMI_return_from_exception);
+    sub_esp(scp, 0x14, 0);
   }
 
   _cs = entry.selector;
@@ -5026,18 +5097,40 @@ static void do_cpu_exception(cpuctx_t *scp)
   }
 #endif
 
-  if (DPMI_CLIENT.Exception_Table_PM[_trapno].selector != dpmi_sel() ||
+  if (!IS_DPMI_SEL(DPMI_CLIENT.Exception_Table_PM[_trapno].selector) ||
       DPMI_CLIENT.Exception_Table_PM[_trapno].offset >=
       DPMI_SEL_OFF(DPMI_sel_end)) {
-    do_pm_cpu_exception(scp, DPMI_CLIENT.Exception_Table_PM[_trapno]);
+    INTDESC entry = DPMI_CLIENT.Exception_Table_PM[_trapno];
+    /* Our own handler (msdos) goes on to the legacy one with the frame
+     * it got: with THUNK_16_32 a 32bit one gets a 32bit frame. */
+    if (entry.selector == _dpmi_sel16 && ext__thunk_16_32 &&
+        !DPMI_CLIENT.is_32 &&
+        handler_is_32(DPMI_CLIENT.Exception_Table[_trapno].selector))
+      entry.selector = _dpmi_sel32;
+    do_pm_cpu_exception(scp, entry);
     return;
   }
-  if (DPMI_CLIENT.Exception_Table[_trapno].selector != dpmi_sel()) {
+  if (!IS_DPMI_SEL(DPMI_CLIENT.Exception_Table[_trapno].selector)) {
     do_legacy_cpu_exception(scp, DPMI_CLIENT.Exception_Table[_trapno]);
     return;
   }
 
   do_default_cpu_exception(scp, _trapno);
+}
+
+static void do_dpmi_retf_x(cpuctx_t *scp, void * const sp, int is_32)
+{
+  if (is_32) {
+    unsigned int *ssp = sp;
+    _eip = *ssp++;
+    _cs = *ssp++;
+    sub_esp(scp, -8, 1);
+  } else {
+    unsigned short *ssp = sp;
+    _LWORD(eip) = *ssp++;
+    _cs = *ssp++;
+    _LWORD(esp) += 4;
+  }
 }
 
 static void do_dpmi_retf(cpuctx_t *scp, void * const sp)
@@ -5081,7 +5174,7 @@ void dpmi_retf32(cpuctx_t *scp)
 /* rough iret emulation for HW handlers only */
 static void do_dpmi_iret(cpuctx_t *scp, void * const sp)
 {
-  if (DPMI_CLIENT.is_32) {
+  if (DPMI_CLIENT.is_32 || _cs == _dpmi_sel32) {
     unsigned int *ssp = sp;
     _eip = *ssp++;
     _cs = *ssp++;
@@ -5134,7 +5227,7 @@ static void return_from_hwint(cpuctx_t *scp, void * const sp)
   leave_lpms(scp);
       D_printf("DPMI: Return from hardware interrupt handler, "
     "in_dpmi_pm_stack=%i\n", DPMI_CLIENT.in_dpmi_pm_stack);
-  if (DPMI_CLIENT.is_32) {
+  if (_cs == _dpmi_sel32) {
     unsigned int *ssp = sp;
     int pm;
     _eip = *ssp++;
@@ -5257,7 +5350,7 @@ static void do_dpmi_hlt(cpuctx_t *scp, uint8_t *lina, void *sp)
 	  D_printf("DPMI: Return from client extended exception handler, "
 	    "in_dpmi_pm_stack=%i\n", DPMI_CLIENT.in_dpmi_pm_stack);
 	  leave_lpms(scp);
-	  if (!DPMI_CLIENT.is_32)
+	  if (_cs != _dpmi_sel32)
 	    ssp++;
 	  ssp++;  /* popping error code */
 	  _eip = *ssp++;
@@ -5486,7 +5579,7 @@ static void do_dpmi_hlt(cpuctx_t *scp, uint8_t *lina, void *sp)
 
 	} else if ((_eip>=1+DPMI_SEL_OFF(DPMI_exception)) && (_eip<=32+DPMI_SEL_OFF(DPMI_exception))) {
 	  int excp = _eip-1-DPMI_SEL_OFF(DPMI_exception);
-	  do_dpmi_retf(scp, sp);
+	  do_dpmi_retf_x(scp, sp, _cs == _dpmi_sel32);
 	  /* legacy (0.9) exceptions are routed to PM int handlers */
 	  leave_lpms(scp);
 	  return_from_exception(scp);
@@ -5497,12 +5590,12 @@ static void do_dpmi_hlt(cpuctx_t *scp, uint8_t *lina, void *sp)
 	  int excp = _eip-1-DPMI_SEL_OFF(DPMI_ext_exception);
 	  D_printf("DPMI: default ext exception handler 0x%02x called\n",excp);
 	  /* first check for legacy handler */
-	  if (DPMI_CLIENT.Exception_Table[excp].selector != dpmi_sel()) {
+	  if (!IS_DPMI_SEL(DPMI_CLIENT.Exception_Table[excp].selector)) {
 	    D_printf("DPMI: chaining to old exception handler\n");
 	    _cs = DPMI_CLIENT.Exception_Table[excp].selector;
 	    _eip = DPMI_CLIENT.Exception_Table[excp].offset;
 	  } else {
-	    do_dpmi_retf(scp, sp);
+	    do_dpmi_retf_x(scp, sp, _cs == _dpmi_sel32);
 	    leave_lpms(scp);
 	    return_from_exception(scp);  // also returns from ext exception
 	    /* 1.0 DPMI spec says this should go straight to RM */
@@ -5527,7 +5620,7 @@ static void do_dpmi_hlt(cpuctx_t *scp, uint8_t *lina, void *sp)
 	  sp = SEL_ADR(_ss, _esp);
 	  /* Most progs actually jump to prev handler, not call it.
 	   * See if this is the case. */
-	  if (_cs == dpmi_sel() && _eip == DPMI_SEL_OFF(DPMI_return_from_pm)) {
+	  if (IS_DPMI_SEL(_cs) && _eip == DPMI_SEL_OFF(DPMI_return_from_pm)) {
 	    if (debug_level('M')>=9)
 	      D_printf("DPMI: jump to prev handler in hwint, going to RM\n");
 	    return_from_hwint(scp, sp);
@@ -5585,6 +5678,8 @@ static int dpmi_gpf_simple(cpuctx_t *scp, uint8_t *lina, void *sp, int *rv)
 
     if (lina[0] == 0xcd && (_err & 7) == 2) {		/* int xx */
       int inum = _err >> 3;
+      int h32;
+      unsigned short hsel;
       if (inum != lina[1]) {
         error("DPMI: internal error, %x %x\n", inum, lina[1]);
         quit_dpmi(scp, 0xff, 0, 0, 1);
@@ -5603,8 +5698,10 @@ static int dpmi_gpf_simple(cpuctx_t *scp, uint8_t *lina, void *sp, int *rv)
         }
       }
 #endif
+      hsel = handler_sel(scp, DPMI_CLIENT.Interrupt_Table[inum].selector);
+      h32 = handler_is_32(hsel);
       if (!DEFAULT_INT(inum)) {
-	int flen = DPMI_CLIENT.is_32 ? 12 : 6;
+	int flen = h32 ? 12 : 6;
 	/* The handler is the client's own, so the iret frame has to go on
 	 * the client's stack. EIP is still on the int instruction here. */
 	if (!client_stack_ok(scp, -flen, flen)) {
@@ -5630,12 +5727,12 @@ static int dpmi_gpf_simple(cpuctx_t *scp, uint8_t *lina, void *sp, int *rv)
         uint32_t eip2 = _eip;
 	if (debug_level('M')>=9)
           D_printf("DPMI: int 0x%x\n", lina[1]);
-	make_iret_frame(scp, sp, _cs, _eip);
+	make_iret_frame_x(scp, sp, _cs, _eip, h32);
 	if (inum<=7) {
 	  dpmi_cli();
 	}
 	_eflags &= ~(TF | NT | AC);
-	_cs = DPMI_CLIENT.Interrupt_Table[inum].selector;
+	_cs = hsel;
 	_eip = DPMI_CLIENT.Interrupt_Table[inum].offset;
 	D_printf("DPMI: call inthandler %#02x(%#04x) at %#04x:%#08x\n\t\tret=%#04x:%#08x\n",
 		inum, _LWORD(eax), _cs, _eip, cs2, eip2);
