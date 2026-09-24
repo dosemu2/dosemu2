@@ -91,10 +91,38 @@ apt_update()
   done
 }
 
+# The point of the packaged build is to install dosemu2 and fdpp from our
+# PPA, and apt does not care where a name comes from.  apt_update() above
+# stops the run when it is a Launchpad index that is missing, but that is a
+# judgement about fetch errors; this is the fact itself, asked of apt just
+# before the install: is the version apt has picked one our PPA offers?  If
+# it is not -- an index that is stale rather than missing, a name that
+# something else on the runner also answers to -- installing it would give
+# a "packaged" test run of a package that is not ours, and that is worse
+# than not running at all.
+require_from_ppa()
+{
+  for pkg in "$@" ; do
+    ver="$(apt-cache policy "${pkg}" | sed -n 's/^  Candidate: //p')"
+    if [ -z "${ver}" ] || [ "${ver}" = "(none)" ] ; then
+      echo "${pkg}: apt offers no candidate version at all" >&2
+      return 1
+    fi
+    if ! apt-cache madison "${pkg}" | grep -F "| ${ver} |" | \
+         grep -q 'ppa\.launchpadcontent\.net/dosemu2/' ; then
+      echo "${pkg}: apt would install ${ver}, which our PPA does not" \
+        "offer; refusing to test a package that came from somewhere else" >&2
+      apt-cache policy "${pkg}" >&2
+      return 1
+    fi
+  done
+}
+
 if [ "${BLDTYPE}" = "packaged" ] ; then
   echo "Adding dosemu2 PPA..."
   add_apt_repository -n -y -c main -c main/debug ppa:dosemu2/ppa
   apt_update
+  require_from_ppa dosemu2 dosemu2-dbgsym fdpp fdpp-dbgsym
   sudo apt-get install -y \
     dosemu2 \
     dosemu2-dbgsym \
