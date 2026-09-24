@@ -106,6 +106,8 @@ skip_cr3:
         VCPI_ACTIVE = 0x90
         /* the client's TSS selector, while the stub sets the client up */
         SAVED_TSS = 0x94
+        /* our CR4, with VME, while the client runs without it */
+        SAVED_CR4 = 0x98
         MON_TSS_SEL = 0x18
         MON_LDT_SEL = 0x20
         VCPI_DS_SEL = 0x28
@@ -129,6 +131,10 @@ kvm_mon_vcpi_pm_jmp:
         sidt %ss:(SAVED_IDTR)
         mov  %cr3,%eax
         mov  %eax,%ss:(SAVED_CR3)
+        mov  %cr4,%eax                  # the client knows nothing of VME:
+        mov  %eax,%ss:(SAVED_CR4)       # with it on, its v86 code would take
+        andl $~1,%eax                   # software ints through the redirection
+        mov  %eax,%cr4                  # bitmap of a TSS that has none
 
         movl (%esi),%eax                # set client's context *first*
         movl %eax,%cr3
@@ -168,6 +174,8 @@ pm_to_v86:
         addl $8,%eax                    # our 0-based DS follows our CS
         mov %eax,%ds
         movb $0,(VCPI_DATA+VCPI_ACTIVE) # the client is done with the CPU
+        mov (VCPI_DATA+SAVED_CR4),%eax  # still under the client's CR3,
+        mov %eax,%cr4                   # which maps our scratch page
         mov (VCPI_DATA+SAVED_CR3),%eax
         addl $5*4,%esp
         pushl $0x20202                  # VM=1, NT=0, IOPL=0, IF=1, TF=0, VIF=0
