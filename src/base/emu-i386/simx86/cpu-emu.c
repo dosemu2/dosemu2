@@ -1073,9 +1073,47 @@ static int e_vm86_tail(struct vm86_struct *info)
 
 static int e_dpmi_tail(cpuctx_t *scp);
 
+/* PROBE: remember the client state at each exit from the emulator and
+ * complain when it comes back at the same cs:eip:esp with different
+ * esi/edi/ebp - something in between rewrote them. */
+struct rc_ent { unsigned cs, eip, esp, eax, ebx, ecx, edx, esi, edi, ebp, n;
+  int xval; };
+#define RC_SZ 65536
+static struct rc_ent rc_tab[RC_SZ];
+static unsigned rc_n;
+
+static unsigned rc_key(cpuctx_t *scp)
+{
+  return (_cs * 40503u ^ _eip * 2654435761u ^ _esp * 97u) % RC_SZ;
+}
+
+static void rc_check(cpuctx_t *scp)
+{
+  struct rc_ent *e = &rc_tab[rc_key(scp)];
+  if (e->cs != _cs || e->eip != _eip || e->esp != _esp)
+    return;
+  if (_cs != 0x97 && (e->esi != _esi || e->edi != _edi || e->ebp != _ebp))
+    error("REGCLOBBER %04x:%08x esp %08x, exit %u, %u exits ago (xval %d): "
+	    "esi %x->%x edi %x->%x ebp %x->%x eax %x->%x ebx %x->%x "
+	    "ecx %x->%x edx %x->%x\n", _cs, _eip, _esp, e->n, rc_n - e->n,
+	    e->xval, e->esi, _esi, e->edi, _edi, e->ebp, _ebp, e->eax, _eax,
+	    e->ebx, _ebx, e->ecx, _ecx, e->edx, _edx);
+  e->cs = 0xffffffff;
+}
+
+static void rc_note(cpuctx_t *scp, int xval)
+{
+  struct rc_ent *e = &rc_tab[rc_key(scp)];
+  e->cs = _cs; e->eip = _eip; e->esp = _esp; e->eax = _eax; e->ebx = _ebx;
+  e->ecx = _ecx; e->edx = _edx; e->esi = _esi; e->edi = _edi; e->ebp = _ebp;
+  e->n = rc_n; e->xval = xval;
+  rc_n++;
+}
+
 int e_dpmi(cpuctx_t *scp)
 {
   int ret;
+  rc_check(scp);
 #if PREJIT_TEST
   prejit_dpmi(scp);
 #endif
@@ -1125,6 +1163,7 @@ static int e_dpmi_tail(cpuctx_t *scp)
 	xval-1, TheCPU.eflags);
 
   Cpu2Scp(scp, xval-1);
+  rc_note(scp, xval);
 
   if ((xval==EXCP_SIGNAL) || (xval==EXCP_PICSIGNAL) || (xval==EXCP_STISIGNAL)) {
     retval = DPMI_RET_DOSEMU;

@@ -231,6 +231,12 @@ _int_common:
 9:
     movl 52(%esp), %edi
     movl %edi, _int_last_eip
+    /* PROBE: the program's BP as we saved it, to check on the way out */
+    movl 24(%esp), %edi
+    testw %di, %di
+    jnz 8f
+    incl _int_stack+0x3c
+8:
     /*
      * A 16bit stack of our own, as the extender would have given it, and
      * a piece of it per interrupt in flight rather than one piece per
@@ -260,6 +266,7 @@ _int_common:
     pushl %ecx				/* the vector, to give the piece back */
     pushl %edx				/* the stack we came from */
     pushl %eax
+    pushl %edi				/* PROBE: BP at entry */
     /* the frame the program's handler will iret from */
     pushw %bx
     pushw _int_ret_sel
@@ -345,9 +352,20 @@ _int21_stub:
 .code16
 .global _int_ret16
 _int_ret16:
+    popl %edi				/* PROBE: BP at entry */
     popl %eax				/* the stack we came from */
     popl %edx
     popl %ecx				/* the vector */
+    /* PROBE: has the saved BP changed while the handler ran? fs is
+     * restored from the frame below, so it is free here */
+    movw %ax, %fs
+    cmpl %fs:24(%edx), %edi
+    je 7f
+    incl %ss:0x30
+    movl %edi, %ss:0x34
+    movl %fs:24(%edx), %edi
+    movl %edi, %ss:0x38
+7:
     /* the piece of stack this handler ran on is free again. The table is
      * at the bottom of the stack segment because this is 16bit code with
      * the program's own DS loaded, and SS is still ours until the next

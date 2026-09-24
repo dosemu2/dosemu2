@@ -109,6 +109,11 @@ void rr_report(void);
 static void int_depth_report(void)
 {
     unsigned i;
+    unsigned *hdr = (unsigned *)int_slot_esp;
+
+    trc("run286:   PROBE: saved BP changed under %u handlers (bp %04x -> %04x), "
+	    "%u interrupts arrived with bp 0\n", hdr[12], hdr[13] & 0xffff,
+	    hdr[14] & 0xffff, hdr[15]);
 
     trc("run286:   %u interrupts landed while another was on its way out; "
 	    "the last one landed at %04x:%08x\n", int_in_ret,
@@ -637,6 +642,29 @@ void ASMCFUNC run286_exception(void)
     char *p = code;
     unsigned i;
 
+    /* nothing may land on the host stack while we read it */
+    __dpmi_get_and_disable_virtual_interrupt_state();
+    {
+	/* The frame the last interrupt stub saved on the host's stack:
+	 * gs fs es ds, then pushal (edi esi ebp esp ebx edx ecx eax), then
+	 * the vector and the host's eip cs eflags. If the program's BP came
+	 * back as zero from an interrupt, it came from here. */
+	static const char *nm[] = { "gs", "fs", "es", "ds", "edi", "esi",
+		"ebp", "esp", "ebx", "edx", "ecx", "eax", "vec", "eip", "cs",
+		"efl" };
+	unsigned k, a = int_last_esp;
+
+	trc("run286:   last int frame at %04x:%08x:", (uint16_t)int_last_ss, a);
+	for (k = 0; k < 16; k++)
+	    trc(" %s %08x", nm[k], _farpeekl(int_last_ss, a + k * 4));
+	trc("\n");
+	for (a = (int_last_esp & ~0xfu) - 0x80; a < (int_last_esp & ~0xfu) + 0x80;
+		a += 0x10)
+	    trc("run286:   %04x:%08x: %08x %08x %08x %08x\n",
+		    (uint16_t)int_last_ss, a, _farpeekl(int_last_ss, a),
+		    _farpeekl(int_last_ss, a + 4), _farpeekl(int_last_ss, a + 8),
+		    _farpeekl(int_last_ss, a + 12));
+    }
     trc("run286: exception %#x at %04x:%08x, error %#x, flags %#x\n",
 	    n, (uint16_t)cs, eip, err, fl);
     trc("run286:   its stack %04x:%08x, ours %04x:%08x, calls served %u\n",
