@@ -92,8 +92,16 @@ int ne_parse(struct ne_image *ne, const uint8_t *file, size_t size,
 	uint32_t hdr, const char **err);
 void ne_free(struct ne_image *ne);
 
+/* A length of zero means a full 64K, but only for a segment that has an
+ * image in the file: one with no sector holds nothing at all, and reading
+ * its zero as 64K would hand the program a stack or a BSS segment that is
+ * 64K long however short the header declared it. Crusader declares an 8K
+ * stack that way, then trims it to 4K and moves SP to the top of those 4K
+ * only when it was given more than it asked for. */
 static inline uint32_t ne_seg_len(const struct ne_seg *s)
 {
+    if (!s->file_off)
+	return 0;
     return s->len ? s->len : 0x10000;
 }
 
