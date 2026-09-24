@@ -404,6 +404,53 @@ $_dos_up = (off)
 </sect1>
 
 <sect1>
+<title>Privateer</title>
+<sect2>
+<title>
+Game stalls with digitized sound on a Sound Blaster
+</title>
+<para>
+The Sound Blaster driver that the game keeps in PRIV.TRE sets its
+"transfer in progress" flag only after it has written the whole DSP
+command, the length included.  A short block can be over, and its IRQ
+delivered, before that: the IRQ handler then clears a flag that is not
+set yet, the driver sets it afterwards, and the next stop of the DMA
+waits for an IRQ that already came.  Real hardware is slow enough to
+hide this, dosemu2 is not always.
+</para>
+<para>
+Solution: to the file PRIV.TRE (89486108 bytes) apply the following
+patch, which sets the flag before the last byte of the length goes out:
+<screen>
+00A9BA7A: A1 C7
+00A9BA7B: 92 06
+00A9BA7C: 01 06
+00A9BA7D: 25 01
+00A9BA7E: 00 01
+00A9BA7F: FF 00
+00A9BA80: 86 2E
+00A9BA81: C4 A0
+00A9BA82: 50 93
+00A9BA83: 0E 01
+00A9BA84: E8 50
+00A9BA85: 01 0E
+00A9BA86: FB E8
+00A9BA87: 83 FF
+00A9BA88: C4 FA
+00A9BA89: 02 83
+00A9BA8A: 2E C4
+00A9BA8B: C7 02
+00A9BA8C: 06 90
+00A9BA8D: 06 90
+00A9BA8E: 01 90
+00A9BA8F: 01 90
+00A9BA90: 00 90
+</screen>
+</para>
+</sect2>
+</sect1>
+
+<sect1>
 <title>Seven Cities of Gold</title>
 <sect2>
 <title>
