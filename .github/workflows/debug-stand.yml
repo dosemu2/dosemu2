@@ -51,7 +51,7 @@ jobs:
         sudo add-apt-repository -y ppa:stsp-0/thunk-gen
         sudo apt update -q
         mk-build-deps --install --root-cmd sudo --tool 'apt-get -y --no-install-recommends'
-        sudo apt install -y comcom64 acl
+        sudo apt install -y comcom64 acl xvfb xdotool imagemagick x11-utils
 
     - name: Build dosemu2 (release, no UBSan)
       run: |
@@ -77,12 +77,41 @@ jobs:
         nproc; free -h | head -2; lscpu | grep -E 'Model name|Hypervisor'; ls -l /dev/kvm
         grep -q 'KVM' kvm.log
 
+    - name: Fetch games (private repo)
+      env:
+        GAMES_TOKEN: ${{ secrets.GAMES_TOKEN }}
+        GAMES_REPO: ${{ vars.GAMES_REPO || 'stsp/dos-games' }}
+      run: |
+        if [ -z "$GAMES_TOKEN" ]; then
+          echo "No GAMES_TOKEN secret, skipping games"
+          exit 0
+        fi
+        git clone --depth 1 "https://x-access-token:${GAMES_TOKEN}@github.com/${GAMES_REPO}.git" ~/games
+        rm -rf ~/games/.git
+        du -sh ~/games/* || true
+
+    - name: Stand script
+      run: |
+        # Game files must never land in ~/probe: artifacts of this repo are public.
+        mkdir -p ~/probe
+        Xvfb :7 -screen 0 1024x768x24 &
+        sleep 2
+        export DISPLAY=:7
+        if [ -x .stand/run.sh ]; then
+          timeout 3h .stand/run.sh
+        else
+          echo "No .stand/run.sh in this branch"
+        fi
+
     - name: Upload probe logs
       if: always()
       uses: actions/upload-artifact@v6
       with:
         name: probe-logs
-        path: ~/probe/*.log
+        path: |
+          ~/probe/*.log
+          ~/probe/*.png
+        if-no-files-found: ignore
 
     - name: ssh (tmate)
       if: ${{ github.event_name == 'workflow_dispatch' && inputs.ssh }}
