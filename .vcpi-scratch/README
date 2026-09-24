@@ -1,0 +1,29 @@
+Scratch, local only.  Not part of the build and not meant to be merged.
+
+What is here
+------------
+run-in-kvm.sh   launches the nested-KVM stand: vng + qemu-system-x86_64 with
+                -cpu max, /tmp passed through rw, and kvm_amd loaded inside.
+                Everything else is run as  bash run-in-kvm.sh <script>.
+runq*.sh        one queued job each: build, then a run, then a grep of the log.
+sc-*.sh         Strike Commander stands.  The interesting ones:
+                  sc-gdb3.sh  watches the "VCPI: switch to PM" counter and,
+                              when it stops growing, attaches gdb and dumps
+                              every thread's backtrace.  Look for dosemu2.bin,
+                              not bin/dosemu (that one is a shell wrapper).
+                  sc-hma.sh   same, plus DOS=HIGH through
+                              ~/.dosemu/drive_c/userhook.sys, to run the game
+                              with HMA actually taken.
+                  sc-fly5.sh  clicks PLAY, then Escape through the intro and
+                              clicks TRAINING MISSION.
+probe*.asm      tiny .COM programs built with nasm:
+                  probe3  dumps the int 1 / int 3 vectors and the bytes at
+                          the handler
+                  probe4  dumps f000:0000 and f800:0000
+                  probe5  XMS entry, then two "allocate HMA" requests
+sc-rc-emu       dosemurc for the plain cpuemu runs of the probes.
+
+The kvm.c commit on this branch is the probe itself: page-table walking
+helpers over physaddr_to_unixaddr(), the XREG/XEIP/XEXIT samplers, the XHMA
+watch on ffff:0010 and the XPR counters on the four early returns of
+kvm_post_run().

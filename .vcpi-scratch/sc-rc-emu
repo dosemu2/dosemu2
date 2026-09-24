@@ -1,0 +1,8 @@
+$_cpu_vm = "emulated"
+$_cpu_vm_dpmi = "emulated"
+$_ems = (8192)
+$_jemm = (off)
+$_vcpi = (on)
+$_ext_mem = (6144)
+$_ems_frame = (0xe000)
+$_ems_conv_pages = (0)
