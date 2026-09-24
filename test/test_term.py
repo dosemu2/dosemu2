@@ -453,14 +453,6 @@ class DumbModeMouseTestCase(BaseTestCase, unittest.TestCase):
         cls.autoexec = "dautoemu.bat"
         cls.confsys = "dconfig.sys"
         cls.probedir = Path(mkdtemp(prefix="termmouse."))
-        src = cls.probedir / "probe.asm"
-        src.write_text(MOUSE_PROBE)
-        try:
-            check_call(["nasm", "-f", "bin", "-o",
-                        str(cls.probedir / "command.com"), str(src)],
-                       stdout=DEVNULL, stderr=DEVNULL)
-        except CalledProcessError as e:
-            raise unittest.SkipTest("nasm failed: %s" % e)
         cls.runs = {}
 
     @classmethod
@@ -477,10 +469,12 @@ class DumbModeMouseTestCase(BaseTestCase, unittest.TestCase):
         if len(kmous) < 3 or not kmous.startswith(b"\033["):
             self.skipTest("terminfo entry for %s names no mouse"
                           % MOUSE_TERM)
+        self.mkcom_with_nasm("command", MOUSE_PROBE, self.probedir)
 
-    def test_0_basic_boot(self):
-        """no DOS here: the probe is the command interpreter"""
-        self.skipTest("this case installs no DOS distribution")
+    # no DOS here: the probe is the command interpreter, so the boot
+    # test the base class brings has nothing to boot.  Unsetting it
+    # keeps it out of the run rather than skipping it.
+    test_0_basic_boot = None
 
     @mark('terminal')
     def test_terminal_mode_still_tracks_the_mouse(self):
