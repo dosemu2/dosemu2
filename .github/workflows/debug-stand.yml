@@ -58,6 +58,7 @@ jobs:
         ./default-configure
         make -j$(nproc)
         sudo make install
+        sudo ldconfig
 
     - name: KVM probe
       run: |
@@ -73,6 +74,7 @@ jobs:
         }
         run kvm
         run emu
+        nproc; free -h | head -2; lscpu | grep -E 'Model name|Hypervisor'; ls -l /dev/kvm
         grep -q 'KVM' kvm.log
 
     - name: Upload probe logs
