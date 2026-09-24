@@ -6,6 +6,8 @@ concurrency:
 
 on:
   push:
+    branches-ignore:
+      - 'claude/kvm-stand*'
 
   pull_request:
     types:

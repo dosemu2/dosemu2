@@ -1,0 +1,89 @@
+name: Debug Stand (KVM)
+
+# A throwaway debugging stand: a release build of dosemu2 on a GitHub
+# runner with /dev/kvm, a KVM probe, and an optional ssh (tmate) session.
+# Runs on push to claude/kvm-stand* branches, or by hand.
+
+on:
+  push:
+    branches:
+      - 'claude/kvm-stand*'
+  workflow_dispatch:
+    inputs:
+      ssh:
+        description: "Open a tmate ssh session at the end (actor's GitHub keys only)"
+        type: boolean
+        default: false
+
+jobs:
+  stand:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v6
+
+    - name: Give ourselves /dev/kvm
+      run: |
+        echo 'SUBSYSTEM=="misc", KERNEL=="kvm", RUN+="/usr/bin/setfacl -m u:'${USER}':rw- /dev/kvm"' | sudo tee /etc/udev/rules.d/99-kvm4dosemu2.rules
+        sudo udevadm control --reload-rules
+        sudo udevadm trigger --name-match=kvm
+
+    - name: Runner resources
+      run: |
+        set -x
+        nproc
+        lscpu | grep -E 'Model name|^CPU\(s\)|Virtualization|Hypervisor'
+        free -h
+        df -h / /tmp
+        ls -l /dev/kvm
+        getfacl -p /dev/kvm
+        grep -cE 'vmx|svm' /proc/cpuinfo || true
+        cat /sys/module/kvm_intel/parameters/nested 2>/dev/null || true
+        cat /sys/module/kvm_amd/parameters/nested 2>/dev/null || true
+        python3 -c 'import os; os.close(os.open("/dev/kvm", os.O_RDWR)); print("/dev/kvm opens rw")'
+
+    - name: Build dependencies
+      run: |
+        ./ci_prereq.sh
+        sudo add-apt-repository -y -c main -c main/debug ppa:dosemu2/ppa
+        sudo add-apt-repository -y ppa:stsp-0/thunk-gen
+        sudo apt update -q
+        mk-build-deps --install --root-cmd sudo --tool 'apt-get -y --no-install-recommends'
+        sudo apt install -y comcom64 acl
+
+    - name: Build dosemu2 (release, no UBSan)
+      run: |
+        ./default-configure
+        make -j$(nproc)
+        sudo make install
+
+    - name: KVM probe
+      run: |
+        mkdir -p ~/probe
+        cd ~/probe
+        printf '$_cpu_vm = "kvm"\n$_cpu_vm_dpmi = "kvm"\n' > kvm.conf
+        printf '$_cpu_vm = "emulated"\n$_cpu_vm_dpmi = "emulated"\n' > emu.conf
+        run() {
+          /usr/bin/time -f "$1: %e s wall, %U s user" \
+            timeout 120 script -qec "dosemu -f $1.conf -td -n -q -o $1.log -E ver" /dev/null \
+            </dev/null | tail -n 20
+          grep -iE 'kvm|cpu vm|cpuemu|simx86' $1.log | head -n 20 || true
+        }
+        run kvm
+        run emu
+        grep -q 'KVM' kvm.log
+
+    - name: Upload probe logs
+      if: always()
+      uses: actions/upload-artifact@v6
+      with:
+        name: probe-logs
+        path: ~/probe/*.log
+
+    - name: ssh (tmate)
+      if: ${{ github.event_name == 'workflow_dispatch' && inputs.ssh }}
+      uses: mxschmitt/action-tmate@v3
+      with:
+        limit-access-to-actor: true
