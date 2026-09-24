@@ -48,6 +48,15 @@ void trc(const char *fmt, ...)
  * timer, the keyboard and its sound IRQ, and only one of the three firing
  * looks exactly like all three firing if you only print the last.
  */
+/* The timer stub bumps this: a timer that never ticks is the first thing
+ * to ask about when a program stops moving. */
+static unsigned snap_ticks;
+
+void ASMCFUNC run286_snap(void)
+{
+    snap_ticks++;
+}
+
 static void trace_interrupts(const char *when)
 {
     char buf[INT_SLOTS * 12], *p = buf;
@@ -55,8 +64,9 @@ static void trace_interrupts(const char *when)
 
     for (i = 0; i < INT_SLOTS; i++)
 	p += sprintf(p, "%u ", int_count[i]);
-    trc("run286:   %u interrupts %s (%u entries into the stub), by slot: %s\n",
-	    int_taken, when, int_entered, buf);
+    trc("run286:   %u interrupts %s (%u entries into the stub), %u timer "
+	    "ticks, by slot: %s\n", int_taken, when, int_entered, snap_ticks,
+	    buf);
     dump_hooked_vectors();
 }
 
@@ -474,7 +484,220 @@ static void unhook_exceptions(void)
  * whatever was there. The stub narrows the registers for calls made from
  * 16bit code and passes ours through untouched.
  */
+
+/*
+ * The registers int10_stub saved, at the offsets it pushed them, in the
+ * segment it came on: the program's stack is 16bit, so they are not
+ * reachable through our own DS.
+ */
+#define F_GS	0
+#define F_FS	4
+#define F_ES	8
+#define F_DS	12
+#define F_EDI	16
+#define F_ESI	20
+#define F_EBP	24
+#define F_ESP	28
+#define F_EBX	32
+#define F_EDX	36
+#define F_ECX	40
+#define F_EAX	44
+#define F_EIP	48
+#define F_CS	52
+
+static uint32_t fget(unsigned off)
+{
+    return _farpeekl(int10_ss & 0xffff, int10_esp + off);
+}
+
+static void fput(unsigned off, uint32_t val)
+{
+    _farpokel(int10_ss & 0xffff, int10_esp + off, val);
+}
+
+/*
+ * A VESA call takes its buffer in ES:DI, and a 16bit program has no
+ * segments to give: it points there with a selector of its own. A 286
+ * extender turns that into a real mode address on the way down, so do the
+ * same for the calls that carry a pointer, and leave every other int 10h
+ * to whoever had the vector.
+ *
+ * The buffer usually sits in a real mode block the program allocated, so
+ * the selector's own base is already reachable from real mode and nothing
+ * has to be copied. One above the first megabyte goes through a block of
+ * ours instead.
+ */
+#define VESA_BUF_SIZE 1024
+
+static uint16_t vesa_buf_sel, vesa_buf_para;
+
+static int vesa_buf_init(void)
+{
+    int sel, para;
+
+    if (vesa_buf_para)
+	return 0;
+    para = __dpmi_allocate_dos_memory(VESA_BUF_SIZE >> 4, &sel);
+    if (para == -1)
+	return -1;
+    vesa_buf_sel = sel;
+    vesa_buf_para = para;
+    return 0;
+}
+
+static unsigned ntrace;
+
+int ASMCFUNC run286_int10(void)
+{
+    __dpmi_regs d;
+    ULONG32 base;
+    uint32_t eax, es, edi;
+    unsigned lin, i, len;
+    int bounce;
+
+    eax = fget(F_EAX);
+    es = fget(F_ES) & 0xffff;
+    edi = fget(F_EDI) & 0xffff;
+    if (run286_trace && ntrace < 64) {
+	ntrace++;
+	trc("run286: int 10h ax=%04x es:di=%04x:%04x\n",
+		(unsigned)(eax & 0xffff), (unsigned)es, (unsigned)edi);
+    }
+    if ((eax & 0xff00) != 0x4f00)
+	return 0;
+    switch (eax & 0xff) {
+    case 0x00:				/* controller information */
+    case 0x01:				/* mode information */
+    case 0x09:				/* palette data */
+	break;
+    default:
+	return 0;
+    }
+    if (__dpmi_get_segment_base_address(es, &base) == -1) {
+	if (run286_trace)
+	    trc("run286:   es %04x is not a selector, left alone\n",
+		    (unsigned)es);
+	return 0;
+    }
+    lin = base + edi;
+    switch (eax & 0xff) {
+    case 0x00:
+	/* 512 for a VBE2 information block, 256 for the plain one */
+	len = _farpeekl(es, edi) == 0x32454256 ? 512 : 256;
+	break;
+    case 0x09:
+	/* four bytes per entry, and CX of them */
+	len = (fget(F_ECX) & 0xffff) * 4;
+	if (len > VESA_BUF_SIZE)
+	    len = VESA_BUF_SIZE;
+	break;
+    default:
+	len = 256;			/* a mode information block */
+	break;
+    }
+    bounce = (lin + len > 0x100000);
+    if (bounce) {
+	if (vesa_buf_init() != 0)
+	    return 0;
+	for (i = 0; i < len; i++)
+	    _farpokeb(vesa_buf_sel, i, _farpeekb(es, edi + i));
+	lin = (unsigned)vesa_buf_para << 4;
+    }
+    memset(&d, 0, sizeof(d));
+    d.d.eax = eax;
+    d.d.ebx = fget(F_EBX);
+    d.d.ecx = fget(F_ECX);
+    d.d.edx = fget(F_EDX);
+    d.x.es = lin >> 4;
+    d.d.edi = lin & 0xf;
+    if (__dpmi_int(0x10, &d) == -1)
+	return 0;
+    if (bounce) {
+	for (i = 0; i < len; i++)
+	    _farpokeb(es, edi + i, _farpeekb(vesa_buf_sel, i));
+    }
+    if (run286_trace)
+	trc("run286:   VESA %04x through %04x:%04x answered %04x\n",
+		(unsigned)(eax & 0xffff), (unsigned)(lin >> 4),
+		(unsigned)(lin & 0xf), (unsigned)d.x.ax);
+    fput(F_EAX, (eax & 0xffff0000) | d.x.ax);
+    fput(F_EBX, (fget(F_EBX) & 0xffff0000) | d.x.bx);
+    fput(F_ECX, (fget(F_ECX) & 0xffff0000) | d.x.cx);
+    fput(F_EDX, (fget(F_EDX) & 0xffff0000) | d.x.dx);
+    return 1;
+}
+
+static int int10_hooked;
+
+static void hook_int10(void)
+{
+    __dpmi_paddr pm;
+
+    if (__dpmi_get_protected_mode_interrupt_vector(0x10, &pm) == -1) {
+	trc("run286: cannot read the int 10h vector, VESA calls will carry "
+		"a selector where the BIOS wants a segment\n");
+	return;
+    }
+    int10_prev[0] = pm.offset32 & 0xffff;
+    int10_prev[1] = pm.offset32 >> 16;
+    int10_prev[2] = pm.selector;
+    pm.selector = gate_cs32;
+    pm.offset32 = int10_stub;
+    if (__dpmi_set_protected_mode_interrupt_vector(0x10, &pm) == -1) {
+	trc("run286: cannot take the int 10h vector, VESA calls will carry "
+		"a selector where the BIOS wants a segment\n");
+	return;
+    }
+    int10_hooked = 1;
+    trc("run286: int 10h through our stub, chaining to %04x:%08x\n",
+	    int10_prev[2], (unsigned)(int10_prev[0] | (int10_prev[1] << 16)));
+}
+
+static void unhook_int10(void)
+{
+    __dpmi_paddr pm;
+
+    if (!int10_hooked)
+	return;
+    pm.offset32 = int10_prev[0] | ((uint32_t)int10_prev[1] << 16);
+    pm.selector = int10_prev[2];
+    __dpmi_set_protected_mode_interrupt_vector(0x10, &pm);
+    int10_hooked = 0;
+}
+
+
 static int int21_hooked;
+
+/*
+ * Get PSP (int 21h AH=62h) answers with a paragraph on a host that leaves
+ * the translation to the extender, and with a selector on one that does it
+ * itself. Telling the two apart by looking at the answer does not work: a
+ * paragraph can be a live selector as well, and Crusader's PSP paragraph
+ * is one of the program's own segments, so the program stored its
+ * environment over its own code. Ask the host once instead, while int 21h
+ * is still its own: make the call in real mode, where the answer is always
+ * the paragraph, then make it in protected mode and see whether the two
+ * agree.
+ */
+static void probe_psp_answer(void)
+{
+    __dpmi_regs r;
+    unsigned pm_bx = 0;
+
+    memset(&r, 0, sizeof(r));
+    r.h.ah = 0x62;
+    if (__dpmi_int(0x21, &r) == -1) {
+	trc("run286: cannot ask real mode for the PSP, assuming the host "
+		"answers Get PSP with a paragraph\n");
+	int21_psp_para = 1;
+	return;
+    }
+    asm volatile("int $0x21" : "=b"(pm_bx) : "a"(0x6200) : "cc", "memory");
+    int21_psp_para = ((pm_bx & 0xffff) == r.x.bx);
+    trc("run286: Get PSP is %04x in real mode and %04x in protected mode, "
+	    "so it answers with a %s\n", r.x.bx, pm_bx & 0xffff,
+	    int21_psp_para ? "paragraph" : "selector");
+}
 
 static void hook_int21(void)
 {
@@ -558,7 +781,7 @@ void ASMCFUNC run286_exception(void)
     unsigned fl = _farpeekl(ss, sp + 72);
     unsigned esp = _farpeekl(ss, sp + 76);
     unsigned fss = _farpeekl(ss, sp + 80);
-    char code[48];
+    char code[80];
     char *p = code;
     unsigned i;
 
@@ -576,9 +799,9 @@ void ASMCFUNC run286_exception(void)
     for (i = 0; i < 12; i++)
 	p += sprintf(p, "%02x ", _farpeekb(cs, eip + i));
     trc("run286:   code at the fault: %s\n", code);
-    /* the bytes in front of the faulting one, to say which routine it is */
-    for (i = 0, p = code; i < 12; i++)
-	p += sprintf(p, "%02x ", _farpeekb(cs, eip - 12 + i));
+    /* and the bytes in front of it, to say which routine it is */
+    for (i = 0, p = code; i < 16; i++)
+	p += sprintf(p, "%02x ", _farpeekb(cs, eip - 16 + i));
     trc("run286:   code before it: %s\n", code);
     for (i = 0, p = code; i < 8; i++)
 	p += sprintf(p, "%04x ", _farpeekw(fss, esp + i * 2));
@@ -732,6 +955,8 @@ static int stub_seg_init(struct dos_ldr *l, unsigned nimp)
     gate_stk_esp = gate_stack_end;
     gate_exc_stk_ss = _my_ds();
     gate_exc_stk_esp = exc_stack_end;
+    int10_stk_ss = _my_ds();
+    int10_stk_esp = int10_stack_end;
     h.selector = _my_cs();
     h.offset32 = gate_entry;
     if (__dpmi_set_protected_mode_interrupt_vector(GATE_INT, &h) == -1) {
@@ -856,7 +1081,14 @@ static int load_segments(struct module *m)
     /* A 16bit selector cannot reach past 64K, so give every segment that
      * much room: DosReallocSeg() then only ever moves a limit, and nothing
      * the program holds a pointer into has to be copied anywhere. */
-    total = (unsigned long)ne->cseg * SEG_STRIDE;
+    /*
+     * One stride more than the segments need. A 16bit stack that runs out
+     * wraps SP round to the top of what the selector can reach rather
+     * than faulting, and the far pointer that straddles the wrap then
+     * reads two bytes past the last segment's room; the spare stride is
+     * what those two bytes land in.
+     */
+    total = ((unsigned long)ne->cseg + 1) * SEG_STRIDE;
 
     /*
      * Where the image lands decides how much room is left below it, and
@@ -1003,14 +1235,18 @@ int main(int argc, char **argv)
     unsigned entry_seg, ss_seg, sp;
     int i, rc;
 
-    if (!path && argc > 1 && argv[1][0] && strcmp(argv[1], "0") != 0 &&
-	    strcmp(argv[1], "1") != 0)
-	path = argv[1];
-    if (!path && argc > 0 && argv[0] && argv[0][0]) {
+    /* An image appended to ourselves wins over everything else: the rest of
+     * the command line then belongs to the program, not to us. Without this
+     * a restubbed game that takes switches, like "crus286 -x 43", would have
+     * its first switch taken for a file name. */
+    if (argc > 0 && argv[0] && argv[0][0]) {
 	self = slurp_self(argv[0], &size);
 	if (self)
 	    path = argv[0];
     }
+    if (!path && argc > 1 && argv[1][0] && strcmp(argv[1], "0") != 0 &&
+	    strcmp(argv[1], "1") != 0)
+	path = argv[1];
     if (!path)
 	path = read_cfg(cfg);
     if (!path) {
@@ -1116,7 +1352,9 @@ int main(int argc, char **argv)
     if (gate_thunk_err)
 	trc("run286: no THUNK_16_32x, narrowing DOS calls ourselves\n");
     hook_exceptions();
+    probe_psp_answer();
     hook_int21();
+    hook_int10();
     /* what a handler of the program's would have found in DS and ES had
      * it interrupted the program rather than us */
     int_ds = m->seg[m->ne.autodata - 1].sel;
@@ -1133,6 +1371,7 @@ int main(int argc, char **argv)
     trace_interrupts("taken");
     unhook_exceptions();
     unhook_int21();
+    unhook_int10();
     ne_free(&m->ne);
     return 0;
 }

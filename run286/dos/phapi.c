@@ -221,6 +221,9 @@ static uint16_t dos_alloc_real_seg(struct call *c)
     }
     call_setw(parap, para);
     call_setw(selp, sel);
+    if (run286_trace)
+	trc("run286:   real seg of %#lx bytes at %04x:0000, selector %04x\n",
+		(unsigned long)size, para, sel);
     return 0;
 }
 

@@ -31,8 +31,16 @@ __ASM_ARR(uint16_t, int_target, 32) SEMIC	/* INT_SLOTS pairs */
 __ASM_FUNC(int_stubs) SEMIC			/* one entry per hooked vector */
 __ASM_ARR(uint16_t, int21_prev, 3) SEMIC	/* the int 21h handler we chain to */
 __ASM_FUNC(int21_stub) SEMIC			/* narrows DOS calls made by 16bit code */
+__ASM_ARR(uint16_t, int10_prev, 3) SEMIC	/* the int 10h handler we chain to */
 __ASM_FUNC(int_ret16) SEMIC
 __ASM_FUNC(int_stack) SEMIC
 __ASM_FUNC(int_stack_end) SEMIC
 __ASM_FUNC(exc_stubs) SEMIC			/* one entry per exception */
 __ASM_FUNC(exc_stack_end) SEMIC
+__ASM_FUNC(int10_stub) SEMIC			/* turns a selector into a segment for VESA */
+__ASM(unsigned, int10_stk_esp) SEMIC		/* the stub's own stack */
+__ASM(unsigned, int10_stk_ss) SEMIC
+__ASM(unsigned, int10_ss) SEMIC			/* stack the interrupt came on */
+__ASM(unsigned, int10_esp) SEMIC
+__ASM_FUNC(int10_stack_end) SEMIC
+__ASM(unsigned, int21_psp_para) SEMIC		/* AH=62h answers with a paragraph */

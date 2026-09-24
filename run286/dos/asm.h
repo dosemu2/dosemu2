@@ -42,6 +42,8 @@ int ASMCFUNC run286_import(void);
 /* Called from _exc_common when the program, or we, take a processor
  * exception. Says what happened and does not come back. */
 void ASMCFUNC run286_exception(void);
+void ASMCFUNC run286_snap(void);
+int ASMCFUNC run286_int10(void);
 
 #else
 
