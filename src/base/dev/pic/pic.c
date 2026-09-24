@@ -284,11 +284,15 @@ int pic_irq_requested(int irq)
     return ret;
 }
 
-/* Take the keyboard line out of turn.  The timer outranks it and is
-   pending almost all the time while a VCPI client runs, so IRQ1 never
-   wins a fair contest: measured one delivery against 64 events sent.
-   Rotating the priority is what the chip itself offers for this. */
-int pic_get_inum_kbd(void)
+/* Serve the timer last.  While a VCPI client runs, the timer is pending
+   almost every time we get to inject: a game reprograms the PIT to
+   hundreds of hertz, and we can hand the client an interrupt only when it
+   opens a window.  In strict priority order nothing below IRQ0 then ever
+   wins -- measured one keyboard delivery against 64 events sent, and a
+   Sound Blaster IRQ 7 that did not arrive at all, so the game waited out
+   its end-of-block timeout on every block.  Rotating the priority so that
+   IRQ1 comes first and IRQ0 last is what the chip itself offers for this. */
+int pic_get_inum_timer_last(void)
 {
     int inum;
     uint8_t saved;
@@ -297,12 +301,12 @@ int pic_get_inum_kbd(void)
     if (!slave_pic)
         slave_pic = &pic[1];
     saved = pic[0].priority_add;
-    pic[0].priority_add = 1;		/* IRQ1 first */
+    pic[0].priority_add = 1;		/* IRQ1 first, IRQ0 last */
     inum = pic_read_irq(&pic[0]);
     if (pic[0].priority_add == 1)	/* untouched by the ack */
         pic[0].priority_add = saved;
     pthread_mutex_unlock(&pic_mtx);
-    r_printf("PIC: running keyboard interrupt %x out of turn\n", inum);
+    r_printf("PIC: running interrupt %x with the timer last\n", inum);
     return inum;
 }
 

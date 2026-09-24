@@ -11,7 +11,7 @@ void pic_request(int inum);                            /* interrupt trigger */
 void pic_untrigger(int inum);                          /* interrupt untrigger */
 int pic_pending(void);			/* inform caller if interrupt is pending */
 int pic_irq_requested(int irq);		/* is this line requested and unmasked */
-int pic_get_inum_kbd(void);		/* take the keyboard line out of turn */
+int pic_get_inum_timer_last(void);	/* any other line before the timer */
 int pic_irq_active(int num);
 int pic_get_inum(void);
 

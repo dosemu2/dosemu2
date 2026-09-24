@@ -1852,8 +1852,7 @@ int true_kvm_vm86(struct vm86_struct *info)
       if (run->ready_for_interrupt_injection && run->if_flag) {
         /* the client's registers are untouchable, so hand the interrupt
            to KVM instead of rewriting cs:eip ourselves */
-        struct kvm_interrupt ki = { .irq = pic_irq_requested(1) ?
-            pic_get_inum_kbd() : pic_get_inum() };
+        struct kvm_interrupt ki = { .irq = pic_get_inum_timer_last() };
         g_printf("KVM: VCPI: injecting interrupt %#x\n", ki.irq);
         ioctl(vcpufd, KVM_INTERRUPT, &ki);
       } else {
