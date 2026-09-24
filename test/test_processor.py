@@ -37,6 +37,11 @@ class OurTestCase(BaseTestCase):
         """CPU ENDBR32/ENDBR64 as NOP"""
         cpu_endbr(self)
 
+    @mark('cputest')
+    def test_cpu_smsw_mem(self):
+        """CPU SMSW with memory operand"""
+        cpu_smsw_mem(self)
+
     @mark('fputest')
     def test_fpu_bart_exceptions_fpex(self):
         """FPU Exceptions (Bart) (fpex)"""
@@ -60,11 +65,6 @@ class EMUTestCase(ppdosgit(OurTestCase, {
     use_cpu = 'emu'
 
     @mark('cputest')
-    def test_cpu_smsw_mem(self):
-        """CPU SMSW with memory operand"""
-        cpu_smsw_mem(self)
-
-    @mark('cputest')
     def test_cpu_trap_flag(self):
         """CPU Trap Flag"""
         cpu_trap_flag(self)
@@ -82,11 +82,6 @@ class KVMTestCase(ppdosgit(OurTestCase, {
     use_cpu = 'kvm'
 
     @mark('cputest')
-    def test_cpu_smsw_mem(self):
-        """CPU SMSW with memory operand"""
-        cpu_smsw_mem(self)
-
-    @mark('cputest')
     @acceptFailure
     def test_cpu_trap_flag(self):
         """CPU Trap Flag"""
@@ -99,11 +94,6 @@ class VM86TestCase(ppdosgit(OurTestCase, {
         "test_fpu_fisttp_sim_sim": UNSUPPORTED,  # Requires Pentium 4 (SSE3)
     })):
     use_cpu = 'vm86'
-
-    @mark('cputest')
-    def test_cpu_smsw_mem(self):
-        """CPU SMSW with memory operand"""
-        cpu_smsw_mem(self)
 
     @mark('cputest')
     def test_cpu_trap_flag(self):
