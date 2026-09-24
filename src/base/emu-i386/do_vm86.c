@@ -33,6 +33,7 @@
 #include "memory.h"
 #include "port.h"
 #include "int.h"
+#include "emm.h"
 #include "disks.h"
 #include "ipx.h"                /* TRB - add support for ipx */
 #include "bitops.h"
@@ -703,8 +704,10 @@ static void pic_run(void)
     inum = pic_get_inum();
     if (dpmi_active())
         run_pm_int(inum);
-    else
+    else {
+        emm_jemm_irq();
         real_run_int(inum);
+    }
 }
 
 /*

@@ -50,6 +50,7 @@ extern long int __sysconf (int); /* for Debian eglibc 2.13-3 */
 #include "bitops.h"
 #include "pic.h"
 #include "int.h"
+#include "emm.h"
 #include "port.h"
 #include "utilities.h"
 #include "misc/shlock.h"
@@ -4061,6 +4062,7 @@ static void do_pm_int(cpuctx_t *scp, int i)
     D_printf("DPMI: Calling real mode handler for int 0x%02x\n", i);
     if (in_dpmi_pm())
       fake_pm_int();
+    emm_jemm_irq();
     real_run_int(i);
     return;
   }
@@ -5524,6 +5526,7 @@ static void do_dpmi_hlt(cpuctx_t *scp, uint8_t *lina, void *sp)
 	    /* do similar to run_pm_int() */
 	    if (in_dpmi_pm())
 	      fake_pm_int();
+	    emm_jemm_irq();
 	    real_run_int(intr);
 	  } else {
 	    do_dpmi_int(scp, intr);

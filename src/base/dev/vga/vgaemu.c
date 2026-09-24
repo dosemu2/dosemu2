@@ -2575,6 +2575,8 @@ int vga_emu_setmode_vmi(vga_mode_info *vmi, int width, int height)
  * mapping uses, so that the two addresses are one buffer, as they are on
  * the real thing.  HMA_MAP() leaves the range alone under $_jemm.
  */
+static int vga_hma_lent;
+
 static void vgaemu_map_hma(void)
 {
   vga_mapping_type *vmt = vga.mem.map + VGAEMU_MAP_HMA_MODE;
@@ -2582,7 +2584,7 @@ static void vgaemu_map_hma(void)
 
   unsigned first;
 
-  if (!config.jemm || !vga.mem.base || !vga.mem.pages)
+  if (!config.jemm || vga_hma_lent || !vga.mem.base || !vga.mem.pages)
     return;
   /* JEMM does this whatever the video mode, because 0xa0000 is the card's
    * window on the real thing whatever the video mode.  When the bank is the
@@ -2599,6 +2601,90 @@ static void vgaemu_map_hma(void)
   else
     vga_deb_map("vgaemu_map_hma: mapped %u pages (ofs %u) at 0x%x\n",
 		vmt->pages, first, JEMM_HMA_BASE);
+}
+
+/*
+ * JEMM's function MU puts 64k of a client's EMS handle above the 1M line in
+ * place of the aperture, and MU with CX=0 puts the aperture back.  While the
+ * range is lent out, the slot is empty, so that neither a bank switch nor a
+ * mode set maps the aperture over the client's memory and no page there is
+ * write-protected for the dirty map.
+ */
+void vgaemu_lend_hma(int lent)
+{
+  if (!config.jemm || lent == vga_hma_lent)
+    return;
+  vga_hma_lent = lent;
+  if (lent) {
+    pthread_mutex_lock(&prot_mtx);
+    vga.mem.map[VGAEMU_MAP_HMA_MODE].pages = 0;
+    pthread_mutex_unlock(&prot_mtx);
+  } else {
+    vgaemu_map_hma();
+  }
+}
+
+/*
+ * JEMM's DOS view has the video memory back on 0xa0000, where the window
+ * view has the client's windows; emm.c empties those windows on the way in
+ * and calls this with on=1 to put the video memory there, and with on=0 on
+ * the way out, before it maps the windows back.  The alias is a plain one,
+ * outside the bank's bookkeeping: that write-protects the bank's pages for
+ * the dirty map, and doing that to a page that is a window a moment later
+ * makes the window read-only.  So the pages are marked dirty on the way out
+ * instead, which is what the write protection would have found out.
+ */
+void vgaemu_jemm_dos_view(int on)
+{
+  vga_mapping_type *bank = vga.mem.map + VGAEMU_MAP_BANK_MODE;
+  unsigned i;
+
+  /* in text modes that is 0xb8000, which the windows cover as well */
+  if (!config.jemm || !vga.mem.base || !bank->pages ||
+      bank->base_page < VGA_A0 || bank->base_page + bank->pages > 0xc0 ||
+      vga.inst_emu)
+    return;
+  if (!on) {
+    pthread_mutex_lock(&prot_mtx);
+    for (i = 0; i < bank->pages; i++)
+      _vgaemu_dirty_page(bank->first_page + i, 1);
+    pthread_mutex_unlock(&prot_mtx);
+    return;
+  }
+  for (i = 0; i < bank->pages; i++) {
+    dosaddr_t addr = (bank->base_page + i) * HOST_PAGE_SIZE;
+
+    if (emm_jemm_window(addr))
+      continue;
+    alias_mapping(MAPPING_VGAEMU, addr, HOST_PAGE_SIZE, VGA_EMU_RW_PROT,
+		  vga.mem.base + (bank->first_page + i) * HOST_PAGE_SIZE);
+  }
+  e_invalidate_full(bank->base_page * HOST_PAGE_SIZE,
+		    bank->pages * HOST_PAGE_SIZE);
+}
+
+/*
+ * JEMM's function CU copies a 320x200 frame between the screen and the two
+ * off-screen buffers it keeps for the client.  The screen is what the card
+ * shows at 0xa0000, so take the video memory where the bank or, failing
+ * that, vgaemu_map_hma() would put it.
+ */
+void vgaemu_jemm_frame(void *buf, unsigned len, int to_screen)
+{
+  vga_mapping_type *bank = vga.mem.map + VGAEMU_MAP_BANK_MODE;
+  unsigned offs;
+
+  if (!vga.mem.base || !vga.mem.pages)
+    return;
+  offs = (bank->base_page == VGA_A0 ? bank->first_page : 0) * HOST_PAGE_SIZE;
+  if (offs + len > vga.mem.pages * HOST_PAGE_SIZE)
+    len = vga.mem.pages * HOST_PAGE_SIZE - offs;
+  if (to_screen) {
+    memcpy(vga.mem.base + offs, buf, len);
+    vga_mark_dirty(offs, len);
+  } else {
+    memcpy(buf, vga.mem.base + offs, len);
+  }
 }
 
 int vgaemu_map_bank(void)

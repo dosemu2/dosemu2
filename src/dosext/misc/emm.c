@@ -230,6 +230,13 @@ static struct handle_record {
 
 #define OS_HANDLE	0
 
+static void jemm_drop_handle(int handle);
+static void jemm_forget_handle(int handle);
+static int jemm_frame_page(int physical_page);
+static int jemm_frame_seg(void);
+static void jemm_take_video(unsigned base);
+static void jemm_leave_stale(int handle);
+
 /* For OS use of EMM */
 static u_char  os_inuse=0;
 static u_short os_key1=0xffee;
@@ -533,6 +540,7 @@ static int emm_deallocate_handle(int handle)
   int numpages, i;
   void *object;
 
+  jemm_leave_stale(handle);
   for (i = 0; i < all_phys_pages; i++) {
     if (emm_map[i].handle == handle) {
       unmap_page(i);
@@ -540,6 +548,8 @@ static int emm_deallocate_handle(int handle)
     }
   }
   vcpi_unpin_handle(handle);
+  jemm_drop_handle(handle);
+  jemm_forget_handle(handle);
   numpages = handle_info[handle].numpages;
   object = handle_info[handle].object;
   destroy_memory_object(object,numpages*EMM_PAGE_SIZE);
@@ -594,6 +604,7 @@ __map_page(int physical_page)
   base = PHYS_PAGE_ADDR(physical_page);
   logical = handle_info[handle].object + emm_map[physical_page].logical_page * EMM_PAGE_SIZE;
 
+  jemm_take_video(base);
   _do_map_page(base, logical, EMM_PAGE_SIZE);
   return (TRUE);
 }
@@ -910,9 +921,16 @@ do_map_unmap_multi(int method, unsigned array, int handle, int map_len,
   u_short *array2 = malloc(PAGE_MAP_SIZE(map_len));
 
   switch (method) {
-  case MULT_LOGPHYS: /* page no method */
+  case MULT_LOGPHYS: { /* page no method */
+      int i;
+
       MEMCPY_2UNIX(array2, array, PAGE_MAP_SIZE(map_len));
+      if (base == 0) {
+	for (i = 0; i < map_len; i++)
+	  array2[i * 2 + 1] = jemm_frame_page(array2[i * 2 + 1]);
+      }
       break;
+    }
 
   case MULT_LOGSEG: { /* page segment method */
       int i, phys, log, seg;
@@ -1031,6 +1049,7 @@ reallocate_pages(struct vm86_regs * state)
      return;
   }
   emm_allocated += diff;
+  jemm_drop_handle(handle);
 
   /* Make sure extended pages have correct data */
 
@@ -2148,7 +2167,7 @@ ems_fn(struct vm86_regs *state)
       Kdebug1(("bios_emm: Get Page Frame Segment\n"));
 
       SETHI_BYTE(state->eax, EMM_NO_ERR);
-      SETLO_WORD(state->ebx, EMM_SEGMENT);
+      SETLO_WORD(state->ebx, jemm_frame_seg());
       break;
     }
   case GET_PAGE_COUNTS:{	/* 0x42 */
@@ -2193,7 +2212,7 @@ ems_fn(struct vm86_regs *state)
       int handle = LO_WORD(state->edx);
       int ret;
 
-      ret = do_map_unmap(handle, physical_page, logical_page);
+      ret = do_map_unmap(handle, jemm_frame_page(physical_page), logical_page);
       SETHI_BYTE(state->eax, ret);
       break;
     }
@@ -2665,13 +2684,354 @@ static void jemm_init(void)
   jemm_state_off = DOSEMU_LMHEAP_OFFS_OF(p);
 }
 
+/* JEMM keeps two page tables and the state byte says which one is loaded.
+ * With the byte set, the client sees the 24 windows from 0xa0000 and int 67h
+ * maps physical pages 0 to 23 there.  With it clear, it sees DOS: the video
+ * memory is back on 0xa0000, an ordinary 4-page frame sits on 0xe000, int 67h
+ * AH=41h says so, and pages 0 to 3 are the frame's.  The two are separate:
+ * the games keep their heap in the windows, from 0xa000 up, and read files
+ * through the frame in the other view, and they take both segments at
+ * start-up, one in each view.  So in the DOS view pages 0 to 3 are windows 16
+ * to 19, the windows over the video memory are empty, and all of those are
+ * swapped with what the other view had in them on each switch. */
+#define JEMM_FRAME_PAGES 4
+#define JEMM_FRAME_SEG 0xe000
+#define JEMM_VIDEO_TOP 0xc0000
+#define JEMM_MAX_PAGES 32
+static struct emm_reg jemm_other_view[JEMM_MAX_PAGES] = {
+  [0 ... JEMM_MAX_PAGES - 1] = { NULL_HANDLE, NULL_PAGE }
+};
+
+/* the window that is the frame's page 0 */
+static int jemm_frame_first(void)
+{
+  int i;
+
+  if (!config.jemm)
+    return -1;
+  for (i = 0; i + JEMM_FRAME_PAGES <= phys_pages; i++) {
+    if (PHYS_PAGE_SEGADDR(i) == JEMM_FRAME_SEG)
+      return i;
+  }
+  return -1;
+}
+
+/* the window a client's page number means in the view it is in */
+static int jemm_frame_page(int physical_page)
+{
+  int first = jemm_frame_first();
+
+  if (first < 0 || jemm_dos_view || physical_page < 0 ||
+      physical_page >= JEMM_FRAME_PAGES)
+    return physical_page;
+  return first + physical_page;
+}
+
+static int jemm_frame_seg(void)
+{
+  if (jemm_frame_first() < 0 || jemm_dos_view)
+    return EMM_SEGMENT;
+  return JEMM_FRAME_SEG;
+}
+
+/* a window whose contents differ between the two views */
+static int jemm_view_page(int physical_page)
+{
+  int first = jemm_frame_first();
+
+  if (first < 0 || physical_page >= JEMM_MAX_PAGES)
+    return 0;
+  if (physical_page >= first && physical_page < first + JEMM_FRAME_PAGES)
+    return 1;
+  return PHYS_PAGE_ADDR(physical_page) >= JEMM_HW_BASE &&
+      PHYS_PAGE_ADDR(physical_page) < JEMM_VIDEO_TOP;
+}
+
+/* JEMM gives a freed handle's pages back to its pool and leaves the page
+ * tables alone, so a window keeps showing what was in it until the page is
+ * handed out again.  Strike Commander's menu counts on that: it frees its
+ * handle and only then gives its heap back, and the heap has its list in the
+ * windows and in the low pages under 64k.  Unmapping a window leaves the plain memory underneath, so copy
+ * the page there first, for the windows of either view. */
+static void jemm_leave_stale(int handle)
+{
+  int i;
+
+  if (!config.jemm)
+    return;
+  for (i = 0; i < all_phys_pages; i++) {
+    int log = -1;
+
+    if (emm_map[i].handle == handle)
+      log = emm_map[i].logical_page;
+    else if (i < JEMM_MAX_PAGES && jemm_other_view[i].handle == handle)
+      log = jemm_other_view[i].logical_page;
+    if (log < 0 || log >= handle_info[handle].numpages)
+      continue;
+    memcpy(LOWMEM(PHYS_PAGE_ADDR(i)),
+	   handle_info[handle].object + log * EMM_PAGE_SIZE, EMM_PAGE_SIZE);
+  }
+}
+
+/* A window going over the video aperture.  vgaemu keeps track of which
+ * pages of it are the card's so that it can write-protect them for its dirty
+ * map; tell it this one is not, or it will write-protect the window. */
+static void jemm_take_video(unsigned base)
+{
+  if (config.jemm && base >= JEMM_HW_BASE && base < JEMM_VIDEO_TOP)
+    munmap_mapping_pa(MAPPING_VGAEMU, base, EMM_PAGE_SIZE);
+}
+
+static void jemm_swap_frame(void)
+{
+  int i;
+
+  for (i = 0; i < phys_pages; i++) {
+    struct emm_reg cur = { emm_map[i].handle, emm_map[i].logical_page };
+    struct emm_reg *next = &jemm_other_view[i];
+
+    if (!jemm_view_page(i))
+      continue;
+    if (next->handle != NULL_HANDLE)
+      map_page(next->handle, i, next->logical_page);
+    else if (cur.handle != NULL_HANDLE)
+      unmap_page(i);
+    else if (jemm_dos_view && PHYS_PAGE_ADDR(i) < JEMM_VIDEO_TOP) {
+      /* the window view has no video memory, mapped window or not */
+      jemm_take_video(PHYS_PAGE_ADDR(i));
+      _do_unmap_page(PHYS_PAGE_ADDR(i), EMM_PAGE_SIZE);
+    }
+    *next = cur;
+  }
+}
+
 static void jemm_set_state(int dos)
 {
   if (dos != jemm_dos_view) {
-    E_printf("JEMM: %s view\n", dos ? "DOS" : "window");
     jemm_dos_view = dos;
+    if (dos)
+      vgaemu_jemm_dos_view(0);
+    jemm_swap_frame();
+    if (!dos)
+      vgaemu_jemm_dos_view(1);
   }
   WRITE_BYTE(SEGOFF2LINEAR(jemm_state_seg, jemm_state_off), dos);
+}
+
+/* JEMM hands every hardware interrupt to DOS in the DOS view and gives the
+ * client its windows back when the handler returns, since the handlers are
+ * DOS's and so is the video memory they draw on.  Strike Commander's timer
+ * draws the mouse pointer straight onto 0xa000 that way, and in the window
+ * view that is the head of its heap.  Called before an interrupt goes to a
+ * real-mode handler: the handler then returns through jemm_irq_ret(). */
+static Bit32u jemm_irq_ret_off;
+
+void emm_jemm_irq(void)
+{
+  if (!config.jemm || !jemm_dos_view)
+    return;
+  jemm_set_state(0);
+  fake_int_to(BIOS_HLT_BLK_SEG, jemm_irq_ret_off);
+}
+
+static void jemm_irq_ret(Bit16u offs, HLT_ARG(arg))
+{
+  jemm_set_state(1);
+  fake_iret();
+}
+
+/* Strike Commander uses five more functions, all about memory it cannot
+ * reach from v86 mode.  MyJEMM calls a client's EMS handle a "block" there,
+ * and so do we.  JEMM keeps a block as a list of 4k pages and does all of
+ * this by copying page table entries; we alias or copy the handle's own
+ * memory object instead, which is the same thing seen from the host. */
+#define JEMM_UNIT 0x10000		/* what MU puts above 1M at a time */
+#define JEMM_FRAME 64000		/* what CU copies: one 320x200 screen */
+#define JEMM_FAR_BASE 0x4000000		/* the address FH hands out */
+
+static int jemm_hma_handle = NULL_HANDLE;	/* whose unit MU mapped */
+static int jemm_video_handle = NULL_HANDLE;	/* CU's buffers 1 and 2 */
+static int jemm_far_handle = NULL_HANDLE;	/* the block FH named */
+
+static int jemm_handle_ok(int handle)
+{
+  return handle > OS_HANDLE && handle < MAX_HANDLES &&
+      handle_info[handle].active && handle_info[handle].object;
+}
+
+/* put the video aperture back above the 1M line */
+static void jemm_unmap_hma(void)
+{
+  _do_unmap_page(JEMM_HMA_BASE, JEMM_UNIT);
+  vgaemu_lend_hma(0);
+  jemm_hma_handle = NULL_HANDLE;
+}
+
+/* the handle went away or moved, so nothing may point into it */
+static void jemm_drop_handle(int handle)
+{
+  if (!config.jemm)
+    return;
+  if (jemm_hma_handle == handle)
+    jemm_unmap_hma();
+  if (jemm_video_handle == handle)
+    jemm_video_handle = NULL_HANDLE;
+  if (jemm_far_handle == handle)
+    jemm_far_handle = NULL_HANDLE;
+}
+
+/* the handle is gone, so the view that is not loaded may not map it */
+static void jemm_forget_handle(int handle)
+{
+  int i;
+
+  for (i = 0; i < JEMM_MAX_PAGES; i++) {
+    if (jemm_other_view[i].handle == handle) {
+      jemm_other_view[i].handle = NULL_HANDLE;
+      jemm_other_view[i].logical_page = NULL_PAGE;
+    }
+  }
+}
+
+/* 'MU': CX=1 or 2 puts that 64k unit of the block in DX above the 1M line,
+ * where the video aperture normally is, and CX=0 puts the aperture back.
+ * CX=0xffff instead names the block that holds the two off-screen buffers
+ * of 'CU'.  Returns what goes to AX, 0 or 1. */
+static int jemm_map_unit(int handle, unsigned unit)
+{
+  if (unit == 0) {
+    /* only the aperture: the block stays CU's, which Strike Commander
+     * goes on to use after it has put the aperture back */
+    if (jemm_hma_handle != NULL_HANDLE)
+      jemm_unmap_hma();
+    return 0;
+  }
+  if (!jemm_handle_ok(handle))
+    return 1;
+  if (unit == 0xffff) {
+    if (handle_info[handle].numpages < JEMM_UNIT / EMM_PAGE_SIZE)
+      return 1;
+    jemm_video_handle = handle;
+    return 0;
+  }
+  if (unit > 2 ||
+      handle_info[handle].numpages * EMM_PAGE_SIZE < unit * JEMM_UNIT)
+    return 1;
+  vgaemu_lend_hma(1);
+  _do_map_page(JEMM_HMA_BASE, (char *)handle_info[handle].object +
+	       (unit - 1) * JEMM_UNIT, JEMM_UNIT);
+  jemm_hma_handle = handle;
+  return 0;
+}
+
+/* 'CU': copy a frame from buffer CL to buffer CH.  Buffer 0 is the screen,
+ * 1 and 2 are the two units of the block MU CX=0xffff named. */
+static int jemm_copy_frame(unsigned src, unsigned dst)
+{
+  static unsigned char tmp[JEMM_FRAME];	/* not on a coopth stack */
+  unsigned char *obj;
+
+  if (src > 2 || dst > 2 || jemm_video_handle == NULL_HANDLE)
+    return 1;
+  if ((src == 2 || dst == 2) &&
+      handle_info[jemm_video_handle].numpages * EMM_PAGE_SIZE < 2 * JEMM_UNIT)
+    return 1;
+  if (src == dst)
+    return 0;
+  obj = handle_info[jemm_video_handle].object;
+  if (src == 0)
+    vgaemu_jemm_frame(tmp, JEMM_FRAME, 0);
+  else
+    memcpy(tmp, obj + (src - 1) * JEMM_UNIT, JEMM_FRAME);
+  if (dst == 0)
+    vgaemu_jemm_frame(tmp, JEMM_FRAME, 1);
+  else
+    memcpy(obj + (dst - 1) * JEMM_UNIT, tmp, JEMM_FRAME);
+  return 0;
+}
+
+/* 'SP': call CS:DX as a far procedure.  The routines Strike Commander runs
+ * this way program the palette in step with the vertical retrace and time
+ * the joystick port with interrupts off - work its JEMM does for it in ring
+ * 0, because in v86 mode cli and port I/O would trap.  We have nothing to
+ * trap, so the client may simply run the routine itself: the iret of this
+ * int 15h goes to CS:DX instead, and the far return that ends the routine
+ * comes to jemm_sp_ret(), which puts the registers back and returns to
+ * where the int 15h would have.  JEMM runs the routine on its own copy of
+ * the client's registers, and the callers count on that: the palette
+ * routine loads DS with its table's segment and leaves it there. */
+#define JEMM_SP_DEPTH 4
+static struct jemm_sp_frame {
+  uint32_t eax, ebx, ecx, edx, esi, edi, ebp;
+  uint16_t ds, es, fs, gs;
+  uint16_t ip, cs, fl;
+} jemm_sp_stack[JEMM_SP_DEPTH];
+static int jemm_sp_depth;
+static Bit32u jemm_sp_ret_off;
+
+static void jemm_call_far(void)
+{
+  dosaddr_t ssp = SEGOFF2LINEAR(SREG(ss), 0);
+  uint16_t sp = LWORD(esp);
+  struct jemm_sp_frame *f;
+
+  if (jemm_sp_depth >= JEMM_SP_DEPTH) {
+    error("JEMM: SP nested too deep\n");
+    return;
+  }
+  f = &jemm_sp_stack[jemm_sp_depth++];
+  f->ip = READ_WORD(ssp + sp);
+  f->cs = READ_WORD(ssp + (uint16_t)(sp + 2));
+  f->fl = READ_WORD(ssp + (uint16_t)(sp + 4));
+  f->eax = REG(eax);
+  f->ebx = REG(ebx);
+  f->ecx = REG(ecx);
+  f->edx = REG(edx);
+  f->esi = REG(esi);
+  f->edi = REG(edi);
+  f->ebp = REG(ebp);
+  f->ds = SREG(ds);
+  f->es = SREG(es);
+  f->fs = SREG(fs);
+  f->gs = SREG(gs);
+
+  sp -= 4;
+  WRITE_WORD(ssp + sp, LWORD(edx));
+  WRITE_WORD(ssp + (uint16_t)(sp + 2), f->cs);
+  WRITE_WORD(ssp + (uint16_t)(sp + 4), f->fl);
+  WRITE_WORD(ssp + (uint16_t)(sp + 6), jemm_sp_ret_off);
+  WRITE_WORD(ssp + (uint16_t)(sp + 8), BIOS_HLT_BLK_SEG);
+  LWORD(esp) = sp;
+}
+
+static void jemm_sp_ret(Bit16u offs, HLT_ARG(arg))
+{
+  dosaddr_t ssp = SEGOFF2LINEAR(SREG(ss), 0);
+  uint16_t sp;
+  struct jemm_sp_frame *f;
+
+  if (!jemm_sp_depth) {
+    error("JEMM: stray SP return\n");
+    return;
+  }
+  f = &jemm_sp_stack[--jemm_sp_depth];
+  REG(eax) = f->eax;
+  REG(ebx) = f->ebx;
+  REG(ecx) = f->ecx;
+  REG(edx) = f->edx;
+  REG(esi) = f->esi;
+  REG(edi) = f->edi;
+  REG(ebp) = f->ebp;
+  SREG(ds) = f->ds;
+  SREG(es) = f->es;
+  SREG(fs) = f->fs;
+  SREG(gs) = f->gs;
+  sp = LWORD(esp) - 6;
+  WRITE_WORD(ssp + sp, f->ip);
+  WRITE_WORD(ssp + (uint16_t)(sp + 2), f->cs);
+  WRITE_WORD(ssp + (uint16_t)(sp + 4), f->fl);
+  LWORD(esp) = sp;
+  fake_iret();
 }
 
 /* returns 1 when the call was ours, 0 to let int 15h carry on */
@@ -2679,6 +3039,11 @@ int jemm_api(void)
 {
   int prev;
 
+  if (LWORD(ebx) != JEMM_FN('S', 'M') && LWORD(ebx) != JEMM_FN('s', 'm'))
+    E_printf("JEMM: %c%c ax=%04x cx=%04x dx=%04x from %04x:%04x\n",
+	     HI(bx), LO(bx), LWORD(eax), LWORD(ecx), LWORD(edx),
+	     READ_WORD(SEGOFF2LINEAR(SREG(ss), LWORD(esp) + 2)),
+	     READ_WORD(SEGOFF2LINEAR(SREG(ss), LWORD(esp))));
   switch (LWORD(ebx)) {
   case JEMM_FN('A', 'C'):	/* are you there */
     LWORD(eax) = 0;
@@ -2717,6 +3082,35 @@ int jemm_api(void)
     break;
 
   case JEMM_FN('S', 'R'):	/* nothing to restore */
+    break;
+
+  case JEMM_FN('V', 'P'):
+    /* The client asks with "xor cx,cx / int 15h / mov cl,1" and keeps
+     * CL: JEMM skips the two bytes after the int, so it stays 0. */
+    WRITE_WORD(SEGOFF2LINEAR(SREG(ss), LWORD(esp)),
+	       READ_WORD(SEGOFF2LINEAR(SREG(ss), LWORD(esp))) + 2);
+    break;
+
+  case JEMM_FN('M', 'U'):
+    LWORD(eax) = jemm_map_unit(LWORD(edx), LWORD(ecx));
+    break;
+
+  case JEMM_FN('C', 'U'):
+    LWORD(eax) = jemm_copy_frame(LO(cx), HI(cx));
+    break;
+
+  case JEMM_FN('F', 'H'):
+    if (!jemm_handle_ok(LWORD(edx))) {
+      LWORD(eax) = 1;
+      break;
+    }
+    jemm_far_handle = LWORD(edx);
+    REG(edx) = JEMM_FAR_BASE;
+    LWORD(eax) = 0;
+    break;
+
+  case JEMM_FN('S', 'P'):
+    jemm_call_far();
     break;
 
   default:
@@ -2830,6 +3224,14 @@ void ems_init(void)
   hlt_hdlr.name = "EMS APMAP ret";
   hlt_hdlr.func = emm_apmap_ret_hlt;
   EMSAPMAP_ret_OFF = hlt_register_handler_vm86(hlt_hdlr);
+  if (config.jemm) {
+    hlt_hdlr.name = "JEMM irq ret";
+    hlt_hdlr.func = jemm_irq_ret;
+    jemm_irq_ret_off = hlt_register_handler_vm86(hlt_hdlr);
+    hlt_hdlr.name = "JEMM SP ret";
+    hlt_hdlr.func = jemm_sp_ret;
+    jemm_sp_ret_off = hlt_register_handler_vm86(hlt_hdlr);
+  }
 }
 
 int emm_is_pframe_addr(dosaddr_t addr, uint32_t *size)
