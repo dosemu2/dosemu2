@@ -338,6 +338,10 @@ static void msdos_init(int num, int is_32, unsigned short mseg,
     SetSegmentLimit(MSDOS_CLIENT.ldt_alias_winos2,
 	    LDT_ENTRIES * LDT_ENTRY_SIZE - 1);
 
+    /* There is no IDT to inherit from a parent we did not serve: pmdapi
+     * may be loaded by a client that is itself a child of another one. */
+    if (inherit_idt && (num < 1 || !msdos_client[num - 1].used))
+	inherit_idt = 0;
     setup_int_exc(inherit_idt);
 
     D_printf("MSDOS: init %i, ldt_alias=0x%x winos2_alias=0x%x\n",
