@@ -1343,6 +1343,29 @@ static int kvm_post_run(struct vm86_regs *regs, struct kvm_regs *kregs)
       leavedos_main(99);
     }
     if (events.exception.pending || events.exception.injected) {
+      /* LOCAL-ONLY: this is where the guest stops for good, so say everything
+         about it: which exception, whether KVM says it can take an interrupt,
+         and whether a signal is sitting there making every KVM_RUN entry come
+         straight back out. */
+      static unsigned long xexc_n;
+      if (++xexc_n % 500 == 0) {
+        struct kvm_regs xk = {};
+        sigset_t pend;
+        int nsig = 0, si;
+        ioctl(vcpufd, KVM_GET_REGS, &xk);
+        if (sigpending(&pend) == 0)
+          for (si = 1; si < 32; si++)
+            if (sigismember(&pend, si))
+              nsig |= 1 << si;
+        error("XEXC %lu nr=%u pend=%u inj=%u ec=%u/%u nmi=%u/%u rdy=%u "
+              "rip=%04x:%08llx fl=%08llx sig=%08x reason=%u\n",
+              xexc_n, events.exception.nr, events.exception.pending,
+              events.exception.injected, events.exception.has_error_code,
+              events.exception.error_code, events.nmi.pending,
+              events.nmi.injected, run->ready_for_interrupt_injection,
+              sregs.cs.selector, (unsigned long long)xk.rip,
+              (unsigned long long)xk.rflags, nsig, run->exit_reason);
+      }
       XPR(0, "exception pending");
       g_printf("KVM: exception pending, not ready for return %i %i\n",
           events.exception.pending, events.exception.injected);
@@ -1665,6 +1688,14 @@ static unsigned int kvm_run(void)
         memcpy(xhma, lowmem_base + (0xffffu << 4) + 0x10, sizeof(xhma));
       }
     }
+    {
+      /* LOCAL-ONLY: one line every so many turns of this loop, so that a log
+         that goes quiet says which of the two happened -- the loop stopped
+         turning, or it turns without ever getting out. */
+      static unsigned long xloop_n;
+      if (++xloop_n % 50000 == 0)
+        error("XLOOP %lu\n", xloop_n);
+    }
     ret = ioctl(vcpufd, KVM_RUN, NULL);
     int errn = errno;
 
@@ -1686,8 +1717,17 @@ static unsigned int kvm_run(void)
 #if KVM_PROFILE
       exit_eintr++;
 #endif
-      if (!kvm_post_run(regs, &kregs))
+      if (!kvm_post_run(regs, &kregs)) {
+        /* LOCAL-ONLY: a kvm_post_run() that keeps saying "not yet" never lets
+           kvm_run() return, so dosemu's main loop stops running while the
+           process still looks busy.  Count the retries separately from the
+           exits, so a wedge can be told apart from a guest that simply stops
+           leaving the VM. */
+        static unsigned long xeintr_n;
+        if (++xeintr_n % 20000 == 0)
+          error("XEINTR retry %lu\n", xeintr_n);
         continue;
+      }
       saved_regs = *regs;
       exit_reason = KVM_EXIT_INTR;
       break;

@@ -27,3 +27,33 @@ The kvm.c commit on this branch is the probe itself: page-table walking
 helpers over physaddr_to_unixaddr(), the XREG/XEIP/XEXIT samplers, the XHMA
 watch on ffff:0010 and the XPR counters on the four early returns of
 kvm_post_run().
+
+Added later the same day
+------------------------
+The counters that found the wedge live in kvm.c on this branch:
+  XPR     one line per 500 early returns of kvm_post_run(), one counter per
+          reason, so a log that goes quiet says which of the four is looping
+  XEXC    the full picture at the wedge: exception number, error code,
+          ready_for_interrupt_injection, pending signals and a fresh
+          KVM_GET_REGS
+  XLOOP   every 50000 turns of the kvm_run() loop
+  XEINTR  every 20000 EINTR retries that kvm_post_run() refused to return on
+What they said: the wedge is kvm_post_run() answering "not yet" forever on a
+pending #GP, and the registers at that moment are the host kernel's own
+(rip=ffffffffc06031fa), so it is the nested KVM of the stand, not dosemu.
+
+  mcal.sh       mouse calibration: probe6 samples int33 AX=3 ten times a
+                second while known motions are injected.  Result: the guest
+                cursor follows the X pointer position, scaled, and a plain
+                click reaches the game.
+  probe6.asm    that sampler
+  xrel.c xnud.c xsweep.c
+                relative-motion helpers, kept for the record; a plain
+                absolute xclick turned out to be the right tool
+  sc-fly8..11.sh
+                stands that recognise the game's own menu by a crop of the
+                frame before pressing anything, because the menu is only up
+                for part of the attract cycle
+  sc-fly9.sh    flight through the MENU.EXE stub with the HMA occupied: the
+                run that reached the cockpit, took off and ended on the
+                game's "YOU HAVE DIED" box
