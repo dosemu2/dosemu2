@@ -862,8 +862,10 @@ static int need_xbuf(int intr, u_short ax, u_long cx)
 #ifdef SUPPORT_DOSEMU_HELPERS
     case DOS_HELPER_INT:	/* dosemu helpers */
 	switch (LO_BYTE(ax)) {
+#ifndef DOSEMU
 	case DOS_HELPER_PRINT_STRING:	/* print string to dosemu log */
 	    return 1;
+#endif
 	}
 	break;
 #endif
@@ -1845,6 +1847,13 @@ int msdos_pre_extender(cpuctx_t *scp,
     case DOS_HELPER_INT:	/* dosemu helpers */
 	switch (_LO(ax)) {
 	case DOS_HELPER_PRINT_STRING:	/* print string to dosemu log */
+#ifdef DOSEMU
+	    /* Straight from the client's memory, without real mode: a
+	     * program may log from an interrupt handler that came in while
+	     * another call of it holds the translation buffer. */
+	    dbug_printf("%s", (char *)SEL_ADR_X(_es, _edx, MSDOS_CLIENT.is_32));
+	    return MSDOS_DONE;
+#else
 	    {
 		char *s, *d;
 		SET_RMREG(es, rm_seg);
@@ -1854,6 +1863,7 @@ int msdos_pre_extender(cpuctx_t *scp,
 		snprintf(d, 1024, "%s", s);
 	    }
 	    break;
+#endif
 	default:
 	    if (!act)
 		return MSDOS_NONE;
