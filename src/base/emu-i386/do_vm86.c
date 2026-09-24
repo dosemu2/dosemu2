@@ -738,16 +738,7 @@ static void pic_run(void)
  */
 void loopstep_run_vm86(void)
 {
-    /* Pending signals get handled below, before the guest is entered
-       again, but must not keep it out for more than one pass: a thread
-       that raises an IRQ line on every tick queues a new notification on
-       every pass once a pass takes longer than a tick, and then the guest
-       is never entered to acknowledge the tick either.  vtmr does that
-       with the timer, on a loaded host. */
-    static int skipped;
-
-    if (!dosemu_frozen && (!signal_pending() || skipped)) {
-	skipped = 0;
+    if (!dosemu_frozen && !signal_pending()) {
 	/* a VCPI client comes first: a DPMI client of ours may well be
 	   "in PM" at the same time, but the CPU is not ours to hand to it
 	   until the VCPI client drops back to v86 */
@@ -755,8 +746,6 @@ void loopstep_run_vm86(void)
 	    run_dpmi();
 	else
 	    run_vm86();
-    } else if (!dosemu_frozen) {
-	skipped = 1;
     }
     if (dosemu_frozen)
 	dosemu_sleep();
