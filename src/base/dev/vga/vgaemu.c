@@ -1325,6 +1325,12 @@ static int vga_emu_protect(unsigned page, int prot[VGAEMU_MAX_MAPPINGS],
     if (vga.mem.map[i].pages) {
       j = page - vga.mem.map[i].first_page;
       if(j >= 0 && j < vga.mem.map[i].pages) {
+        /* the bank is not mapped over a window the client holds, see
+         * vga_emu_map(); protecting that page would fault on the client's
+         * own stores and have vgaemu take them for drawing */
+        if (i == VGAEMU_MAP_BANK_MODE &&
+            emm_jemm_window((vga.mem.map[i].base_page + j) * HOST_PAGE_SIZE))
+          continue;
         err = vga_emu_protect_page(vga.mem.map[i].base_page + j, prot[i], instremu);
         vga_deb2_map(
           "vga_emu_protect: error = %d, region = %d, page = 0x%x --> map_addr = 0x%x, prot = %s\n",
@@ -2599,6 +2605,28 @@ static void vgaemu_map_hma(void)
   else
     vga_deb_map("vgaemu_map_hma: mapped %u pages (ofs %u) at 0x%x\n",
 		vmt->pages, first, JEMM_HMA_BASE);
+}
+
+/* The JEMM page frame and video memory share the same addresses, and
+ * vga_emu_map() leaves the windows the client holds alone.  So when such a
+ * window stops holding a page, the bank is missing there and has to be put
+ * back, or the client would be talking to low memory instead of the screen.
+ */
+void vgaemu_restore_bank(dosaddr_t base, unsigned size)
+{
+  vga_mapping_type *vmt = vga.mem.map + VGAEMU_MAP_BANK_MODE;
+  unsigned b, l, s, e;
+
+  if (!config.jemm || !vmt->pages || !vga.mem.base)
+    return;
+  b = vmt->base_page * HOST_PAGE_SIZE;
+  l = vmt->pages * HOST_PAGE_SIZE;
+  s = base > b ? base : b;
+  e = base + size < b + l ? base + size : b + l;
+  if (s >= e)
+    return;
+  alias_mapping_pa(MAPPING_VGAEMU, s, e - s, VGA_EMU_RW_PROT,
+      vga.mem.base + vmt->first_page * HOST_PAGE_SIZE + (s - b));
 }
 
 int vgaemu_map_bank(void)

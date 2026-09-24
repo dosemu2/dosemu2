@@ -511,6 +511,7 @@ vga_mode_info *vga_emu_find_mode(int, vga_mode_info *);
 int vga_emu_setmode(int, int, int);
 int vga_emu_setmode_vmi(vga_mode_info *, int, int);
 int vgaemu_map_bank(void);
+void vgaemu_restore_bank(dosaddr_t base, unsigned size);
 int vga_emu_set_textsize(int, int);
 void dirty_all_video_pages(void);
 void vgaemu_dirty_page(int page, int dirty);

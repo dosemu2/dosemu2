@@ -573,6 +573,10 @@ static void _do_unmap_page(unsigned int base, int size)
   /* don't unmap, just overmap with the LOWMEM page */
   alias_mapping(MAPPING_LOWMEM, base, size,
 	PROT_RWX, LOWMEM(base));
+  /* ...except where the video card owns these addresses, as it does for the
+   * JEMM windows that sit over the aperture: there the screen has to come
+   * back, not low memory. */
+  vgaemu_restore_bank(base, size);
 }
 
 static int
