@@ -25,6 +25,11 @@ __ASM(unsigned, int_entered) SEMIC	/* how many reached the stub at all */
 __ASM(unsigned, int_taken) SEMIC		/* how many have arrived */
 __ASM_ARR(unsigned, int_count, 12) SEMIC		/* and per vector */
 __ASM(unsigned, int_last) SEMIC			/* and where the last one did */
+__ASM(unsigned, int_last_cs) SEMIC
+__ASM(unsigned, int_last_eip) SEMIC
+__ASM(unsigned, int_in_ret) SEMIC		/* landed inside _int_ret16 */
+__ASM_ARR(unsigned, int_slot_esp, 12) SEMIC	/* free pointer per vector */
+__ASM_ARR(unsigned, int_slot_low, 12) SEMIC	/* and the lowest it reached */
 __ASM(unsigned, int_last_ss) SEMIC
 __ASM(unsigned, int_last_esp) SEMIC
 __ASM_ARR(uint16_t, int_target, 32) SEMIC	/* INT_SLOTS pairs */

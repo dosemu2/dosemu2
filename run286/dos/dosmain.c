@@ -48,6 +48,81 @@ void trc(const char *fmt, ...)
  * timer, the keyboard and its sound IRQ, and only one of the three firing
  * looks exactly like all three firing if you only print the last.
  */
+unsigned gate_depth, gate_nested, gate_deepest;
+/* set by the imports that are meant to hand the caller new registers */
+int frame_bp_ok;
+
+/* INSTRUMENTATION: how far down does each stack the program uses ever get? */
+static struct sswatch {
+    unsigned ss, minsp, maxsp, n;
+} sstab[8];
+static unsigned ss_ticks;
+
+static void ss_note(unsigned ss, unsigned sp)
+{
+    unsigned i;
+
+    ss &= 0xffff;
+    sp &= 0xffff;
+    for (i = 0; i < 8; i++) {
+	if (!sstab[i].n) {
+	    sstab[i].ss = ss;
+	    sstab[i].minsp = sstab[i].maxsp = sp;
+	    sstab[i].n = 1;
+	    return;
+	}
+	if (sstab[i].ss == ss)
+	    break;
+    }
+    if (i == 8)
+	return;
+    if (sp < sstab[i].minsp)
+	sstab[i].minsp = sp;
+    if (sp > sstab[i].maxsp)
+	sstab[i].maxsp = sp;
+    sstab[i].n++;
+}
+
+static void ss_report(const char *when)
+{
+    unsigned i;
+
+    trc("run286:   stacks %s: our int stack %04x (top %04x)\n", when,
+	    (uint16_t)int_stk_ss, (uint16_t)int_stk_esp);
+    trc("run286:   gate depth %u, nested %u times, deepest %u\n",
+	    gate_depth, gate_nested, gate_deepest);
+    for (i = 0; i < 8 && sstab[i].n; i++)
+	trc("run286:   stack %04x: sp seen %04x..%04x, limit %08x, %u samples\n",
+		(uint16_t)sstab[i].ss, sstab[i].minsp, sstab[i].maxsp,
+		__dpmi_get_segment_limit(sstab[i].ss), sstab[i].n);
+}
+
+void rr_report(void);
+
+/*
+ * How many interrupts of one vector were ever in flight at once. Each one
+ * takes a piece of that vector's stack and gives it back on the way out,
+ * so the lowest the free pointer ever went says how deep the vector
+ * nested. A handler that enables interrupts nests; one that does not
+ * never goes past one.
+ */
+static void int_depth_report(void)
+{
+    unsigned i;
+
+    trc("run286:   %u interrupts landed while another was on its way out; "
+	    "the last one landed at %04x:%08x\n", int_in_ret,
+	    (uint16_t)int_last_cs, int_last_eip);
+    for (i = 0; i < INT_SLOTS; i++) {
+	unsigned top = INT_STACK_HDR + (i + 1) * INT_STACK_LEN;
+
+	if (!int_slot_low[i] || int_slot_low[i] >= top - INT_FRAME_LEN)
+	    continue;
+	trc("run286:   slot %u went %u deep\n", i,
+		(top - int_slot_low[i]) / INT_FRAME_LEN);
+    }
+}
+
 static void trace_interrupts(const char *when)
 {
     char buf[INT_SLOTS * 12], *p = buf;
@@ -596,6 +671,59 @@ void ASMCFUNC run286_exception(void)
     dump_ldt_entry("ss", fss & 0xfff8);
     trc("run286:   %u interrupts taken, the last in slot %u on stack %04x:%08x\n",
 	    int_taken, int_last, (uint16_t)int_last_ss, int_last_esp);
+    ss_report("at the fault");
+    rr_report();
+    int_depth_report();
+    {
+	/* Is the stack itself still there, or only SS:SP lost? Say where
+	 * its live data starts and show the words there. */
+	unsigned lim = __dpmi_get_segment_limit(fss);
+	unsigned off, live = 0;
+	char b[3 * 16 + 1], *q;
+	int i;
+
+	for (off = 0; off < lim && off < 0x10000; off += 2) {
+	    if (_farpeekw(fss, off)) {
+		live = off;
+		break;
+	    }
+	}
+	trc("run286:   stack %04x limit %04x, first non-zero word at %04x\n",
+		fss, lim, live);
+	for (off = live & ~0xfu; off < (live & ~0xfu) + 0x40 && off < lim;
+		off += 0x10) {
+	    q = b;
+	    for (i = 0; i < 8; i++)
+		q += sprintf(q, "%04x ", _farpeekw(fss, off + i * 2));
+	    trc("run286:   %04x: %s\n", off, b);
+	}
+	/*
+	 * The frame the faulting function was really using. Its BP came
+	 * back as zero, but the registers around it still point into the
+	 * live part of the stack, so show what is there: if the saved BP
+	 * is still in its slot, the frame was never touched and only the
+	 * register was lost.
+	 */
+	{
+	    unsigned dx = _farpeekl(ss, sp + 36) & 0xffff;
+	    unsigned base = dx > 0x40 ? (dx - 0x40) & ~0xfu : 0;
+
+	    trc("run286:   around dx %04x:\n", dx);
+	    for (off = base; off < base + 0xa0 && off < lim; off += 0x10) {
+		q = b;
+		for (i = 0; i < 8; i++)
+		    q += sprintf(q, "%04x ", _farpeekw(fss, off + i * 2));
+		trc("run286:   %04x: %s\n", off, b);
+	    }
+	    trc("run286:   the top of it:\n");
+	    for (off = (lim - 0x40) & ~0xfu; off + 15 < lim; off += 0x10) {
+		q = b;
+		for (i = 0; i < 8; i++)
+		    q += sprintf(q, "%04x ", _farpeekw(fss, off + i * 2));
+		trc("run286:   %04x: %s\n", off, b);
+	    }
+	}
+    }
     gate_exit_code = 1;
 }
 
@@ -610,6 +738,15 @@ int ASMCFUNC run286_import(void)
 
     c.ss = gate_cli_ss;
     c.sp = gate_cli_esp;
+    gate_depth++;
+    if (gate_depth > 1) {
+	gate_nested++;
+	if (gate_depth > gate_deepest)
+	    gate_deepest = gate_depth;
+    }
+    ss_note(c.ss, c.sp);
+    if (++ss_ticks % 2048 == 0)
+	ss_report("so far");
     if (n == TRAP_IDX || n == TRAP_EXC_IDX) {
 	/* an interrupt frame is IP, CS, flags; an exception frame has a
 	 * far return and an error code in front of it */
@@ -644,7 +781,32 @@ int ASMCFUNC run286_import(void)
     if (ldr.trace)
 	trc("run286: -> %s.%s%u\n", im->mod,
 		im->name[0] ? im->name : "#", im->ord);
-    rc = im->fn->fn(&c);
+    /*
+     * What the program had in BP and where it called from, as the gate
+     * saved them on its own stack. If either has moved by the time the
+     * call is done, something wrote over the frame while we were away,
+     * and that is the thing to find.
+     */
+    {
+	unsigned bp0 = _farpeekw(c.ss, c.sp + CALL_EBP);
+	unsigned rcs = _farpeekw(c.ss, c.sp + CALL_ARGS - 2);
+	unsigned rip = _farpeekw(c.ss, c.sp + CALL_ARGS - 4);
+
+	rc = im->fn->fn(&c);
+	if (_farpeekw(c.ss, c.sp + CALL_ARGS - 2) != rcs ||
+		_farpeekw(c.ss, c.sp + CALL_ARGS - 4) != rip)
+	    trc("run286: FRAME the caller of %s.%s%u was %04x:%04x and now "
+		    "reads %04x:%04x\n", im->mod,
+		    im->name[0] ? im->name : "#", im->ord, rcs, rip,
+		    _farpeekw(c.ss, c.sp + CALL_ARGS - 2),
+		    _farpeekw(c.ss, c.sp + CALL_ARGS - 4));
+	else if (_farpeekw(c.ss, c.sp + CALL_EBP) != bp0 && !frame_bp_ok)
+	    trc("run286: FRAME bp of the caller of %s.%s%u was %04x and now "
+		    "reads %04x\n", im->mod,
+		    im->name[0] ? im->name : "#", im->ord, bp0,
+		    _farpeekw(c.ss, c.sp + CALL_EBP));
+	frame_bp_ok = 0;
+    }
     ldr.ncall++;
     if (ldr.trace)
 	trc("run286: %s.%s%u(%04x %04x %04x %04x %04x %04x %04x) = %u\n",
@@ -653,9 +815,14 @@ int ASMCFUNC run286_import(void)
 		call_argw(&c, 6), call_argw(&c, 8), call_argw(&c, 10),
 		call_argw(&c, 12), rc);
     if (ldr.trace)
-	trc("run286:   called from %04x:%04x\n",
+	trc("run286:   called from %04x:%04x, stack %04x:%04x bp %04x "
+		"si %04x di %04x\n",
 		_farpeekw(c.ss, c.sp + CALL_ARGS - 2),
-		_farpeekw(c.ss, c.sp + CALL_ARGS - 4));
+		_farpeekw(c.ss, c.sp + CALL_ARGS - 4),
+		(uint16_t)c.ss, (uint16_t)(c.sp + CALL_ARGS),
+		_farpeekw(c.ss, c.sp + CALL_EBP),
+		_farpeekw(c.ss, c.sp + CALL_ESI),
+		_farpeekw(c.ss, c.sp + CALL_EDI));
     /* A program that sits in a poll loop makes the trace one repeated line
      * and says nothing about whether its interrupt handlers still run, which
      * is the first thing to ask when it stops moving. Say so now and then. */
@@ -664,6 +831,7 @@ int ASMCFUNC run286_import(void)
     /* the result goes back in AX, which gate_entry pops off the program's
      * own stack on the way out */
     _farpokew(c.ss, c.sp + CALL_EAX, rc);
+    gate_depth--;
     return 0;
 }
 
@@ -1131,6 +1299,7 @@ int main(int argc, char **argv)
     trc("run286: back from the program after %u API calls, rc %d\n",
 	    l->ncall, rc);
     trace_interrupts("taken");
+    int_depth_report();
     unhook_exceptions();
     unhook_int21();
     ne_free(&m->ne);

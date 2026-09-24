@@ -46,8 +46,14 @@ _ne_enter:
     movl ARG8, %ecx			/* cx: size of the data segment */
     /* from here on our own DS is gone; everything is read through %cs: */
     movl %esi, %ds
-    movl %edx, %ss
-    movl %ebx, %esp
+    /*
+     * SS and ESP together, out of one instruction: a stack loaded in two
+     * is a stack that an interrupt can land on half built. The pair is
+     * put where we stand, on the stack we are leaving.
+     */
+    pushl %edx				/* the selector */
+    pushl %ebx				/* and the offset */
+    lss (%esp), %esp
     ljmpw *%cs:_gate_jmp
 
 /* int desc_probe(void) - what the machine says its tables are, and the
@@ -105,7 +111,16 @@ _gate_entry:
     movw %ss, %dx
     movl %edx, _gate_cli_ss
     movl %esp, _gate_cli_esp
-    /* onto a stack of our own, the program's may be tiny */
+    /*
+     * Onto a stack of our own, the program's may be tiny. It has to be a
+     * stack and not one fixed address: the program's own interrupt
+     * handlers call imports too, and one of them lands here while we are
+     * already serving a call, because the host runs real mode for us with
+     * interrupts on. A piece per call, taken with the one instruction that
+     * moves the mark down, so that a call arriving between the mark and
+     * the load of ESP takes the next piece rather than this one.
+     */
+    subl $GATE_FRAME_LEN, _gate_stk_esp
     lss _gate_stk, %esp
     pushl %edx				/* program SS */
     pushl _gate_cli_esp			/* program ESP */
@@ -114,8 +129,12 @@ _gate_entry:
     jnz 1f
     popl %ecx				/* program ESP */
     popl %edx				/* program SS */
-    movl %edx, %ss
-    movl %ecx, %esp
+    /* both halves of the program's stack in one instruction */
+    pushl %edx
+    pushl %ecx
+    /* only now is the piece free: the pair above stands on it */
+    addl $GATE_FRAME_LEN, _gate_stk_esp
+    lss (%esp), %esp
     /*
      * Origin's wrapper frees a descriptor while it is still in ES and
      * carries on with it: on a 286 the entry it freed was its own to
@@ -202,20 +221,43 @@ _int_common:
     incl _int_count(,%ecx,4)
     movl %eax, _int_last_ss
     movl %edx, _int_last_esp
+    /* how often one lands while another is on its way out, which is the
+     * moment the way out has to be able to take */
+    movl 56(%esp), %edi
+    movl %edi, _int_last_cs
+    cmpl _int_ret_sel, %edi
+    jne 9f
+    incl _int_in_ret
+9:
+    movl 52(%esp), %edi
+    movl %edi, _int_last_eip
     /*
-     * A 16bit stack of our own, as the extender would have given it.
-     * Each vector gets its own piece of it: one interrupt arrives while
-     * another's handler runs, and that handler has by then moved to a
-     * stack of its own, so there is no way to tell from SS that ours is
-     * already in use.
+     * A 16bit stack of our own, as the extender would have given it, and
+     * a piece of it per interrupt in flight rather than one piece per
+     * vector: the handler of a vector can be interrupted by that same
+     * vector, and by then it has moved to a stack of its own, so there is
+     * no way to tell from SS that our piece is still in use. Taking the
+     * piece needs no care against an interrupt landing between the two
+     * instructions: the host enters us through an interrupt gate, so
+     * nothing is delivered until the handler's iret puts IF back.
      */
-    movl %ecx, %ebp
-    shll $INT_STACK_SHIFT, %ebp
-    movl _int_stk_esp, %esi
-    subl %ebp, %esi
-    movl _int_stk_ss, %ebp
-    movw %bp, %ss
-    movl %esi, %esp
+    movl _int_slot_esp(,%ecx,4), %esi
+    subl $INT_FRAME_LEN, %esi
+    movl %esi, _int_slot_esp(,%ecx,4)
+    /* how deep this vector has been, for the report */
+    cmpl _int_slot_low(,%ecx,4), %esi
+    jae 5f
+    movl %esi, _int_slot_low(,%ecx,4)
+5:
+    /*
+     * Onto it with one instruction: were SS loaded on its own, an
+     * interrupt landing before ESP followed would be pushed at the offset
+     * the old stack was at, which is nowhere in this segment.
+     */
+    pushl _int_stk_ss
+    pushl %esi
+    lss (%esp), %esp
+    pushl %ecx				/* the vector, to give the piece back */
     pushl %edx				/* the stack we came from */
     pushl %eax
     /* the frame the program's handler will iret from */
@@ -305,8 +347,17 @@ _int21_stub:
 _int_ret16:
     popl %eax				/* the stack we came from */
     popl %edx
-    movw %ax, %ss
-    movl %edx, %esp
+    popl %ecx				/* the vector */
+    /* the piece of stack this handler ran on is free again. The table is
+     * at the bottom of the stack segment because this is 16bit code with
+     * the program's own DS loaded, and SS is still ours until the next
+     * instruction. */
+    /* and back onto the interrupted stack, both halves at once */
+    pushl %eax
+    pushl %edx
+    /* only now is the piece free: the pair above stands on it */
+    addl $INT_FRAME_LEN, %ss:0(,%ecx,4)
+    lss (%esp), %esp
     popl %gs
     popl %fs
     popl %es
@@ -431,6 +482,17 @@ _int_count:
 .endr
 .global _int_last
 _int_last:	.long 0
+.global _int_last_cs
+_int_last_cs:	.long 0
+.global _int_last_eip
+_int_last_eip:	.long 0
+.global _int_in_ret
+_int_in_ret:	.long 0			/* landed inside _int_ret16 */
+.global _int_slot_low
+_int_slot_low:				/* the lowest each vector went */
+.rept INT_SLOTS
+	.long 0
+.endr
 .global _int_last_ss
 _int_last_ss:	.long 0
 .global _int_last_esp
@@ -454,12 +516,18 @@ _gate_stack:
 .global _gate_stack_end
 _gate_stack_end:
 
+/*
+ * The stack the program's interrupt handlers run on. The first
+ * INT_STACK_HDR bytes of it are the per vector free pointers rather than
+ * stack, so that _int_ret16, which is 16bit code running with the
+ * program's own DS, can give a piece back through SS.
+ */
 .balign 16
 .global _int_stack
+.global _int_slot_esp
 _int_stack:
-.rept INT_SLOTS * INT_STACK_LEN
-.byte 0
-.endr
+_int_slot_esp:
+.space INT_STACK_HDR + INT_SLOTS * INT_STACK_LEN, 0
 .balign 16
 .global _int_stack_end
 _int_stack_end:

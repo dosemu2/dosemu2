@@ -11,9 +11,19 @@
  * run its handler on, as a 286 extender would have given it */
 #define INT_SLOTS 12
 #define INT_SLOT_SIZE 8
-#define INT_STACK_LEN 0x1000		/* per vector, so they cannot nest
-					 * onto each other */
-#define INT_STACK_SHIFT 12
+/*
+ * Each vector gets a piece of stack per interrupt of it in flight, not
+ * one piece for the vector: a handler that enables interrupts, as a timer
+ * handler that chains to the one before it does, can be interrupted by
+ * its own vector again, and by then it has moved to a stack of its own,
+ * so there is nothing in SS to say that ours is still in use.
+ */
+#define INT_FRAME_LEN 0x1000		/* what one handler gets */
+#define INT_FRAMES 4			/* how deeply one vector may nest */
+#define INT_STACK_LEN (INT_FRAME_LEN * INT_FRAMES)
+#define INT_STACK_HDR 0x40		/* the free pointers live here, in
+					 * the stack segment, so that the
+					 * 16bit return stub can reach them */
 
 /* one stub per processor exception, and a stack to report one on */
 #define EXC_SLOTS 0x20
@@ -45,7 +55,11 @@ void ASMCFUNC run286_exception(void);
 
 #else
 
-#define GATE_STACK_LEN 0x4000
+/* one piece per call in flight: the program's interrupt handlers call
+ * imports too, and one can land while another call is still being
+ * served */
+#define GATE_FRAME_LEN 0x1000
+#define GATE_STACK_LEN (GATE_FRAME_LEN * 8)
 
 #endif
 

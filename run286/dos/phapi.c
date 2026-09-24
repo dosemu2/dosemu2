@@ -401,6 +401,8 @@ static uint16_t dos_free_lin_mem(struct call *c)
  * routine left there. gate_entry() saved them on the program's stack, so
  * that frame is both the source and the destination.
  */
+extern int frame_bp_ok;
+
 static void callerregs_get(struct call *c, __dpmi_regs *r)
 {
     memset(r, 0, sizeof(*r));
@@ -469,24 +471,86 @@ static void realregs_put(uint16_t sel, uint16_t off, const __dpmi_regs *r)
  * one nearest the return address. The stub for them must not pop, which
  * is what an argument count of zero in the table below means.
  */
+
+/* INSTRUMENTATION: with a null register block we hand the caller's own
+ * registers to the host and poke back whatever it answers. Keep the last
+ * few calls so the fault report can say what the program's registers were
+ * when it last came back through here. */
+struct rrlog {
+    uint32_t fn;
+    uint16_t in_ax, in_di, in_si, in_bp, in_bx, in_dx, in_cx;
+    uint16_t ax, di, si, bp, bx, dx, cx;
+};
+struct rrlog rr_ring[4];
+unsigned rr_ring_ix, rr_calls, rr_diff;
+
+static void rr_note(uint32_t fn, const __dpmi_regs *in, const __dpmi_regs *out)
+{
+    struct rrlog *l = &rr_ring[rr_ring_ix & 3];
+
+    rr_ring_ix++;
+    rr_calls++;
+    l->fn = fn;
+    l->in_ax = in->x.ax; l->in_di = in->x.di; l->in_si = in->x.si;
+    l->in_bp = in->x.bp; l->in_bx = in->x.bx; l->in_dx = in->x.dx;
+    l->in_cx = in->x.cx;
+    l->ax = out->x.ax; l->di = out->x.di; l->si = out->x.si;
+    l->bp = out->x.bp; l->bx = out->x.bx; l->dx = out->x.dx;
+    l->cx = out->x.cx;
+    if (in->x.di != out->x.di || in->x.si != out->x.si ||
+	    in->x.bp != out->x.bp) {
+	rr_diff++;
+	trc("run286:   real %04x:%04x gave back di %04x->%04x si %04x->%04x "
+		"bp %04x->%04x\n", (uint16_t)(fn >> 16), (uint16_t)fn,
+		in->x.di, out->x.di, in->x.si, out->x.si,
+		in->x.bp, out->x.bp);
+    }
+}
+
+void rr_report(void)
+{
+    unsigned i;
+
+    trc("run286:   %u real calls on the caller's own registers, %u gave "
+	    "different di/si/bp\n", rr_calls, rr_diff);
+    for (i = 0; i < 4; i++) {
+	struct rrlog *l = &rr_ring[(rr_ring_ix + i) & 3];
+
+	if (!l->fn && !l->ax)
+	    continue;
+	trc("run286:   call -%u to %04x:%04x: in  ax %04x di %04x si %04x "
+		"bp %04x bx %04x dx %04x cx %04x\n", 3 - i,
+		(uint16_t)(l->fn >> 16), (uint16_t)l->fn, l->in_ax, l->in_di,
+		l->in_si, l->in_bp, l->in_bx, l->in_dx, l->in_cx);
+	trc("run286:          %04x:%04x: out ax %04x di %04x si %04x "
+		"bp %04x bx %04x dx %04x cx %04x\n",
+		(uint16_t)(l->fn >> 16), (uint16_t)l->fn, l->ax, l->di,
+		l->si, l->bp, l->bx, l->dx, l->cx);
+    }
+}
+
 static uint16_t dos_real_intr(struct call *c)
 {
     uint16_t intno = call_argw(c, 0);
     uint16_t off = call_argw(c, 2);
     uint16_t sel = call_argw(c, 4);
-    __dpmi_regs r;
+    __dpmi_regs r, r0;
 
     if (sel)
 	realregs_get(sel, off, &r);
     else
 	callerregs_get(c, &r);
     r.x.ss = r.x.sp = 0;
+    r0 = r;
     if (__dpmi_int(intno, &r) == -1)
 	return ERROR_INVALID_PARAMETER;
     if (sel)
 	realregs_put(sel, off, &r);
-    else
+    else {
+	rr_note(0xffff0000 | intno, &r0, &r);
 	callerregs_put(c, &r);
+	frame_bp_ok = 1;
+    }
     return 0;
 }
 
@@ -539,7 +603,7 @@ static uint16_t dos_real_far_call(struct call *c)
     uint32_t fn = call_argd(c, 0);
     uint16_t off = call_argw(c, 4);
     uint16_t sel = call_argw(c, 6);
-    __dpmi_regs r;
+    __dpmi_regs r, r0;
 
     if (run286_trace)
 	trace_real_target(fn, NULL, 0);
@@ -550,14 +614,18 @@ static uint16_t dos_real_far_call(struct call *c)
     r.x.ss = r.x.sp = 0;
     r.x.cs = fn >> 16;
     r.x.ip = fn & 0xffff;
+    r0 = r;
     if (__dpmi_simulate_real_mode_procedure_retf(&r) == -1)
 	return ERROR_INVALID_PARAMETER;
     if (run286_trace)
 	trace_real_target(fn, &r, 1);
     if (sel)
 	realregs_put(sel, off, &r);
-    else
+    else {
+	rr_note(fn, &r0, &r);
 	callerregs_put(c, &r);
+	frame_bp_ok = 1;
+    }
     return 0;
 }
 
@@ -630,6 +698,7 @@ static int int_init(void)
 {
     uint16_t sel;
     unsigned int ds_base;
+    unsigned i;
 
     if (int_ret_sel)
 	return 0;
@@ -640,15 +709,20 @@ static int int_init(void)
 	return -1;
     if (__dpmi_set_segment_base_address(sel, ds_base + int_stack) == -1 ||
 	    __dpmi_set_segment_limit(sel,
-		INT_SLOTS * INT_STACK_LEN - 1) == -1 ||
+		INT_STACK_HDR + INT_SLOTS * INT_STACK_LEN - 1) == -1 ||
 	    __dpmi_set_descriptor_access_rights(sel, AR_DATA16) == -1 ||
 	    __dpmi_set_segment_base_address(sel + 8, ds_base + int_ret16) == -1 ||
 	    __dpmi_set_segment_limit(sel + 8, 0xfff) == -1 ||
 	    __dpmi_set_descriptor_access_rights(sel + 8, AR_CODE16) == -1)
 	return -1;
     int_stk_ss = sel;
-    int_stk_esp = INT_SLOTS * INT_STACK_LEN;
+    int_stk_esp = INT_STACK_HDR + INT_SLOTS * INT_STACK_LEN;
     int_ret_sel = sel + 8;
+    /* the free pointer of each vector, at the top of its own piece of the
+     * stack. They live in the stack segment itself, below every piece. */
+    for (i = 0; i < INT_SLOTS; i++)
+	int_slot_esp[i] = int_slot_low[i] =
+		INT_STACK_HDR + (i + 1) * INT_STACK_LEN;
     if (run286_trace)
 	trc("run286: handler stack %04x, return stub %04x:0\n", sel, sel + 8);
     return 0;
