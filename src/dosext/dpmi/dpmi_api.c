@@ -444,9 +444,41 @@ int _dpmi_set_extended_exception_handler_vector_rm(cpuctx_t *scp, int is_32, int
     return ret;
 }
 
+void evr_note(const char *tag, cpuctx_t *scp);
+/* PROBE: nested DOS calls from protected mode, not for merge */
+static int n21_depth;
+static unsigned n21_ax[8], n21_cs[8], n21_ip[8], n21_seq;
+static void n21_in(cpuctx_t *scp, int vec, __dpmi_regs *r)
+{
+    if (vec != 0x21)
+	return;
+    if (n21_depth > 0)
+	error("NESTED21 depth %d: inner ax %04x from %04x:%08x, outer ax %04x "
+		"from %04x:%08x, seq %u\n", n21_depth, r->x.ax, _cs, _eip,
+		n21_ax[n21_depth - 1], n21_cs[n21_depth - 1],
+		n21_ip[n21_depth - 1], n21_seq);
+    if (n21_depth < 8) {
+	n21_ax[n21_depth] = r->x.ax;
+	n21_cs[n21_depth] = _cs;
+	n21_ip[n21_depth] = _eip;
+    }
+    n21_depth++;
+    n21_seq++;
+}
+static void n21_out(int vec, __dpmi_regs *r)
+{
+    if (vec != 0x21)
+	return;
+    n21_depth--;
+    if (n21_depth > 0 && n21_depth < 8)
+	error("NESTED21 done depth %d: ax in %04x out %04x cx %04x fl %04x\n",
+		n21_depth, n21_ax[n21_depth], r->x.ax, r->x.cx, r->x.flags);
+}
+
 int _dpmi_simulate_real_mode_interrupt(cpuctx_t *scp, int is_32, int _vector, __dpmi_regs *__regs)
 {			/* DPMI 0.9 AX=0300 */
     cpuctx_t sa = *scp;
+    evr_note("co-int-in", scp);
     dosaddr_t regs = smalloc(&apool, sizeof(*__regs));
 
     _eax = 0x300;
@@ -456,17 +488,21 @@ int _dpmi_simulate_real_mode_interrupt(cpuctx_t *scp, int is_32, int _vector, __
     _edi = POOL_OFS(regs);
     MEMCPY_2DOS(regs, __regs, sizeof(*__regs));
     D_printf("MSDOS: sched to dos thread for int 0x%x\n", _vector);
+    n21_in(scp, _vector, __regs);
     do_dpmi_callf(scp, is_32);
     D_printf("MSDOS: return from dos thread\n");
     MEMCPY_2UNIX(__regs, regs, sizeof(*__regs));
+    n21_out(_vector, __regs);
     smfree(&apool, regs);
     *scp = sa;
+    evr_note("co-int-out", scp);
     return 0;
 }
 
 int _dpmi_int(cpuctx_t *scp, int is_32, int _vector, __dpmi_regs *__regs)
 { /* like above, but sets ss sp fl */	/* DPMI 0.9 AX=0300 */
     cpuctx_t sa = *scp;
+    evr_note("co-dint-in", scp);
     dosaddr_t regs = smalloc(&apool, sizeof(*__regs));
 
     _eax = 0x300;
@@ -479,11 +515,14 @@ int _dpmi_int(cpuctx_t *scp, int is_32, int _vector, __dpmi_regs *__regs)
     __regs->x.flags |= __dpmi_int_flags;
     MEMCPY_2DOS(regs, __regs, sizeof(*__regs));
     D_printf("MSDOS: sched to dos thread for int 0x%x\n", _vector);
+    n21_in(scp, _vector, __regs);
     do_dpmi_callf(scp, is_32);
     D_printf("MSDOS: return from dos thread\n");
     MEMCPY_2UNIX(__regs, regs, sizeof(*__regs));
+    n21_out(_vector, __regs);
     smfree(&apool, regs);
     *scp = sa;
+    evr_note("co-dint-out", scp);
     return 0;
 }
 
@@ -499,6 +538,7 @@ static void do_procedure_retf(cpuctx_t *scp,
 	.selector = dpmi_sel(),
     };
     cpuctx_t sa = *scp;
+    evr_note("co-retf-in", scp);
     dosaddr_t regs = smalloc(&apool, sizeof(*__regs));
 
     _eax = 0x301;
@@ -514,6 +554,7 @@ static void do_procedure_retf(cpuctx_t *scp,
     MEMCPY_2UNIX(__regs, regs, sizeof(*__regs));
     smfree(&apool, regs);
     *scp = sa;
+    evr_note("co-retf-out", scp);
 }
 
 int _dpmi_simulate_real_mode_procedure_retf(cpuctx_t *scp, int is_32,

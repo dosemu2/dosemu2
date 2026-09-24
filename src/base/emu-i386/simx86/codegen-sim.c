@@ -2785,12 +2785,35 @@ static unsigned char *CodeGen_sim(unsigned char *CodePtr, unsigned char *BaseGen
 	return CodePtr + sizeof(*IG);
 }
 
+/* PROBE: ring of executed sequences, not for merge */
+struct sr_ent { unsigned pc, ebp, esi, edi, eax, ecx, esp, err; };
+#define SR_SZ 1024
+static struct sr_ent sr_ring[SR_SZ];
+static unsigned sr_n;
+void sim_ring_dump(void);
+void sim_ring_dump(void)
+{
+	unsigned i, first = sr_n > SR_SZ ? sr_n - SR_SZ : 0;
+	error("SIMRING %u sequences\n", sr_n);
+	for (i = first; i < sr_n; i++) {
+		struct sr_ent *e = &sr_ring[i % SR_SZ];
+		error("SR %u next %08x ebp %08x esi %08x edi %08x eax %08x "
+		    "ecx %08x esp %08x err %x\n", i, e->pc, e->ebp, e->esi,
+		    e->edi, e->eax, e->ecx, e->esp, e->err);
+	}
+}
+
 static unsigned Exec_sim(void *SeqStart)
 {
 	unsigned int P0;
+	struct sr_ent *e;
 
 	FlagSync_RFL(EFLAGS & EFLAGS_CC);
 	P0 = Gen_sim(SeqStart, &TheCPU.mem_ref);
+	e = &sr_ring[sr_n++ % SR_SZ];
+	e->pc = P0; e->ebp = TheCPU.ebp; e->esi = TheCPU.esi;
+	e->edi = TheCPU.edi; e->eax = TheCPU.eax; e->ecx = TheCPU.ecx;
+	e->esp = TheCPU.esp; e->err = TheCPU.err;
 	currentIG = NULL;
 	EFLAGS = (EFLAGS & ~EFLAGS_CC) | FlagSync_All();
 	if (TheCPU.err) TheCPU.key = P0;

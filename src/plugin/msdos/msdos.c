@@ -1044,12 +1044,15 @@ static int do_abs_rw(cpuctx_t *scp, struct RealModeCallStructure *rmreg,
  *
  * DANG_END_FUNCTION
  */
+void evr_note(const char *tag, cpuctx_t *scp);
 int msdos_pre_extender(cpuctx_t *scp,
 			       struct RealModeCallStructure *rmreg,
 			       int intr, unsigned short rm_seg,
 			       int *r_mask, far_t *r_rma)
 {
     int rm_mask = *r_mask, alt_ent = 0, act = 0;
+
+    evr_note("pre-ext", scp);
 
     D_printf("MSDOS: pre_extender: int 0x%x, ax=0x%x\n", intr,
 	     _LWORD(eax));
@@ -1919,6 +1922,7 @@ int msdos_post_extender(cpuctx_t *scp,
 				int intr, unsigned short rm_seg, int *rmask,
 				unsigned *arg)
 {
+    evr_note("post-ext", scp);
     u_short ax = _LWORD(eax);
     int ret = POSTEXT_NONE;
     int update_mask = ~0;

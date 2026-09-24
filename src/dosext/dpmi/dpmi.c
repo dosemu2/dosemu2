@@ -1741,8 +1741,45 @@ static int post_rm_call(int old_client)
   return ret;
 }
 
+/* PROBE: ring of host events around client contexts, not for merge */
+struct evr_ent { const char *tag; unsigned cs, eip, ss, esp, ebp, esi, edi,
+  eax, ecx, pms, pmp, irq, n; };
+#define EVR_SZ 256
+static struct evr_ent evr[EVR_SZ];
+static unsigned evr_n, evr_dumped;
+void evr_note(const char *tag, cpuctx_t *scp);
+void evr_note(const char *tag, cpuctx_t *scp)
+{
+  struct evr_ent *e = &evr[evr_n % EVR_SZ];
+  e->tag = tag; e->cs = _cs; e->eip = _eip; e->ss = _ss; e->esp = _esp;
+  e->ebp = _ebp; e->esi = _esi; e->edi = _edi; e->eax = _eax; e->ecx = _ecx;
+  e->pms = DPMI_CLIENT.in_dpmi_pm_stack; e->pmp = DPMI_pm_procedure_running;
+  e->irq = in_dpmi_irq; e->n = evr_n;
+  evr_n++;
+}
+void sim_ring_dump(void);
+static void evr_dump(cpuctx_t *scp)
+{
+  unsigned i, first;
+  if (evr_dumped++)
+    return;
+  if (config.cpu_vm_dpmi == CPUVM_EMU && config.cpusim)
+    sim_ring_dump();
+  error("EVR dump at trap %x %04x:%08x ebp %x, %u events\n", _trapno, _cs,
+      _eip, _ebp, evr_n);
+  first = evr_n > EVR_SZ ? evr_n - EVR_SZ : 0;
+  for (i = first; i < evr_n; i++) {
+    struct evr_ent *e = &evr[i % EVR_SZ];
+    error("EVR %u %-10s %04x:%08x ss:esp %04x:%08x ebp %08x esi %08x edi %08x"
+	" eax %08x ecx %08x lpms %u pmproc %u irq %u\n", e->n, e->tag, e->cs,
+	e->eip, e->ss, e->esp, e->ebp, e->esi, e->edi, e->eax, e->ecx, e->pms,
+	e->pmp, e->irq);
+  }
+}
+
 static void save_pm_regs(cpuctx_t *scp)
 {
+  evr_note("savepm", scp);
   if (DPMI_pm_procedure_running >= DPMI_max_rec_pm_func) {
     error("DPMI: DPMI_pm_procedure_running = 0x%x\n",DPMI_pm_procedure_running);
     leavedos(25);
@@ -1761,6 +1798,7 @@ static void restore_pm_regs(cpuctx_t *scp)
     leavedos(25);
   }
   restore_context_nofpu(scp, &DPMI_pm_stack[--DPMI_pm_procedure_running]);
+  evr_note("restorepm", scp);
 #ifdef USE_MHPDBG
   if (mhpdbg.active && tf && !_isset_TF())
     _eflags |= TF;
@@ -4214,6 +4252,7 @@ static void do_pm_int(cpuctx_t *scp, int i)
    * handler is a common case - and that overwrites them. Park them on our
    * real-mode stack for the duration of the handler, the way a real-mode
    * call into the client does. */
+  evr_note(in_dpmi_pm() ? "hwint-pm" : "hwint-rm", scp);
   if (!in_dpmi_pm())
     save_rm_regs();
   old_ss = _ss;
@@ -5157,6 +5196,9 @@ static void do_legacy_cpu_exception(cpuctx_t *scp, INTDESC entry)
 
 static void do_cpu_exception(cpuctx_t *scp)
 {
+  if ((_trapno == 0x0d || _trapno == 0x0c) && _cs != dpmi_sel() &&
+      (_ebp & 0xffff) == 0 && (_esi & 0xffff) == 0)
+    evr_dump(scp);
   D_printf("DPMI: do_cpu_exception(0x%02x) at %#x:%#x, ss:esp=%x:%x, cr2=%#x, err=%#x\n",
 	_trapno, _cs, _eip, _ss, _esp, _cr2, _err);
   if (debug_level('M') > 5)
@@ -5316,6 +5358,7 @@ static void return_from_hwint(cpuctx_t *scp, void * const sp)
     _HWORD(eip) = *ssp++;
     val = *ssp++;
   }
+  evr_note("hwint-ret", scp);
   in_dpmi_irq--;
   imr = val & 0xff;
   port_outb(0x21, imr);
