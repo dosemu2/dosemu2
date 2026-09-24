@@ -50,6 +50,7 @@ from func_memory_dpmi_int_stack import (memory_dpmi_int_stack,
 from func_memory_dpmi_linmem_oom import memory_dpmi_linmem_oom
 from func_memory_dpmi_nullseg import memory_dpmi_nullseg
 from func_memory_dpmi_ro_write import memory_dpmi_ro_write
+from func_memory_dpmi_get_free_desc import memory_dpmi_get_free_desc
 from func_memory_dpmi_pm_stack import memory_dpmi_pm_stack
 from func_memory_dpmi_ecm import (memory_dpmi_ecm_alloc, memory_dpmi_ecm_mini,
                                   memory_dpmi_ecm_modeswitch, memory_dpmi_ecm_psp)
@@ -1057,6 +1058,11 @@ class OurTestCase(BaseTestCase):
     def test_memory_dpmi_nullseg(self):
         """Memory DPMI null selector access"""
         memory_dpmi_nullseg(self)
+
+    @mark(['memtest', 'dpmitest'])
+    def test_memory_dpmi_get_free_desc(self):
+        """Memory DPMI get descriptor of a free selector"""
+        memory_dpmi_get_free_desc(self)
 
     @mark(['memtest', 'dpmitest'])
     def test_memory_dpmi_ro_write_jit(self):

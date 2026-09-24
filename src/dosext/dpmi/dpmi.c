@@ -2655,7 +2655,11 @@ static void do_int31(cpuctx_t *scp)
   case 0x000b:
     {
       unsigned int lp[2];
-      GetDescriptor(_LWORD(ebx), lp);
+      if (GetDescriptor(_LWORD(ebx), lp)) {
+        _LWORD(eax) = 0x8022;
+        _eflags |= CF;
+        break;
+      }
       memcpy_2dos(GetSegmentBase(_es) + API_16_32(_edi), lp, sizeof(lp));
     }
     break;
