@@ -20,7 +20,7 @@ import unittest
 
 from pathlib import Path
 from shutil import rmtree
-from subprocess import check_call, CalledProcessError, DEVNULL
+from subprocess import check_call, check_output, CalledProcessError, DEVNULL
 from sys import argv
 from tempfile import mkdtemp
 
@@ -141,6 +141,35 @@ ready	db	'READY', 0
 """ % dict(ROW_TEXT=ROW_TEXT, ROW_COLOUR=ROW_COLOUR, ROW_GLYPH=ROW_GLYPH,
            ROW_SCROLL=ROW_SCROLL, ROW_READY=ROW_READY,
            CURSOR_Y=CURSOR_Y, CURSOR_X=CURSOR_X)
+
+# The terminal the tests ask for.  Its terminfo entry has to name a mouse
+# report prefix, or the backend will not offer mouse support at all.
+MOUSE_TERM = "xterm"
+
+# What xterm_mouse_init() puts on the terminal, and what
+# xterm_mouse_close() is expected to take back off it.
+MOUSE_ON = [b"\033[?9h", b"\033[?1000h", b"\033[?1002h", b"\033[?1003h"]
+MOUSE_OFF = [b"\033[?9l", b"\033[?1000l", b"\033[?1002l", b"\033[?1003l"]
+
+MOUSE_PROBE = r"""
+; Say one word so the test knows DOS is up, then sit on a key that never
+; comes.  Nothing is painted, so every escape sequence in the capture is
+; one the backend put there of its own accord.
+	org	0x100
+	bits	16
+	cpu	386
+
+start:
+	mov	ah, 0x09
+	mov	dx, msg
+	int	0x21
+	mov	ah, 0x08		; wait for a key, quietly
+	int	0x21
+	mov	ax, 0x4c00
+	int	0x21
+
+msg	db	'MOUSEPROBE', 13, 10, '$'
+"""
 
 # The SGR colour the terminal backend is expected to pick for each of the
 # sixteen DOS attribute values.  The low three bits are in the other order
@@ -402,8 +431,93 @@ class TerminalRenderTestCase(BaseTestCase, unittest.TestCase):
         return screen
 
 
+class DumbModeMouseTestCase(BaseTestCase, unittest.TestCase):
+    """Who gets the terminal's mouse switched on, and who does not.
+
+    Dumb video mode draws no screen, so a mouse position in it means
+    nothing, and gpm is already kept out of it.  The xterm mouse client is
+    not: it rides in on the term plugin, which -kt loads for the keyboard
+    alone, and puts the terminal into any-event tracking.  Every movement
+    then comes back as a report that dumb mode has nobody to give to, and
+    a terminal that does not speak SGR leaves the bytes on the screen
+    (issue #2980).
+    """
+
+    attrs = {'terminal'}
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.prettyname = "TermMouse"
+        cls.tarfile = ""
+        cls.autoexec = "dautoemu.bat"
+        cls.confsys = "dconfig.sys"
+        cls.probedir = Path(mkdtemp(prefix="termmouse."))
+        cls.runs = {}
+
+    @classmethod
+    def tearDownClass(cls):
+        rmtree(str(cls.probedir), ignore_errors=True)
+
+    def setUp(self):
+        """Without a mouse prefix in terminfo the backend offers nothing."""
+        super().setUp()
+        try:
+            kmous = check_output(["tput", "-T", MOUSE_TERM, "kmous"])
+        except (OSError, CalledProcessError):
+            kmous = b""
+        if len(kmous) < 3 or not kmous.startswith(b"\033["):
+            self.skipTest("terminfo entry for %s names no mouse"
+                          % MOUSE_TERM)
+        self.mkcom_with_nasm("command", MOUSE_PROBE, self.probedir)
+
+    # no DOS here: the probe is the command interpreter, so the boot
+    # test the base class brings has nothing to boot.  Unsetting it
+    # keeps it out of the run rather than skipping it.
+    test_0_basic_boot = None
+
+    @mark('terminal')
+    def test_terminal_mode_still_tracks_the_mouse(self):
+        """-t has a screen to point at, so tracking belongs there"""
+        out = self.capture("-t", "-kt")
+        missing = [s for s in MOUSE_ON if s not in out]
+        self.assertEqual(missing, [], self.dump(out))
+
+    @mark('terminal')
+    def test_dumb_mode_leaves_the_mouse_alone(self):
+        """-td has no screen, so nothing may switch tracking on"""
+        out = self.capture("-td", "-kt")
+        unwanted = [s for s in MOUSE_ON if s in out]
+        self.assertEqual(unwanted, [], self.dump(out))
+
+    @mark('terminal')
+    def test_tracking_is_taken_back_off_at_the_end(self):
+        """what -t switched on is switched off again on the way out"""
+        out = self.capture("-t", "-kt")
+        missing = [s for s in MOUSE_OFF if s not in out]
+        self.assertEqual(missing, [], self.dump(out))
+
+    def dump(self, out):
+        """The capture, for when an assertion wants to explain itself."""
+        return "\n" + repr(out)
+
+    def capture(self, *opts):
+        """Run dosemu2 once under a pty and keep every byte it wrote."""
+        if opts in self.__class__.runs:
+            return self.__class__.runs[opts]
+
+        out = self.runDosemuRaw(
+            opts, config=CONF, rows=ROWS, cols=COLS,
+            until=b"MOUSEPROBE", timeout=RUN_TIMEOUT,
+            env={"DOSEMU2_COMCOM_DIR": str(self.probedir),
+                 "TERM": MOUSE_TERM, "LC_ALL": "C.UTF-8"})
+        self.__class__.runs[opts] = out
+        return out
+
+
 if __name__ == "__main__":
     cases = [
         TerminalRenderTestCase,
+        DumbModeMouseTestCase,
     ]
     main(main_setup(cases))
