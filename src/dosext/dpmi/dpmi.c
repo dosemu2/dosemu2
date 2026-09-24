@@ -3500,10 +3500,14 @@ static void make_xretf_frame(cpuctx_t *scp, void *sp,
   dpmi_cli();
 }
 
+/* the frame is of the bitness the client had when it was made, which is
+ * not the one it has now if it did a reinit in between: an RSP can make a
+ * 16-bit client a 32-bit one. The frame returns to our code selector of
+ * its bitness, and that is where we are. */
 static void remove_xretf_frame(cpuctx_t *scp, void *sp)
 {
   int pm;
-  if (DPMI_CLIENT.is_32) {
+  if (_cs == _dpmi_sel32) {
     unsigned int *ssp = sp;
     _eflags = dpmi_flags_from_stack_r0(*ssp++);
     pm = *ssp++;
@@ -5185,7 +5189,9 @@ static void return_from_hwint(cpuctx_t *scp, void * const sp)
 static void do_dpmi_hlt(cpuctx_t *scp, uint8_t *lina, void *sp)
 {
       _eip += 1;
-      if (_cs == dpmi_sel()) {
+      /* either of our code selectors: a frame made before a reinit
+       * returns to the one of the old bitness */
+      if (_cs == _dpmi_sel16 || _cs == _dpmi_sel32) {
 	if (_eip==1+DPMI_SEL_OFF(DPMI_raw_mode_switch_pm)) {
 	  D_printf("DPMI: switching from protected to real mode\n");
 	  SREG(ds) = _LWORD(eax);

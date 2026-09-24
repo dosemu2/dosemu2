@@ -417,8 +417,10 @@ static void do_common_start(cpuctx_t *scp, int is_32)
     switch (_LWORD(eax)) {
     case 0:
 //	err = _dpmi_get_page_size(scp, is_32, &ps);
-	msdos_init(_LWORD(ebx), is_32, _LWORD(edx), _LWORD(esi), _LWORD(ecx),
-		HOST_PAGE_SIZE);
+	/* The call is of the bitness the client entered with, but an RSP
+	 * that ran before us may have made it a 32-bit one since. */
+	msdos_init(_LWORD(ebx), dpmi_is_32(), _LWORD(edx), _LWORD(esi),
+		_LWORD(ecx), HOST_PAGE_SIZE);
 	break;
     case 1:
 	msdos_done(_LWORD(ecx));
