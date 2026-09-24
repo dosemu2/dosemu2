@@ -54,6 +54,9 @@ from func_memory_dpmi_linmem_oom import memory_dpmi_linmem_oom
 from func_memory_dpmi_nullseg import memory_dpmi_nullseg
 from func_memory_dpmi_popf_if import memory_dpmi_popf_if
 from func_memory_dpmi_popf_iopl import memory_dpmi_popf_iopl
+from func_memory_dpmi_pm_stack import memory_dpmi_pm_stack
+from func_mouse_dpmi_callback import (mouse_dpmi_callback_swap,
+                                      mouse_dpmi_callback_nested)
 from func_memory_dpmi_ecm import (memory_dpmi_ecm_alloc, memory_dpmi_ecm_mini,
                                   memory_dpmi_ecm_modeswitch, memory_dpmi_ecm_psp)
 from func_memory_dpmi_japheth import memory_dpmi_japheth
@@ -77,7 +80,10 @@ from func_serial import (serial_simple_read_echo, serial_simple_write_file,
 from func_truename import (mfs_truename_ufs_lfn, mfs_truename_ufs_sfn, mfs_truename_vfat_linux_mounted_lfn,
                            mfs_truename_vfat_linux_mounted_sfn, sfn_truename)
 
-from func_network import network_pktdriver_mtcp
+from func_ndis import ndis_mac_driver
+from func_network import network_mtcp
+from func_ipx import ipx_relay
+from func_pktdrvr import pktdriver_api
 from func_pit_mode_2 import pit_mode_2
 
 
@@ -1056,6 +1062,36 @@ class OurTestCase(BaseTestCase):
         """Memory DPMI-1.0 LDT"""
         memory_dpmi_dpmi10_ldt(self)
 
+    @mark(['dpmitest'])
+    def test_mouse_dpmi_callback_swap(self):
+        """Mouse DPMI callback swap"""
+        mouse_dpmi_callback_swap(self)
+
+    @mark(['dpmitest'])
+    def test_mouse_dpmi_callback_nested(self):
+        """Mouse DPMI callback nested clients"""
+        mouse_dpmi_callback_nested(self)
+
+    @mark(['memtest', 'dpmitest'])
+    def test_memory_dpmi_nullseg(self):
+        """Memory DPMI null selector access"""
+        memory_dpmi_nullseg(self)
+
+    @mark(['memtest', 'dpmitest'])
+    def test_memory_dpmi_int_stack(self):
+        """Memory DPMI software interrupt stack limit"""
+        memory_dpmi_int_stack(self)
+
+    @mark(['memtest', 'dpmitest'])
+    def test_memory_dpmi_iret_stack(self):
+        """Memory DPMI iret stack limit"""
+        memory_dpmi_iret_stack(self)
+
+    @mark(['memtest', 'dpmitest'])
+    def test_memory_dpmi_pm_stack(self):
+        """Memory DPMI PM interrupt stack limit"""
+        memory_dpmi_pm_stack(self)
+
     @mark(['memtest', 'dpmitest'])
 
     @mark(['memtest', 'dpmitest'])
@@ -1582,14 +1618,48 @@ class OurTestCase(BaseTestCase):
         ds3_share_open_access(self, "TWO", "FAT", "SETATT")
 
     @mark('nettest')
-    def test_network_pktdriver_mtcp_builtin(self):
-        """Network pktdriver mTCP built-in"""
-        network_pktdriver_mtcp(self, 'builtin')
+    def test_pktdriver_api(self):
+        """Packet driver API"""
+        pktdriver_api(self)
 
     @mark('nettest')
-    def test_network_pktdriver_mtcp_ne2000(self):
-        """Network pktdriver mTCP NE2000"""
-        network_pktdriver_mtcp(self, 'ne2000')
+    def test_network_ndis_receive_chain(self):
+        """Network NDIS driver ReceiveChain"""
+        ndis_mac_driver(self, 'chain')
+
+    @mark('nettest')
+    def test_network_ndis_receive_lookahead(self):
+        """Network NDIS driver ReceiveLookahead"""
+        ndis_mac_driver(self, 'lookahead')
+
+    @mark('nettest')
+    def test_network_mtcp_pkt_builtin(self):
+        """Network mTCP pktdriver built-in"""
+        network_mtcp(self, 'pkt', 'builtin')
+
+    @mark('nettest')
+    def test_network_mtcp_pkt_ne2000(self):
+        """Network mTCP pktdriver NE2000"""
+        network_mtcp(self, 'pkt', 'ne2000')
+
+    @mark('nettest')
+    def test_network_mtcp_ndis_builtin(self):
+        """Network mTCP ndisdriver built-in"""
+        network_mtcp(self, 'ndis', 'builtin')
+
+    @mark('nettest')
+    def test_network_mtcp_ndis_ne2000(self):
+        """Network mTCP ndisdriver NE2000"""
+        network_mtcp(self, 'ndis', 'ne2000')
+
+    @mark('nettest')
+    def test_network_mtcp_ndis_pktndis(self):
+        """Network mTCP ndisdriver PKTNDIS"""
+        network_mtcp(self, 'ndis', 'pktndis')
+
+    def test_ipx_relay(self):
+        """IPX over UDP relay"""
+        ipx_relay(self)
 
     def test_passing_environment_variable(self):
         """Passing Environment Variable to DOS"""

@@ -141,7 +141,9 @@
 #define LOWMEM_SIZE 0x100000
 #define EXTMEM_SIZE ((unsigned)(config.ext_mem << 10))
 #define XMS_SIZE ((unsigned)(config.xms_size << 10))
-#define xms_base (LOWMEM_SIZE + HMASIZE + EXTMEM_SIZE)
+/* ext mem is counted from 1M and the HMA is its first 64K, so it ends at
+ * LOWMEM_SIZE + EXTMEM_SIZE and the XMS window starts there */
+#define xms_base (LOWMEM_SIZE + EXTMEM_SIZE)
 
 #ifndef __ASSEMBLER__
 
@@ -294,6 +296,8 @@ static inline void *LINEAR2UNIX(unsigned int addr)
 #define READ_BYTE_S(b, s, m)	READ_BYTE(b + offsetof(s, m))
 #define READ_WORD_S(b, s, m)	READ_WORD(b + offsetof(s, m))
 #define READ_DWORD_S(b, s, m)	READ_DWORD(b + offsetof(s, m))
+
+#define WRITE_BYTE_S(b, s, m, v)	WRITE_BYTE(b + offsetof(s, m), v)
 
 #define MEMCPY_P2UNIX(unix_addr, dos_addr, n) \
 	memcpy((unix_addr), (dos_addr), (n))

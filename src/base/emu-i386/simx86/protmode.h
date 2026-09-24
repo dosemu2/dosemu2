@@ -45,6 +45,10 @@ typedef struct {
 // as big limits always have the 12 low bits set to 1
 #define SDTR_INVALID_LIMIT 0x80000000
 
+// shadow base for a null selector: the jit checks no segment limits, so
+// an access through one has to fault on an address nothing is mapped at
+#define NULLSEG_BASE 0xc0000000
+
 typedef struct {
 	unsigned int Base;
 	unsigned int Limit;

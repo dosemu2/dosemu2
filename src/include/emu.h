@@ -237,6 +237,7 @@ typedef struct config_info {
        char   *slirp_args;
        char   *netsock;
        boolean pktdrv;
+       boolean ndis;
        boolean tcpdrv;
        char   *tcpiface;
        uint32_t tcpgw;
@@ -510,6 +511,7 @@ extern int register_exit_handler(void (*handler)(void));
 void tcp_helper(struct vm86_regs *);
 int tcp_get_driver_info(void *di_out, int len);
 void ipx_helper(struct vm86_regs *);
+void ndis_helper(struct vm86_regs *);
 void free_fonts(void);
 int emulate(int argc, char **argv, char * const *envp);
 void set_init_hook(void (*hook)(void *), void *arg);

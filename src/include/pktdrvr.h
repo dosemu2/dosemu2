@@ -30,12 +30,23 @@ enum {
 #define F_GET_ADDRESS	6
 #define F_RESET_IFACE	7
 #define F_GET_PARAMS	10
-#define F_AS_SEND_PKT	11
+#define F_OLD_AS_SEND	11	/* withdrawn in 1.10 */
+#define F_AS_SEND_PKT	12	/* added in 1.10 */
+#define F_DROP_PKT	13	/* added in 1.10 */
 #define F_SET_RCV_MODE	20
 #define F_GET_RCV_MODE	21
+#define F_SET_MCAST_LST	22
+#define F_GET_MCAST_LST	23
 #define F_GET_STATS	24
 #define F_SET_ADDRESS	25
-#define F_RECV_PKT	27
+#define F_SEND_RAW	26	/* serial line drivers only */
+#define F_FLUSH_RAW	27	/* serial line drivers only */
+#define F_FETCH_RAW	28	/* serial line drivers only */
+#define F_SIGNAL	29	/* added in 1.11, for PPP */
+#define F_GET_STRUCT	30	/* added in 1.11 */
+
+/* value returned in AL by driver_info() */
+#define L_HP_EXTENDED	6	/* basic, high-performance and extended */
 
 #define E_BAD_HANDLE	1
 #define E_NO_CLASS	2
@@ -52,6 +63,22 @@ enum {
 #define E_CANT_SET	13
 #define E_BAD_ADDRESS	14
 #define E_CANT_RESET	15
+/* The spec names BAD_ARGUMENT for the functions 1.11 added, but its
+ * appendix of error codes was never extended past CANT_RESET, so the
+ * number is just the obvious continuation past BAD_SIGNAL at 16,
+ * which nothing here returns. */
+#define E_BAD_ARGUMENT	17
+
+/* receive modes for set_rcv_mode()/get_rcv_mode() */
+#define RCV_OFF		1	/* receiver turned off */
+#define RCV_DIRECT	2	/* our station address only */
+#define RCV_BROADCAST	3	/* + broadcasts (the spec's default) */
+#define RCV_MULTICAST	4	/* + the set_multicast_list() addresses */
+#define RCV_ALLMULTI	5	/* + all multicasts */
+#define RCV_PROMISC	6	/* every packet on the wire */
+
+/* structure type for get_structure() */
+#define STRUCT_IO_STATS	1
 
 #define ETHER_CLASS	1
 #define IEEE_CLASS	11
@@ -72,6 +99,23 @@ struct pkt_param {
     unsigned short  int_num;        /* Interrupt # to hook for post-EOI
 				       processing, 0 == none */
 };
+
+/* I/O control block passed to AS_SEND_PKT, laid out as DOS sees it */
+
+struct pkt_iocb {
+    uint16_t	buffer_off;	/* far pointer to the transmit buffer */
+    uint16_t	buffer_seg;
+    uint16_t	length;		/* length of buffer */
+    uint8_t	flagbits;	/* flag bits */
+    uint8_t	code;		/* error code */
+    uint16_t	xmitter_off;	/* far pointer to transmitter upcall */
+    uint16_t	xmitter_seg;
+    uint8_t	reserved[4];	/* future gather-write, must be zero */
+    uint8_t	private[8];	/* driver's private data */
+} __attribute__((packed));
+
+#define IOCB_DONE	0x01	/* driver is done with this iocb */
+#define IOCB_UPCALL	0x02	/* upcall wanted once DONE is set */
 
 /* return structure for GET_STATS */
 

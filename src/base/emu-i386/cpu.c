@@ -100,6 +100,97 @@ fenv_t dosemu_fenv;
 static void fpu_reset(void);
 
 /*
+ * Decode the memory operand of a 0f 00 / 0f 01 instruction executed in
+ * vm86 mode. Returns the instruction length (including the 0f xx opcode
+ * and every byte of the memory operand) and stores the linear address of
+ * the operand in *addr; returns 0 if the operand is a register.
+ */
+static int vm86_modrm_mem(const unsigned char *csp, int pref_seg, int a32,
+			  dosaddr_t *addr)
+{
+	unsigned int *reg32[8] = { &REG(eax), &REG(ecx), &REG(edx), &REG(ebx),
+		&REG(esp), &REG(ebp), &REG(esi), &REG(edi) };
+	unsigned char modrm = csp[2];
+	int mod = modrm & 0xc0;
+	int rm = modrm & 7;
+	int len = 3;			/* 0f, opcode, modrm */
+	unsigned int ofs = 0;
+	int seg;
+
+	if (mod == 0xc0)		/* register operand */
+		return 0;
+
+	if (a32) {
+		seg = SREG(ds);
+		if (rm == 4) {		/* SIB follows */
+			unsigned char sib = csp[len++];
+			int idx = (sib >> 3) & 7;
+			int base = sib & 7;
+
+			if (idx != 4)	/* 4 means "no index" */
+				ofs += *reg32[idx] << (sib >> 6);
+			if (base == 5 && mod == 0) {
+				ofs += READ_DWORDP(&csp[len]);
+				len += 4;
+			} else {
+				ofs += *reg32[base];
+				if (base == 4 || base == 5)
+					seg = SREG(ss);
+			}
+		} else if (rm == 5 && mod == 0) {
+			ofs = READ_DWORDP(&csp[len]);
+			len += 4;
+		} else {
+			ofs = *reg32[rm];
+			if (rm == 5)	/* ebp */
+				seg = SREG(ss);
+		}
+		if (mod == 0x40) {
+			ofs += (signed char)csp[len];
+			len++;
+		} else if (mod == 0x80) {
+			ofs += READ_DWORDP(&csp[len]);
+			len += 4;
+		}
+	} else {
+		seg = SREG(ds);
+		switch (rm) {
+		case 0: ofs = LWORD(ebx) + LWORD(esi); break;
+		case 1: ofs = LWORD(ebx) + LWORD(edi); break;
+		case 2: ofs = LWORD(ebp) + LWORD(esi); seg = SREG(ss); break;
+		case 3: ofs = LWORD(ebp) + LWORD(edi); seg = SREG(ss); break;
+		case 4: ofs = LWORD(esi); break;
+		case 5: ofs = LWORD(edi); break;
+		case 6:
+			if (mod == 0) {
+				ofs = READ_WORDP(&csp[len]);
+				len += 2;
+			} else {
+				ofs = LWORD(ebp);
+				seg = SREG(ss);
+			}
+			break;
+		case 7: ofs = LWORD(ebx); break;
+		}
+		if (mod == 0x40) {
+			ofs += (signed char)csp[len];
+			len++;
+		} else if (mod == 0x80) {
+			ofs += READ_WORDP(&csp[len]);
+			len += 2;
+		}
+		ofs &= 0xffff;
+	}
+
+	if (ofs > 0xffff)	/* would #GP on real hw in vm86 mode */
+		return 0;
+	if (pref_seg != -1)
+		seg = pref_seg;
+	*addr = SEGOFF2LINEAR(seg, 0) + ofs;
+	return len;
+}
+
+/*
  * DANG_BEGIN_FUNCTION cpu_trap_0f
  *
  * process opcodes 0F xx xx trapped by GP_fault
@@ -110,7 +201,11 @@ static void fpu_reset(void);
  * DANG_END_FUNCTION
  *
  */
-int cpu_trap_0f (unsigned char *csp, cpuctx_t *scp)
+/* PE and ET are set, as they are on any CPU running dosemu2 */
+#define MSW_VAL 0x31
+
+int cpu_trap_0f (unsigned char *csp, cpuctx_t *scp,
+		int pref_seg, int prefix67)
 {
 	int increment_ip = 0;
 	uint16_t *reg16[8] = { &LWORD(eax), &LWORD(ecx), &LWORD(edx), &LWORD(ebx),
@@ -194,27 +289,42 @@ int cpu_trap_0f (unsigned char *csp, cpuctx_t *scp)
 		}
 		increment_ip = 3;
 	} else if (csp[1] == 0) {  // SLDT, STR, ...
-		switch (csp[2] & 0xc0) {
-		case 0xc0: // register dest
+		int op = (csp[2] >> 3) & 7;
+		dosaddr_t addr;
+
+		if ((csp[2] & 0xc0) == 0xc0) {  // register dest
 			*reg16[csp[2] & 7] = 0;
 			increment_ip = 3;
-			break;
-		default:
+		} else if (op <= 1 &&  // SLDT m16, STR m16
+			   (increment_ip = vm86_modrm_mem(csp, pref_seg,
+					prefix67, &addr))) {
+			WRITE_WORD(addr, 0);
+		} else {
 			error("unsupported SLDT dest %x\n", csp[2]);
 			increment_ip = instr_len(csp, 0);
-			break;
 		}
 	} else if (csp[1] == 1) {  // SGDT, SIDT, SMSW ...
-		switch (csp[2] & 0xc0) {
-		case 0xc0: // register dest
+		int op = (csp[2] >> 3) & 7;
+		dosaddr_t addr;
+
+		if ((csp[2] & 0xc0) == 0xc0) {  // register dest
 			/* some meaningful value for smsw, 0 for rest */
-			*reg16[csp[2] & 7] = ((csp[2] & 0x28) == 0x20) ? 0x31 : 0;
+			*reg16[csp[2] & 7] = (op == 4) ? MSW_VAL : 0;
 			increment_ip = 3;
-			break;
-		default:
+		} else if (op == 4 &&  // SMSW m16
+			   (increment_ip = vm86_modrm_mem(csp, pref_seg,
+					prefix67, &addr))) {
+			WRITE_WORD(addr, MSW_VAL);
+		} else if (op <= 1 &&  // SGDT m, SIDT m
+			   (increment_ip = vm86_modrm_mem(csp, pref_seg,
+					prefix67, &addr))) {
+			/* the tables are not visible to DOS, report them
+			 * as empty rather than leaving garbage behind */
+			WRITE_WORD(addr, 0);
+			WRITE_DWORD(addr + 2, 0);
+		} else {
 			error("unsupported SMSW dest %x\n", csp[2]);
 			increment_ip = instr_len(csp, 0);
-			break;
 		}
 	}
 	if (increment_ip) {

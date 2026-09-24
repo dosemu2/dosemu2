@@ -304,7 +304,6 @@ static int e_emu_pagefault(sigcontext_t *scp, int pmode)
  * back into an exception, so it reached the generic "bad fault address"
  * path and took dosemu down with it. A 286|DOS-Extender client gets here
  * often enough to matter: it hands the fault to its own handler. */
-#define NULLSEG_BASE 0xc0000000
 int e_emu_nullseg_fault(sigcontext_t *scp, void *addr)
 {
     static const int ofs[] = {Ofs_ES, Ofs_CS, Ofs_SS, Ofs_DS, Ofs_FS, Ofs_GS};

@@ -37,3 +37,7 @@ Summary of user-visible changes:
 * Lots of i18n work.
 * musl support
 * Added lots of CI tests (@andrewbird)
+* Added a built-in NDIS 2.0.1 MAC driver ($_ndis and ndis.sys), so that
+  the NDIS-based DOS network clients (MS Client, LAN Manager, WfW) can
+  use dosemu2's networking without a NIC driver or an emulated NIC.
+  Based on the pktndis DOS driver by @robert-j.
