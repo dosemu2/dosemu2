@@ -25,12 +25,20 @@ start:
 	call	far [xmsp]
 	mov	[a20], ax
 
+	mov	ax, 0013h		; 320x200x256
+	int	10h
+
+	mov	ax, 1209h		; JEMM's own view of memory, the
+	mov	bx, 534Dh		; 24 windows: in DOS's view ah=41h
+	int	15h			; answers with the frame at 0xe000
+
 	mov	ah, 41h			; the page frame, as Privateer asks
 	int	67h
 	mov	[frame], bx
 
-	mov	ax, 0013h		; 320x200x256
-	int	10h
+	mov	ax, 1209h		; and back to DOS's view, where the
+	mov	bx, 736Dh		; card's window is at 0xa0000 again
+	int	15h
 
 	; paint through the aperture above the 1M line
 	mov	ax, 0ffffh

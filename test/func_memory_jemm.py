@@ -176,6 +176,10 @@ section .text
     call    puthex16
     call    crlf
 
+    mov     ax, 1209h               ; the windows are JEMM's view of
+    mov     bx, 534Dh               ; memory: in DOS's own view ah=41h
+    int     15h                     ; answers with the 4-page frame
+
     mov     ax, 4100h               ; page frame segment
     int     67h
     or      ah, ah
@@ -277,7 +281,7 @@ section .text
     call    crlf
 
     mov     si, mstate              ; 'SM' and 'sm' answer with the state
-    call    puts                    ; they found, so this reads 0110
+    call    puts                    ; they found, so this reads 1110
     mov     bx, 534Dh
     call    jemm
     mov     bx, 534Dh
@@ -425,7 +429,7 @@ $_jemm = (on)
     self.assertIn("ROM=JEMMOK!!", results)
 
     # each switch reports the state it found
-    self.assertIn("STATE=0110", results)
+    self.assertIn("STATE=1110", results)
 
 
 def memory_jemm_xms(self):
