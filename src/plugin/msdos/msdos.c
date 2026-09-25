@@ -119,8 +119,12 @@ struct msdos_struct {
 };
 static struct msdos_struct msdos_client[DPMI_MAX_CLIENTS];
 static int msdos_client_num;
-/* where the lowmem block of a client moved to before its init reached us */
-static unsigned short msdos_moved_seg[DPMI_MAX_CLIENTS];
+/* a reinit of a client that came before its init reached us */
+static struct {
+    unsigned short seg;		/* where its lowmem block moved to */
+    int is_32;
+    int pending;
+} msdos_reinit[DPMI_MAX_CLIENTS];
 static int msdos_client_max;
 
 static int ems_frame_mapped;
@@ -306,18 +310,21 @@ static void msdos_init(int num, int is_32, unsigned short mseg,
     int first = (msdos_client_num < 0 ||
 	msdos_client_num >= DPMI_MAX_CLIENTS ||
 	!msdos_client[msdos_client_num].used);
+
+    /* An RSP that runs before us may reinit the client from its own start
+     * call: then op 3 came first, and our call is of the bitness the client
+     * had, with mseg where the pool was. */
+    if (msdos_reinit[num].pending) {
+	is_32 = msdos_reinit[num].is_32;
+	mseg = msdos_reinit[num].seg;
+	msdos_reinit[num].pending = 0;
+    }
     msdos_client_num = num;
     memset(&MSDOS_CLIENT, 0, sizeof(struct msdos_struct));
     MSDOS_CLIENT.used = 1;
     if (msdos_client_max <= msdos_client_num)
 	msdos_client_max = msdos_client_num + 1;
     MSDOS_CLIENT.is_32 = is_32;
-    /* An RSP that runs before us may move the pool from its own start
-     * call: then op 3 came first, and mseg is where the pool was. */
-    if (msdos_moved_seg[num]) {
-	mseg = msdos_moved_seg[num];
-	msdos_moved_seg[num] = 0;
-    }
     MSDOS_CLIENT.lowmem_seg = mseg;
     MSDOS_CLIENT.current_psp = psp;
     if (first) {
@@ -431,16 +438,21 @@ static void do_common_start(cpuctx_t *scp, int is_32)
 	msdos_set_client(_LWORD(ebx));
 	break;
     case 3:
-	/* our lowmem block moved with the DPMI host's private pool;
+	/* the client was reinit: the call is of its new bitness, and our
+	 * lowmem block may have moved with the DPMI host's private pool;
 	 * bx is the client, which we may not have been started for yet */
 	if (_LWORD(ebx) >= DPMI_MAX_CLIENTS) {
 	    error("msdos: rsp 3 for client %i\n", _LWORD(ebx));
 	    break;
 	}
-	if (_LWORD(ebx) < msdos_client_max && msdos_client[_LWORD(ebx)].used)
+	if (_LWORD(ebx) < msdos_client_max && msdos_client[_LWORD(ebx)].used) {
 	    msdos_client[_LWORD(ebx)].lowmem_seg = _LWORD(edx);
-	else
-	    msdos_moved_seg[_LWORD(ebx)] = _LWORD(edx);
+	    msdos_client[_LWORD(ebx)].is_32 = is_32;
+	} else {
+	    msdos_reinit[_LWORD(ebx)].seg = _LWORD(edx);
+	    msdos_reinit[_LWORD(ebx)].is_32 = is_32;
+	    msdos_reinit[_LWORD(ebx)].pending = 1;
+	}
 	break;
     default:
 	error("unsupported rsp %i\n", _LWORD(eax));

@@ -183,6 +183,8 @@ unsigned short dpmi_sel16(void) { return _dpmi_sel16; }
 unsigned short dpmi_sel32(void) { return _dpmi_sel32; }
 
 static int RSP_num = 0;
+/* RSP calls whose return frames are still on the stack */
+static int RSP_pending;
 static struct RSP_s RSP_callbacks[DPMI_MAX_CLIENTS];
 static int ext__thunk_16_32;	// thunk extension
 #ifdef USE_DJDEV64
@@ -3496,10 +3498,14 @@ static void make_xretf_frame(cpuctx_t *scp, void *sp,
   dpmi_cli();
 }
 
+/* the frame is of the bitness the client had when it was made, which is
+ * not the one it has now if it did a reinit in between: an RSP can make a
+ * 16-bit client a 32-bit one. The frame returns to our code selector of
+ * its bitness, and that is where we are. */
 static void remove_xretf_frame(cpuctx_t *scp, void *sp)
 {
   int pm;
-  if (DPMI_CLIENT.is_32) {
+  if (_cs == _dpmi_sel32) {
     unsigned int *ssp = sp;
     _eflags = dpmi_flags_from_stack_r0(*ssp++);
     pm = *ssp++;
@@ -3633,6 +3639,7 @@ static void do_RSP_call(cpuctx_t *scp, int num, int clnt,
   else
     make_xretf_frame(scp, sp, dpmi_sel(),
         DPMI_SEL_OFF(DPMI_return_from_RSPcall));
+  RSP_pending++;
 
   _es = _fs = _gs = 0;
   _ds = DPMI_CLIENT.RSP_ds[num];
@@ -4511,9 +4518,10 @@ static void dpmi_reinit(cpuctx_t *scp)
 
   _eflags &= ~CF;
   D_printf("%s", DPMI_show_state(scp));
-  /* last, because the RSP call rewrites the context we just set up and
-   * restores it on return */
-  if (reloc)
+  /* tell the RSPs, which may include the ones this client has not started
+   * yet if an RSP did the reinit from its own start call. Last, because the
+   * RSP call rewrites the context we just set up and restores it on return */
+  if (reloc || change)
     dpmi_RSP_call(scp, current_client, 3, -1);
 }
 
@@ -5181,7 +5189,11 @@ static void return_from_hwint(cpuctx_t *scp, void * const sp)
 static void do_dpmi_hlt(cpuctx_t *scp, uint8_t *lina, void *sp)
 {
       _eip += 1;
-      if (_cs == dpmi_sel()) {
+      /* An RSP may reinit the client from its start call: the frames of
+       * the RSP calls made before that return to our code selector of the
+       * old bitness. */
+      if (_cs == dpmi_sel() || (RSP_pending &&
+	  (_cs == _dpmi_sel16 || _cs == _dpmi_sel32))) {
 	if (_eip==1+DPMI_SEL_OFF(DPMI_raw_mode_switch_pm)) {
 	  D_printf("DPMI: switching from protected to real mode\n");
 	  SREG(ds) = _LWORD(eax);
@@ -5374,6 +5386,7 @@ static void do_dpmi_hlt(cpuctx_t *scp, uint8_t *lina, void *sp)
 	  restore_pm_regs(scp);
 
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_return_from_RSPcall)) {
+	  RSP_pending--;
 	  remove_xretf_frame(scp, sp);
 	  D_printf("DPMI: Return from RSPcall, in_dpmi_pm_stack=%i, dpmi_pm=%i\n",
 	    DPMI_CLIENT.in_dpmi_pm_stack, in_dpmi_pm());
@@ -5381,6 +5394,7 @@ static void do_dpmi_hlt(cpuctx_t *scp, uint8_t *lina, void *sp)
 	  restore_pm_regs(scp);
 
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_return_from_RSPcall_exit)) {
+	  RSP_pending--;
 	  remove_xretf_frame(scp, sp);
 	  D_printf("DPMI: Return from RSPcall, in_dpmi_pm_stack=%i, dpmi_pm=%i\n",
 	    DPMI_CLIENT.in_dpmi_pm_stack, in_dpmi_pm());
