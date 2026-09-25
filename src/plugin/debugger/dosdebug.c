@@ -325,7 +325,6 @@ static void handle_console_input(char *line)
   static char last_line[MHP_BUFFERSIZE];
 
   COMMAND *cmd;
-  int len;
   char *p;
 
   if (!line) { // Ctrl-D
@@ -370,9 +369,8 @@ static void handle_console_input(char *line)
   }
 
   /* Pass to dosemu */
-  len = strlen(p);
-  if (write(fddbgout, p, len) != len) {
-    fprintf(fpconout, "write to pipe failed\n");
+  if (dprintf(fddbgout, "%s\n", p) == -1) {
+    fprintf(fpconout, "write to pipe failed (%s)\n", strerror(errno));
   }
 }
 
