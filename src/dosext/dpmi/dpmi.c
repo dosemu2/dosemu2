@@ -334,6 +334,10 @@ static SEGDESC Segments(unsigned short ldt_entry)
   return _Segments(ldt_buffer, ldt_entry);
 }
 
+/* with THUNK_16_32 a 16bit client may run 32bit code */
+#define API_32x(sel) (DPMI_CLIENT.is_32 || (Segments((sel) >> 3).is_32 && \
+    ext__thunk_16_32))
+
 static void *SEL_ADR_LDT(unsigned short sel, unsigned int reg, int is_32)
 {
   dosaddr_t p;
@@ -2297,7 +2301,7 @@ static void dpmi_pusha(cpuctx_t *scp, void *sp, int is_32)
 
 static void dpmi_pushsr(cpuctx_t *scp, void *sp)
 {
-    if (DPMI_CLIENT.is_32) {
+    if (API_32x(_cs)) {
         unsigned int *ssp = sp;
         *--ssp = _ds;
         *--ssp = _es;
@@ -2568,8 +2572,7 @@ static void do_int31(cpuctx_t *scp)
 #define API_32(s) DPMI_CLIENT.is_32
 #else
 /* allow 16bit clients to access the 32bit API. dosemu's DPMI extension. */
-#define API_32(scp) (DPMI_CLIENT.is_32 || (Segments(_cs >> 3).is_32 && \
-    ext__thunk_16_32))
+#define API_32(scp) API_32x(_cs)
 #endif
 #define API_16_32(x) (API_32(scp) ? (x) : (x) & 0xffff)
 #define SEL_ADR_X(s, a) SEL_ADR_LDT(s, a, API_32(scp))
@@ -3445,7 +3448,7 @@ err:
 static void make_iret_frame(cpuctx_t *scp, void *sp,
 	uint32_t cs, uint32_t eip)
 {
-  if (DPMI_CLIENT.is_32) {
+  if (API_32x(_cs)) {
     unsigned int *ssp = sp;
     *--ssp = dpmi_flags_to_stack(_eflags);
     *--ssp = cs;
@@ -3463,7 +3466,7 @@ static void make_iret_frame(cpuctx_t *scp, void *sp,
 static void make_retf_frame(cpuctx_t *scp, void *sp,
 	uint32_t cs, uint32_t eip)
 {
-  if (DPMI_CLIENT.is_32) {
+  if (API_32x(_cs)) {
     unsigned int *ssp = sp;
     *--ssp = cs;
     *--ssp = eip;
@@ -4738,7 +4741,7 @@ static void return_from_exception(cpuctx_t *scp)
 
   sp = SEL_ADR(_ss,_esp);
 
-  if (DPMI_CLIENT.is_32) {
+  if (API_32x(_cs)) {
     unsigned int *ssp = sp;
     /* popping error code */
     ssp++;
@@ -5046,7 +5049,7 @@ static void do_cpu_exception(cpuctx_t *scp)
 
 static void do_dpmi_retf(cpuctx_t *scp, void * const sp)
 {
-  if (DPMI_CLIENT.is_32) {
+  if (API_32x(_cs)) {
     unsigned int *ssp = sp;
     _eip = *ssp++;
     _cs = *ssp++;
@@ -5085,7 +5088,7 @@ void dpmi_retf32(cpuctx_t *scp)
 /* rough iret emulation for HW handlers only */
 static void do_dpmi_iret(cpuctx_t *scp, void * const sp)
 {
-  if (DPMI_CLIENT.is_32) {
+  if (API_32x(_cs)) {
     unsigned int *ssp = sp;
     _eip = *ssp++;
     _cs = *ssp++;
@@ -5138,7 +5141,7 @@ static void return_from_hwint(cpuctx_t *scp, void * const sp)
   leave_lpms(scp);
       D_printf("DPMI: Return from hardware interrupt handler, "
     "in_dpmi_pm_stack=%i\n", DPMI_CLIENT.in_dpmi_pm_stack);
-  if (DPMI_CLIENT.is_32) {
+  if (API_32x(_cs)) {
     unsigned int *ssp = sp;
     int pm;
     _eip = *ssp++;
@@ -5263,7 +5266,7 @@ static void do_dpmi_hlt(cpuctx_t *scp, uint8_t *lina, void *sp)
 	  D_printf("DPMI: Return from client extended exception handler, "
 	    "in_dpmi_pm_stack=%i\n", DPMI_CLIENT.in_dpmi_pm_stack);
 	  leave_lpms(scp);
-	  if (!DPMI_CLIENT.is_32)
+	  if (!API_32x(_cs))
 	    ssp++;
 	  ssp++;  /* popping error code */
 	  _eip = *ssp++;
