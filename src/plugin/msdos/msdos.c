@@ -94,6 +94,7 @@ struct seg_sel {
 struct msdos_struct {
     int is_32;
     struct pmaddr_s mouseCallBack, PS2mouseCallBack; /* user\'s mouse routine */
+    struct pmaddr_s mouseCallBackPrev;	/* for int33/ax=14 to return */
     far_t XMS_call;
     DPMI_INTDESC prev_fault;
     DPMI_INTDESC prev_pagefault;
@@ -106,7 +107,6 @@ struct msdos_struct {
     unsigned short lowmem_seg;
     dpmi_pm_block mem_map[MSDOS_MAX_MEM_ALLOCS];
     far_t rmcbs[MAX_RMCBS];
-    int rmcb_alloced;
     u_short ldt_alias;
     u_short ldt_alias_winos2;
     struct seg_sel seg_sel_map[MAX_CNVS];
@@ -339,14 +339,12 @@ static void msdos_init(int num, int is_32, unsigned short mseg,
     } else {
 	MSDOS_CLIENT.ldt_alias = msdos_client[msdos_client_num - 1].ldt_alias;
     }
-    if (first || msdos_client[msdos_client_num - 1].is_32 != is_32) {
-	callbacks_init(rmcb_sel, cbk_args, MSDOS_CLIENT.rmcbs);
-	MSDOS_CLIENT.rmcb_alloced = 1;
-    } else {
-	assert(msdos_client_num >= 1);
-	memcpy(MSDOS_CLIENT.rmcbs, msdos_client[msdos_client_num - 1].rmcbs,
-		sizeof(MSDOS_CLIENT.rmcbs));
-    }
+    /* Every client needs its own real mode callbacks. They are handed
+     * to real mode drivers (int 33h mouse handlers and the like), and
+     * dpmi_realmode_callback() switches to the client that allocated the
+     * callback. Sharing them with the previous client would deliver the
+     * events to that client instead, where nothing is registered. */
+    callbacks_init(rmcb_sel, cbk_args, MSDOS_CLIENT.rmcbs);
     MSDOS_CLIENT.ldt_alias_winos2 = CreateAliasDescriptor(
 	    MSDOS_CLIENT.ldt_alias);
     SetDescriptorAccessRights(MSDOS_CLIENT.ldt_alias_winos2, 0xf0);
@@ -391,8 +389,7 @@ static void msdos_done(int prev)
 
     for (i = 0; i < num_ints; i++)
 	dpmi_set_interrupt_vector(ints[i], MSDOS_CLIENT.prev_ihandler[i]);
-    if (MSDOS_CLIENT.rmcb_alloced)
-	callbacks_done(MSDOS_CLIENT.rmcbs);
+    callbacks_done(MSDOS_CLIENT.rmcbs);
     if (prev < 0 || prev >= DPMI_MAX_CLIENTS || !msdos_client[prev].used) {
 	msdos_ldt_done();
 	FreeDescriptor(rmcb_sel);
@@ -1845,7 +1842,9 @@ int msdos_pre_extender(cpuctx_t *scp,
 		MSDOS_CLIENT.mouseCallBack.offset = D_16_32(_edx);
 		if (_es) {
 		    far_t rma = MSDOS_CLIENT.rmcbs[RMCB_MS];
-		    D_printf("MSDOS: set mouse callback\n");
+		    D_printf("MSDOS: set mouse callback %#x:%#x of client %i "
+			    "to %#x:%#x\n", _es, D_16_32(_edx),
+			    msdos_client_num, rma.segment, rma.offset);
 		    SET_RMREG(es, rma.segment);
 		    SET_RMLWORD(dx, rma.offset);
 		} else {
@@ -1853,13 +1852,11 @@ int msdos_pre_extender(cpuctx_t *scp,
 		    SET_RMREG(es, 0);
 		    SET_RMLWORD(dx, 0);
 		}
-		if (_LWORD(eax) == 0x14) {
-		    _es = old_callback.selector;
-		    if (MSDOS_CLIENT.is_32)
-			_edx = old_callback.offset;
-		    else
-			_LWORD(edx) = old_callback.offset;
-		}
+		/* The registers we set here do not survive: the helper
+		 * thread saves the client context on entry and restores
+		 * eax..edi and es from it before post_extender() runs.
+		 * So stash the old handler and hand it back there. */
+		MSDOS_CLIENT.mouseCallBackPrev = old_callback;
 	    }
 	    break;
 	default:
@@ -2375,9 +2372,20 @@ int msdos_post_extender(cpuctx_t *scp,
 	switch (ax) {
 	case 0x09:		/* Set Mouse Graphics Cursor */
 	case 0x0c:		/* set call back */
-	case 0x14:		/* swap call back, results already set
-				 * in pre_extender() so here only preserve */
 	    PRESERVE1(edx);
+	    break;
+	case 0x14:{		/* swap call back */
+		/* return the handler this client had installed before,
+		 * not the real mode entry the driver was given and not
+		 * the handler that was just installed */
+		const struct pmaddr_s *prev = &MSDOS_CLIENT.mouseCallBackPrev;
+		PRESERVE1(edx);
+		_es = prev->selector;
+		if (MSDOS_CLIENT.is_32)
+		    _edx = prev->offset;
+		else
+		    _LWORD(edx) = prev->offset;
+	    }
 	    break;
 	case 0x19:		/* Get User Alternate Interrupt Address */
 	    SET_REG(ebx, ConvertSegmentToDescriptor(RMLWORD(bx)));

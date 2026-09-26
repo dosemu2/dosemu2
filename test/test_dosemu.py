@@ -50,6 +50,8 @@ from func_memory_dpmi_int_stack import (memory_dpmi_int_stack,
 from func_memory_dpmi_linmem_oom import memory_dpmi_linmem_oom
 from func_memory_dpmi_nullseg import memory_dpmi_nullseg
 from func_memory_dpmi_pm_stack import memory_dpmi_pm_stack
+from func_mouse_dpmi_callback import (mouse_dpmi_callback_swap,
+                                      mouse_dpmi_callback_nested)
 from func_memory_dpmi_ecm import (memory_dpmi_ecm_alloc, memory_dpmi_ecm_mini,
                                   memory_dpmi_ecm_modeswitch, memory_dpmi_ecm_psp)
 from func_memory_dpmi_japheth import memory_dpmi_japheth
@@ -1046,6 +1048,16 @@ class OurTestCase(BaseTestCase):
     def test_memory_dpmi10_ldt(self):
         """Memory DPMI-1.0 LDT"""
         memory_dpmi_dpmi10_ldt(self)
+
+    @mark(['dpmitest'])
+    def test_mouse_dpmi_callback_swap(self):
+        """Mouse DPMI callback swap"""
+        mouse_dpmi_callback_swap(self)
+
+    @mark(['dpmitest'])
+    def test_mouse_dpmi_callback_nested(self):
+        """Mouse DPMI callback nested clients"""
+        mouse_dpmi_callback_nested(self)
 
     @mark(['memtest', 'dpmitest'])
     def test_memory_dpmi_linmem_oom(self):
