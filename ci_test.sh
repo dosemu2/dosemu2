@@ -58,6 +58,21 @@ case "${RUNTYPE}" in
     ;;
 esac
 
+cat >&2 << EOFDBG
+=====================================================
+=               Tests run on dosdebug               =
+=====================================================
+EOFDBG
+
+case "${RUNTYPE}" in
+  "full"|"normal")
+    python3 test/test_dosdebug.py PPDOSGITTestCase FRDOS130TestCase
+    ;;
+  "simple")
+    python3 test/test_dosdebug.py PPDOSGITTestCase
+    ;;
+esac
+
 # This section here only runs for proving out test_comcom changes in PRs etc, the tests are
 # run for real in the Comcom64 repository
 if [ "${COMCOM_CHANGED}" = "true" ] ; then

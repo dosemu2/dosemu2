@@ -224,6 +224,7 @@ class BaseTestCase(object):
 
         cls.cmddir = Path(environ.get("TEST_CMDDIR", cls.topdir / "src" / "bindist"))
         cls.dosemu = Path(environ.get("TEST_DOSEMU", cls.topdir / "bin" / "dosemu"))
+        cls.dosdebug = Path(environ.get("TEST_DOSDEBUG", cls.dosemu.parent / "dosdebug"))
 
         # Check if the user wants to override the usual command.com and if so make sure it exists
         cls.commandcom = environ.get("COPY_COMMAND_COM")
