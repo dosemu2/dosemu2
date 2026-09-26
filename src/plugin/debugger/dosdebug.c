@@ -435,7 +435,8 @@ int main (int argc, char **argv)
   const char *rp = getenv("XDG_RUNTIME_DIR");
 
   if (!rp || !rp[0]) {
-    perror("XDG_RUNTIME_DIR unset or empty");
+    fprintf(stderr, "XDG_RUNTIME_DIR is unset or empty; dosemu2 keeps the "
+        "debugger fifos under it, so both have to see the same value\n");
     exit(1);
   }
 
@@ -458,7 +459,10 @@ int main (int argc, char **argv)
 
   fddbgout = open(pipename_in, O_WRONLY | O_NONBLOCK | O_CLOEXEC);
   if (fddbgout == -1) {
-    perror("can't open output fifo");
+    fprintf(stderr, "can't open output fifo %s: %s\n", pipename_in,
+        strerror(errno));
+    fprintf(stderr, "is dosemu2 (pid %d) running with XDG_RUNTIME_DIR=%s?\n",
+        dospid, rp);
     free(pipename_in);
     free(pipename_out);
     exit(1);
@@ -466,7 +470,8 @@ int main (int argc, char **argv)
 
   if ((fddbgin = open(pipename_out, O_RDONLY | O_NONBLOCK | O_CLOEXEC)) == -1) {
     close(fddbgout);
-    perror("can't open input fifo");
+    fprintf(stderr, "can't open input fifo %s: %s\n", pipename_out,
+        strerror(errno));
     free(pipename_in);
     free(pipename_out);
     exit(1);
