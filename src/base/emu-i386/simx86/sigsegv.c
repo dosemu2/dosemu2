@@ -325,6 +325,31 @@ int e_emu_nullseg_fault(sigcontext_t *scp, void *addr)
     return e_return_from_jit(scp, 1);
 }
 
+/* The jit checks no segment limits either, so an access through a
+ * descriptor whose base lies outside the memory dosemu mapped runs into
+ * a hole in our own address space. Setting such a descriptor is the
+ * client's right; only touching it is an error, and on real hardware
+ * that error is its own page fault. Give it one instead of dying with
+ * "bad fault address". */
+int e_emu_badaddr_fault(sigcontext_t *scp, void *addr)
+{
+    dosaddr_t cr2;
+
+    if (!InCompiledCode)
+        return 0;
+    /* only what the jit could have formed: jit_base plus a 32bit
+     * linear address */
+    if ((uintptr_t)addr < (uintptr_t)jit_base ||
+            (uintptr_t)addr - (uintptr_t)jit_base > 0xffffffff)
+        return 0;
+    cr2 = EMUADDR_REL(LINP(addr));
+    e_printf("jit access outside dosemu memory at %#x\n", cr2);
+    TheCPU.scp_err = _scp_err;
+    TheCPU.err = EXCP0E_PAGE;
+    TheCPU.cr[2] = cr2;
+    return e_return_from_jit(scp, 1);
+}
+
 int e_emu_fault(sigcontext_t *scp, int in_vm86)
 {
     /* Possibilities:
