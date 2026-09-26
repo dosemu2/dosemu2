@@ -113,6 +113,42 @@ RE_CSIP_RM = re.compile(r"CS:IP=([0-9a-f]{4}):([0-9a-f]{4})")
 RE_CSIP_PM = re.compile(r"CS:EIP= ([0-9a-f]{4}):([0-9a-f]{8})")
 
 
+class DbgLog:
+    """The .dbg log, minus readline taking its prompt off the screen.
+
+    When dosemu reports something nobody asked for, dosdebug has readline
+    erase the prompt before printing it, and on a dumb terminal readline
+    does that with a CR, a line of spaces and another CR.  On a screen it
+    leaves no trace; in a file it is noise, so it is logged as the line
+    break a reader would see there instead.
+    """
+
+    RE_ERASE = re.compile(rb"\r +\r")
+    RE_TAIL = re.compile(rb"\r[ \r]*$")
+
+    def __init__(self, f):
+        self.f = f
+        self.held = b''
+
+    def write(self, data):
+        data = self.held + data
+        # an erase can be split across two reads, so keep a trailing CR
+        # and whatever follows it until the next write shows what it was
+        m = self.RE_TAIL.search(data)
+        self.held = data[m.start():] if m else b''
+        if m:
+            data = data[:m.start()]
+        self.f.write(self.RE_ERASE.sub(b"\n", data))
+
+    def flush(self):
+        self.f.flush()
+
+    def close(self):
+        self.f.write(self.held)
+        self.held = b''
+        self.f.flush()
+
+
 class OurTestCase(BaseTestCase):
 
     # dosdebug plumbing
@@ -243,7 +279,7 @@ class OurTestCase(BaseTestCase):
                 child.expect(['>[\r\n]*', pexpect.TIMEOUT], timeout=1)
 
                 with open(self.logfiles['dbg'][0], "wb") as f:
-                    self.dbgfile = f
+                    self.dbgfile = DbgLog(f)
                     self.dbgStart()
                     try:
                         self.dbgCmd("stop")
@@ -252,6 +288,7 @@ class OurTestCase(BaseTestCase):
                     finally:
                         self.dbgCmd("g")
                         self.dbgStop()
+                        self.dbgfile.close()
 
                 child.expect(['rem end', pexpect.EOF], timeout=timeout)
             except pexpect.TIMEOUT:
