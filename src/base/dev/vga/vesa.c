@@ -548,11 +548,17 @@ static int vbe_mode_info(unsigned mode, unsigned int vbemodeinfo)
       }
 
       /* We cannot (reasonably) detect the position of the reserved field
-       * here, so we do some simple guessing for now.
+       * here, so we do some simple guessing for now.  A mode that has no
+       * reserved field has to report position 0 along with size 0: VBE
+       * leaves the position undefined in that case, and programs match it
+       * against 0 (Allegro rejects every 16 and 24 bpp mode otherwise).
        */
       v_shift = r_bits + g_bits + b_bits;
       v_bits = color_bits - v_shift;
-      if(v_bits < 0) v_bits = 0;
+      if(v_bits <= 0) {
+        v_bits = 0;
+        v_shift = 0;
+      }
 
       vbemi.RedMaskSize = r_bits;
       vbemi.RedFieldPos = r_shift;
