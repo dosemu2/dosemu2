@@ -62,6 +62,8 @@
 #include "int.h"
 #include "hlt.h"
 #include "pic.h"
+#include "kvm.h"
+#include "coopth.h"
 
 #define Addr_8086(x,y)  MK_FP32((x),(y) & 0xffff)
 #define Addr(s,x,y)     Addr_8086(((s)->x), ((s)->y))
@@ -2024,9 +2026,11 @@ os_set_function(struct vm86_regs * state)
  * extensions; of VCPI it implements only the query for the physical
  * address of an EMS page, which a client needs to point the DMA
  * controller at memory that is currently mapped into the page frame.
- * There is no protected-mode entry here (AX=DE01h/DE0Ch): a client
- * that wants protected mode has to use DPMI.  See
- * https://github.com/dosemu2/dosemu2/issues/353 for the analysis.
+ * The protected-mode entry (AX=DE01h/DE0Ch) hands the client the KVM
+ * monitor, so it only answers where dosemu2 runs both v86 and protected
+ * mode inside KVM; anywhere else a client that wants protected mode has
+ * to use DPMI.  See https://github.com/dosemu2/dosemu2/issues/353 and
+ * PR #1880 for the analysis.
  *
  * A page of a window answers with the pinned address of the handle that
  * is mapped there (see vcpi_pin_page()), so the answer depends on what is
@@ -2034,6 +2038,13 @@ os_set_function(struct vm86_regs * state)
  * page of the first megabyte answers with its own address, which is what
  * it is: dosemu2 maps the first megabyte identically.
  */
+/* The client takes the CPU over for real, so the monitor has to be the one
+   running both v86 and protected mode. */
+static int vcpi_pm_available(void)
+{
+  return config.cpu_vm == CPUVM_KVM && config.cpu_vm_dpmi == CPUVM_KVM;
+}
+
 static void vcpi_interface(struct vm86_regs *state)
 {
   switch (LO_BYTE_d(state->eax)) {
@@ -2043,6 +2054,28 @@ static void vcpi_interface(struct vm86_regs *state)
     SETLO_BYTE(state->ebx, 0x00);
     SETHI_BYTE(state->ebx, 0x01);
     break;
+
+  case 0x01:{			/* get protected-mode interface */
+      dosaddr_t pagetable = SEGOFF2LINEAR(state->es, LO_WORD(state->edi));
+      dosaddr_t gdt = SEGOFF2LINEAR(state->ds, LO_WORD(state->esi));
+      unsigned pages;
+
+      if (!vcpi_pm_available()) {
+	EMS_TRACE("VCPI protected mode needs KVM");
+	SETHI_BYTE(state->eax, EMM_FUNC_NOSUP);
+	break;
+      }
+      /* Fills the client's page table with the entries for the pages of
+	 ours it has to map into its own first 4M, writes the three GDT
+	 descriptors it has to install, and returns the offset of the
+	 entry point within the first of them. */
+      state->ebx = kvm_vcpi_get_pmi(pagetable, gdt, &pages);
+      SETLO_WORD(state->edi, LO_WORD(state->edi) + pages * 4);
+      SETHI_BYTE(state->eax, EMM_NO_ERR);
+      E_printf("VCPI: PM interface at offset 0x%08x, %u page table entries\n",
+	       (unsigned)state->ebx, pages);
+      break;
+    }
 
   case 0x06:{			/* get physical address of 4K page in 1st MB */
       unsigned page = LO_WORD(state->ecx);
@@ -2075,6 +2108,55 @@ static void vcpi_interface(struct vm86_regs *state)
       state->edx = addr;
       E_printf("VCPI: page 0x%02x is at physical address 0x%08x\n",
 	       page, (unsigned)state->edx);
+      break;
+    }
+
+  case 0x0c:			/* switch to protected mode */
+    if (!vcpi_pm_available()) {
+      EMS_TRACE("VCPI protected mode needs KVM");
+      SETHI_BYTE(state->eax, EMM_FUNC_NOSUP);
+      break;
+    }
+    /* ESI is a linear address, not DS:SI: the client builds the structure
+       wherever it likes in the first megabyte and hands over the address
+       whole.  SCCD.EXE of Strike Commander does exactly that, with a
+       "mov esi,[cs:0x5e8]" right before the call. */
+    E_printf("VCPI: switch to PM, client cs:eip=%04x:%08x, cr3=%08x\n",
+	     READ_WORD(state->esi + 0x14), READ_DWORD(state->esi + 0x10),
+	     READ_DWORD(state->esi));
+    /* DE0Ch is one-way: the client does not come back to the instruction
+       after its "int 67h", it continues in protected mode and returns to
+       v86 wherever it likes, through the protected-mode DE0Ch.  So the
+       int 67h thread has to be let go of here, or it sits attached to a
+       v86 return that never happens and the next DE0Ch stacks another one
+       on top of it, five deep and out of recursion depth. */
+    coopth_leave();
+    /* Does not return here: the monitor jumps to the client's entry point
+       and we are next called when it comes back through AX=DE0Ch. */
+    kvm_vcpi_pm_switch(state->esi);
+    break;
+
+  case 0x08:			/* set debug registers */
+  case 0x09:{			/* get debug registers */
+      /* Eight dwords: DR0..DR3, two reserved, DR6, DR7.  The client owns
+	 the debug registers while it is in protected mode, so these only
+	 make sense where the monitor is the one running it. */
+      uint32_t dregs[8];
+      int set = LO_BYTE_d(state->eax) == 0x08;
+      dosaddr_t buf = set ? SEGOFF2LINEAR(state->ds, LO_WORD(state->esi)) :
+			    SEGOFF2LINEAR(state->es, LO_WORD(state->edi));
+
+      if (!vcpi_pm_available()) {
+	EMS_TRACE("VCPI debug registers need KVM");
+	SETHI_BYTE(state->eax, EMM_FUNC_NOSUP);
+	break;
+      }
+      if (set)
+	MEMCPY_2UNIX(dregs, buf, sizeof(dregs));
+      kvm_getset_debugregs(dregs, set);
+      if (!set)
+	MEMCPY_2DOS(buf, dregs, sizeof(dregs));
+      SETHI_BYTE(state->eax, EMM_NO_ERR);
       break;
     }
 

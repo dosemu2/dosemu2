@@ -44,6 +44,7 @@
 #include "chipset.h"
 #include "vint.h"
 #include "vtmr.h"
+#include "kvm.h"
 
 #define VTMR_FIRST_PORT 0x550
 #define VTMR_VPEND_PORT VTMR_FIRST_PORT
@@ -276,10 +277,28 @@ void vrtc_post_irq_dpmi(int masked)
     do_unmask(VTMR_RTC);
 }
 
+/* The virtual timer is switched off for now: a VCPI client owns the CPU at
+   ring 0 on its own IDT and has no gate for the virtual line's vector, and
+   nothing can acknowledge a request left standing on that line while it
+   runs.  Reporting the line masked is all that is needed -- the masked arm
+   of VTMR_REQUEST_PORT is the legacy path, straight to vip[].orig_irq, the
+   real IRQ that every client does hook.
+   It has to be masked from the start rather than at the DE0C switch: a
+   request raised on the virtual line before the client takes the CPU is
+   already standing in the PIC, and is then delivered as the first thing the
+   client sees. */
+#define VTMR_DISABLED 1
+
 static int vtmr_is_masked(int timer)
 {
-    uint8_t imr[2] = { [0] = port_inb(0x21), [1] = port_inb(0xa1) };
-    uint16_t real_imr = (imr[1] << 8) | imr[0];
+    uint8_t imr[2];
+    uint16_t real_imr;
+
+    if (VTMR_DISABLED)
+        return 1;
+    imr[0] = port_inb(0x21);
+    imr[1] = port_inb(0xa1);
+    real_imr = (imr[1] << 8) | imr[0];
     return ((imr[0] & 4) || !!(real_imr & (1 << vip[timer].irq)));
 }
 
@@ -461,6 +480,14 @@ void vtmr_raise(int timer)
 
 void vtmr_latch(int timer)
 {
+    /* A VCPI client owns the CPU: there is no v86 context for a thread to
+       run in, and one started here never gets to run at all -- five latches
+       in a row and the recursion depth is gone.  The SMI body only touches
+       emulated ports, so do it right here instead. */
+    if (kvm_vcpi_active()) {
+        vtmr_latch_smi((void *)(uintptr_t)timer);
+        return;
+    }
     if (in_dpmi_pm())
         fake_pm_int();
     coopth_start(latch_tid, (void *)(uintptr_t)timer);

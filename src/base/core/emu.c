@@ -493,6 +493,8 @@ void __leavedos(int code, int sig, const char *s, int num)
     coopth_abandon();
     /* switch to RM before closing coopthreads-related stuff */
     dpmi_done0();
+    if (config.cpu_vm == CPUVM_KVM)
+      kvm_reset_to_vm86();
     if (!config.exitearly) {  // in exitearly case nothing to join
       /* try to clean up threads */
       tmp = coopth_flush_vm86();
