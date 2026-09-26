@@ -33,6 +33,8 @@
 #define    TMPFILE_VAR		"%s/dosemu2/dosemu."
 
 #define MHP_BUFFERSIZE 8192
+/* End of the reply to one command; see MHP_EOR in mhpdbg.h */
+#define MHP_EOR 0x00
 
 #define FOREVER ((((unsigned int)-1) >> 1) / CLOCKS_PER_SEC)
 #define KILL_TIMEOUT 2
@@ -44,6 +46,13 @@ const char *prompt = "dosdebug> ";
 int fdconin, fddbgin, fddbgout;
 FILE *fpconout;
 static int running;
+/* commands sent to dosemu whose reply has not arrived in full yet */
+static int pending;
+/* output arrived that no reply marker ended, so the prompt is held back
+ * until the burst goes quiet */
+static int prompt_held;
+/* how long to wait for the rest of such a burst, in microseconds */
+#define PROMPT_SETTLE 200000
 
 static int find_dosemu_pid(const char *tmpfile, int local)
 {
@@ -371,14 +380,24 @@ static void handle_console_input(char *line)
   /* Pass to dosemu */
   if (dprintf(fddbgout, "%s\n", p) == -1) {
     fprintf(fpconout, "write to pipe failed (%s)\n", strerror(errno));
+    return;
   }
+
+  /* Hold the prompt back until dosemu is done with this command. Printing
+   * it right away puts it ahead of the output it belongs to, which leaves
+   * a script reading up to the prompt with the previous command's reply. */
+  pending++;
+  prompt_held = 0;
+#ifdef HAVE_LIBREADLINE
+  rl_set_prompt("");
+#endif
 }
 
 /* returns 0: done, 1: more to do */
 static int handle_dbg_input(int *retval)
 {
   char buf[MHP_BUFFERSIZE];
-  int n;
+  int n, i, len, saw_eor;
 
   *retval = 0;
   n = read(fddbgin, buf, sizeof(buf));
@@ -401,12 +420,40 @@ static int handle_dbg_input(int *retval)
     rl_redisplay();
 #endif
 
-    fwrite(buf, 1, n, fpconout);
-    fputs("\n", fpconout);
+    /* Split at the end of reply markers. What precedes one completes the
+     * reply to a command, so the prompt goes out right behind it, once
+     * per command; a chunk with no marker is a reply still coming in. */
+    saw_eor = 0;
+    for (i = 0; i < n; i += len + 1) {
+      char *eor = memchr(buf + i, MHP_EOR, n - i);
+
+      len = eor ? eor - (buf + i) : n - i;
+      if (len) {
+        fwrite(buf + i, 1, len, fpconout);
+        fputs("\n", fpconout);
+      }
+      if (!eor)
+        break;
+      saw_eor = 1;
+      if (pending)
+        pending--;
+#ifdef HAVE_LIBREADLINE
+      rl_set_prompt(prompt);
+      rl_redisplay();
+      rl_set_prompt("");
+#endif
+    }
     fflush(fpconout);
 
+    /* A report dosemu sends on its own, such as the one it prints when it
+     * stops at a breakpoint, is written a line at a time and arrives in as
+     * many chunks, none of them carrying a reply marker. Printing a prompt
+     * behind every one of them puts prompts in the middle of the report,
+     * so hold it back until the burst goes quiet instead. */
+    prompt_held = (!pending && !saw_eor);
+
 #ifdef HAVE_LIBREADLINE
-    rl_set_prompt(prompt);
+    rl_set_prompt((pending || prompt_held) ? "" : prompt);
     rl_replace_line(saved_line, 0);
     rl_point = saved_point;
     rl_redisplay();
@@ -440,6 +487,10 @@ int main (int argc, char **argv)
   }
 
   FD_ZERO(&readfds);
+
+  /* the r0 sent below is outstanding from the start, and its reply is
+   * what carries the banner, so the first prompt waits for it too */
+  pending = 1;
 
   if (!argv[1]) {
     char fname[256];
@@ -479,8 +530,9 @@ int main (int argc, char **argv)
   /* Install the readline completion function */
   rl_attempted_completion_function = db_completion;
 
-  /* Install the readline handler. */
-  rl_callback_handler_install(prompt, rl_console_callback);
+  /* Install the readline handler. The prompt starts out empty: the r0
+   * below is already outstanding, and its reply carries the banner. */
+  rl_callback_handler_install("", rl_console_callback);
 
   fdconin = fileno(rl_instream);
   fpconout = rl_outstream;
@@ -494,8 +546,13 @@ int main (int argc, char **argv)
   for (running=1, ret=0; running; /* */) {
     FD_SET(fddbgin, &readfds);
     FD_SET(fdconin, &readfds);
-    timeout.tv_sec=kill_timeout;
-    timeout.tv_usec=0;
+    if (prompt_held) {
+      timeout.tv_sec = 0;
+      timeout.tv_usec = PROMPT_SETTLE;
+    } else {
+      timeout.tv_sec = kill_timeout;
+      timeout.tv_usec = 0;
+    }
 
     /* only scan the minimum number of fds */
     numfds=select(((fddbgin > fdconin) ? fddbgin : fdconin) + 1,
@@ -544,6 +601,15 @@ int main (int argc, char **argv)
           break;
 
     } else {
+      if (prompt_held) {
+        /* the burst is over, so the prompt can go out now */
+        prompt_held = 0;
+#ifdef HAVE_LIBREADLINE
+        rl_set_prompt(prompt);
+        rl_redisplay();
+#endif
+        continue;
+      }
       if (kill_timeout != FOREVER) {
         if (kill_timeout > KILL_TIMEOUT) {
           struct stat st;
