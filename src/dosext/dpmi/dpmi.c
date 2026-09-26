@@ -366,6 +366,8 @@ void *SEL_ADR_CLNT(unsigned short sel, unsigned int reg, int is_32)
     dosemu_error("GDT not allowed\n");
     return (void *)(uintptr_t)reg;
   }
+  if (!is_32 && ext__thunk_16_32)
+    is_32 = Segments(sel >> 3).is_32;
   return SEL_ADR_LDT(sel, reg, is_32);
 }
 
@@ -1354,7 +1356,8 @@ static void *enter_lpms(cpuctx_t *scp)
   }
 
   _ss = pmstack_sel;
-  _esp = D_16_32(pmstack_esp);
+  /* a 32bit stack of a 16bit client (THUNK_16_32) keeps the whole ESP */
+  _esp = API_32x(pmstack_sel) ? pmstack_esp : LO_WORD(pmstack_esp);
   DPMI_CLIENT.in_dpmi_pm_stack++;
 
   return SEL_ADR_CLNT(pmstack_sel, pmstack_esp, DPMI_CLIENT.is_32);
