@@ -41,6 +41,7 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <sys/ioctl.h>
+#include <sys/uio.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <stdarg.h>
@@ -57,6 +58,7 @@
 #include "utilities.h"
 #include "dosemu_config.h"
 #include "hma.h"
+#include "misc/smalloc.h"
 #include "bios_sym.h"
 #include "misc/dis8086.h"
 #include "dos2linux.h"
@@ -900,6 +902,52 @@ static void mhp_tracec(int argc, char *argv[])
   loopbuf[idx++] = '\0';
 }
 
+/* How many of the len bytes at a DOS address dosemu can touch.  main_pool
+ * spans the memory it maps for DOS - conventional, the HMA, extended
+ * memory, XMS and DPMI alike - so nothing outside it is DOS memory at all.
+ * Inside it the size is not the whole answer either: the pool is allocated
+ * with an uncommitted hole in the middle (init.c says so where it makes
+ * one), so rather than reason about the layout, ask the kernel whether the
+ * memory is there.  A read through process_vm_readv() on ourselves answers
+ * EFAULT instead of raising a signal, and it goes through the very pointer
+ * READ_BYTE would use.  One probe per page finds where the memory ends. */
+static int no_peek;
+
+static unsigned int addr_readable_len(dosaddr_t addr, unsigned int len)
+{
+  unsigned char c;
+  struct iovec liov = { .iov_base = &c, .iov_len = 1 };
+  struct iovec riov = { .iov_len = 1 };
+  dosaddr_t pgsz = HOST_PAGE_SIZE;
+  dosaddr_t a, next, end;
+
+  if (!len || addr + len < addr || addr >= main_pool.size)
+    return 0;
+  if (main_pool.size - addr < len)	/* however much of it is there */
+    len = main_pool.size - addr;
+  if (no_peek)
+    return len;
+  end = addr + len;
+  for (a = addr; ; a = next) {
+    riov.iov_base = LINEAR2UNIX(a);
+    if (process_vm_readv(getpid(), &liov, 1, &riov, 1, 0) != 1) {
+      if (errno != EFAULT) {
+        /* seccomp can take the call away from us - docker's default profile
+         * does, without CAP_SYS_PTRACE - and then it says nothing about any
+         * address.  Say so once and go back to trusting the pool size. */
+        no_peek = 1;
+        mhp_printf("cannot check addresses: process_vm_readv: %s\n",
+                   strerror(errno));
+        return len;
+      }
+      return a - addr;
+    }
+    next = (a | (pgsz - 1)) + 1;
+    if (!next || next >= end)		/* the rest is in this page */
+      return len;
+  }
+}
+
 static void mhp_dump(int argc, char *argv[])
 {
   static char lastd[32];
@@ -950,6 +998,15 @@ static void mhp_dump(int argc, char *argv[])
   if (IN_DPMI && seg)
     data32 = dpmi_segment_is32(seg);
   unixaddr = linmode == 2 && seg == 0 && limit == 0xFFFFFFFF;
+  if (!unixaddr) {
+    unsigned int len = addr_readable_len(buf, nbytes);
+
+    if (!len) {
+      mhp_printf("%08x is not memory dosemu has\n", buf);
+      return;
+    }
+    nbytes = len;		/* show what there is of it */
+  }
   for (i = 0; i < nbytes; i++) {
     if ((i & 0x0f) == 0x00) {
       if (seg != 0 || limit != 0xFFFFFFFF) {
@@ -1675,6 +1732,16 @@ static void mhp_disasm(int argc, char *argv[])
   buf = seekval;
   org = codeorg ? codeorg : seekval;
 
+  if (!(def_size & 4)) {
+    unsigned int len = addr_readable_len(buf, nbytes);
+
+    if (!len) {
+      mhp_printf("%08x is not memory dosemu has\n", buf);
+      return;
+    }
+    nbytes = len;		/* show what there is of it */
+  }
+
   for (bytesdone = 0; bytesdone < nbytes; bytesdone += rc) {
     dosaddr_t base_addr = GetSegmentBase(seg);
     if (!(def_size & 4) && segmented) {
@@ -1831,6 +1898,10 @@ static void mhp_memset(int argc, char *argv[])
           mhp_printf("Value too large for data type\n");
           return;
         }
+        if (addr_readable_len(zapaddr, size) < (unsigned)size) {
+          mhp_printf("%08x is not memory dosemu has\n", zapaddr);
+          return;
+        }
         MEMCPY_2DOS(zapaddr, &val, size);
         mhp_printf("Modified %d byte(s) at 0x%08x with value %#lx\n", size, zapaddr, val);
         zapaddr += size;
@@ -1838,6 +1909,10 @@ static void mhp_memset(int argc, char *argv[])
 
       case V_STRING:
         size = strlen(arg + 1);
+        if (size && addr_readable_len(zapaddr, size) < (unsigned)size) {
+          mhp_printf("%08x is not memory dosemu has\n", zapaddr);
+          return;
+        }
         MEMCPY_2DOS(zapaddr, arg + 1, size);
         mhp_printf("Modified %d byte(s) at 0x%08x with value \"%s\"\n", size, zapaddr, arg + 1);
         zapaddr += size;
@@ -1970,6 +2045,12 @@ int mhp_setbp(unsigned int seekval)
 {
   int i1;
 
+  /* 'g' writes the int3 over whatever is there, so an address dosemu has no
+   * memory for takes the process down as soon as the client is let run */
+  if (!addr_readable_len(seekval, 1)) {
+    mhp_printf("%08x is not memory dosemu has\n", seekval);
+    return 0;
+  }
   for (i1 = 0; i1 < MAXBP; i1++) {
     if (mhpdbgc.brktab[i1].brkaddr == seekval && mhpdbgc.brktab[i1].is_valid) {
       mhp_printf("Duplicate breakpoint, nothing done\n");
