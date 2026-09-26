@@ -58,6 +58,13 @@ case "${RUNTYPE}" in
     ;;
 esac
 
+cat >&2 << EOF7
+=====================================================
+=      Tests run on the terminal attributes         =
+=====================================================
+EOF7
+python3 test/test_term_blink.py
+
 # This section here only runs for proving out test_comcom changes in PRs etc, the tests are
 # run for real in the Comcom64 repository
 if [ "${COMCOM_CHANGED}" = "true" ] ; then
