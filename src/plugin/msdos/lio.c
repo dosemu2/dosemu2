@@ -73,7 +73,9 @@ static void liohlp_setup(int hlp, int is_32,
 static void do_callf(cpuctx_t *scp, int is_32, struct pmaddr_s pma)
 {
     void *sp = SEL_ADR_CLNT(_ss, _esp, is_32);
-    if (is_32) {
+    /* the frame of our code we call: its selector goes by the bitness
+     * of the calling code, which with THUNK_16_32 is not the client's */
+    if (pma.selector == dpmi_sel32()) {
 	unsigned int *ssp = sp;
 	*--ssp = _cs;
 	*--ssp = _eip;

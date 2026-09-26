@@ -40,7 +40,9 @@ static smpool apool;
 static void do_callf(cpuctx_t *scp, int is_32, struct pmaddr_s pma)
 {
     void *sp = SEL_ADR(_ss, _esp);
-    if (is_32) {
+    /* our code we call takes the frame of the running code, as
+     * dpmi_sel() does; with THUNK_16_32 it is not the client's */
+    if (dpmi_api32(scp)) {
 	unsigned int *ssp = sp;
 	*--ssp = _cs;
 	*--ssp = _eip;
@@ -509,7 +511,7 @@ static void do_procedure_retf(cpuctx_t *scp,
     MEMCPY_2DOS(regs, __regs, sizeof(*__regs));
     D_printf("MSDOS: sched to dos thread for call to %x:%x\n",
 	    __regs->x.cs, __regs->x.ip);
-    do_callf(scp, is_32, is_32 ? pma : pma16);
+    do_callf(scp, is_32, dpmi_api32(scp) ? pma : pma16);
     D_printf("MSDOS: return from dos thread\n");
     MEMCPY_2UNIX(__regs, regs, sizeof(*__regs));
     smfree(&apool, regs);

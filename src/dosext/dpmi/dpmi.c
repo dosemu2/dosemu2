@@ -334,6 +334,12 @@ static SEGDESC Segments(unsigned short ldt_entry)
 #define API_32x(sel) (DPMI_CLIENT.is_32 || (Segments((sel) >> 3).is_32 && \
     ext__thunk_16_32))
 
+/* the bitness of the API for the running code, as int31 serves it */
+int dpmi_api32(cpuctx_t *scp)
+{
+  return API_32x(_cs);
+}
+
 /* our code selector of the bitness of the running code */
 unsigned short dpmi_sel(void)
 {
@@ -3457,10 +3463,10 @@ err:
     D_printf("DPMI: dpmi function failed, CF=1\n");
 }
 
-static void make_iret_frame(cpuctx_t *scp, void *sp,
-	uint32_t cs, uint32_t eip)
+static void _make_iret_frame(cpuctx_t *scp, void *sp,
+	uint32_t cs, uint32_t eip, int is_32)
 {
-  if (API_32x(_cs)) {
+  if (is_32) {
     unsigned int *ssp = sp;
     *--ssp = dpmi_flags_to_stack(_eflags);
     *--ssp = cs;
@@ -3473,6 +3479,12 @@ static void make_iret_frame(cpuctx_t *scp, void *sp,
     *--ssp = eip;
     _LWORD(esp) -= 6;
   }
+}
+
+static void make_iret_frame(cpuctx_t *scp, void *sp,
+	uint32_t cs, uint32_t eip)
+{
+  _make_iret_frame(scp, sp, cs, eip, API_32x(_cs));
 }
 
 static void make_retf_frame(cpuctx_t *scp, void *sp,
@@ -5105,9 +5117,9 @@ void dpmi_retf32(cpuctx_t *scp)
 }
 
 /* rough iret emulation for HW handlers only */
-static void do_dpmi_iret(cpuctx_t *scp, void * const sp)
+static void _do_dpmi_iret(cpuctx_t *scp, void * const sp, int is_32)
 {
-  if (API_32x(_cs)) {
+  if (is_32) {
     unsigned int *ssp = sp;
     _eip = *ssp++;
     _cs = *ssp++;
@@ -5120,6 +5132,22 @@ static void do_dpmi_iret(cpuctx_t *scp, void * const sp)
     _eflags = dpmi_flags_from_stack_iret(scp, *ssp++);
     _LWORD(esp) += 6;
   }
+}
+
+static void do_dpmi_iret(cpuctx_t *scp, void * const sp)
+{
+  _do_dpmi_iret(scp, sp, API_32x(_cs));
+}
+
+void dpmi_do_iret(cpuctx_t *scp, int is_32)
+{
+  _do_dpmi_iret(scp, SEL_ADR(_ss, _esp), is_32);
+}
+
+void dpmi_make_iret_frame(cpuctx_t *scp, uint32_t cs, uint32_t eip,
+	int is_32)
+{
+  _make_iret_frame(scp, SEL_ADR(_ss, _esp), cs, eip, is_32);
 }
 
 /* more precise iret emulation suitable for SW handlers */

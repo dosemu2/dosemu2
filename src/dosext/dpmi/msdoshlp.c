@@ -94,9 +94,17 @@ static struct rm_helper_s term_helper;
 
 static void *hlt_state;
 
+/* our code entered through the 32bit selector has a 32bit frame, also
+ * in a 16bit client: its 32bit code calls us so with THUNK_16_32 */
+static int sel_frame_32(unsigned short sel)
+{
+    return msdos.is_32() || sel == dpmi_sel32();
+}
+#define frame_32(scp) sel_frame_32(_cs)
+
 static void do_retf(cpuctx_t *scp)
 {
-    int is_32 = msdos.is_32();
+    int is_32 = frame_32(scp);
     void *sp = SEL_ADR(_ss, _esp);
     if (is_32) {
 	unsigned int *ssp = sp;
@@ -111,9 +119,24 @@ static void do_retf(cpuctx_t *scp)
     }
 }
 
+/* Chaining to a handler of the other bitness, which only THUNK_16_32
+ * gives a 16bit client: the frame goes on in the bitness of that one. */
+static void chain_iret_frame(cpuctx_t *scp, unsigned short sel)
+{
+    int from32 = frame_32(scp);
+    int to32 = sel_frame_32(sel) || dpmi_segment_is32(sel);
+    uint32_t flags = _eflags;
+
+    if (from32 == to32)
+	return;
+    dpmi_do_iret(scp, from32);
+    dpmi_make_iret_frame(scp, _cs, _eip, to32);
+    _eflags = flags;
+}
+
 static void do_dpmi_iret(cpuctx_t *scp)
 {
-    int is_32 = msdos.is_32();
+    int is_32 = frame_32(scp);
     void *sp = SEL_ADR(_ss, _esp);
     if (is_32) {
 	unsigned int *ssp = sp;
@@ -187,7 +210,7 @@ void doshlp_setup_retf(struct dos_helper_s *h, const char *name,
 
 static void do_callf(cpuctx_t *scp, struct pmaddr_s pma)
 {
-    int is_32 = msdos.is_32();
+    int is_32 = sel_frame_32(pma.selector);
     void *sp = SEL_ADR(_ss, _esp);
     if (is_32) {
 	unsigned int *ssp = sp;
@@ -222,7 +245,7 @@ static void iret2far(int tid, void *arg, void *arg2)
 
 static void make_iret_frame(cpuctx_t *scp, struct pmaddr_s pma)
 {
-    int is_32 = msdos.is_32();
+    int is_32 = sel_frame_32(pma.selector);
     void *sp = SEL_ADR(_ss, _esp);
 
     if (is_32) {
@@ -660,6 +683,7 @@ static void exthlp_thr(void *arg)
     case MSDOS_NONE:
     case MSDOS_PM:
 	coopth_leave();
+	chain_iret_frame(scp, ret.prev.selector);
 	_cs = ret.prev.selector;
 	_eip = ret.prev.offset32;
 	return;
