@@ -51,7 +51,6 @@ static int find_dosemu_pid(const char *tmpfile, int local)
   struct dirent *p;
   char *dn, *id;
   int i, j, pid = 0;
-  static int once =1;
 
   dn = strdup(tmpfile);
   j=i=strlen(dn);
@@ -75,21 +74,25 @@ static int find_dosemu_pid(const char *tmpfile, int local)
   while((p = readdir(dir))) {
     if(!strncmp(id,p->d_name,j) && p->d_name[j] >= '0' && p->d_name[j] <= '9') {
       int fd = openat(dirfd(dir), p->d_name, O_WRONLY | O_NONBLOCK);
+      int found;
       if (fd == -1)
         continue;  // no reader on that fifo
       close(fd);
-      pid = strtol(p->d_name + j, 0, 0);
-      if (pid) {
-        if(once && i++ == 1) {
-          fprintf(stderr,
-            "Multiple dosemu processes running or stalled files in %s\n"
-            "restart dosdebug with one of the following pids as first arg:\n"
-            "%d", dn, pid
-          );
-          once = 0;
-        }
+      found = strtol(p->d_name + j, 0, 0);
+      if (!found)
+        continue;
+      if (i == 1) {
+        /* the one before this is only worth naming now that it is a choice */
+        fprintf(stderr,
+          "Multiple dosemu processes running or stalled files in %s\n"
+          "restart dosdebug with one of the following pids as first arg:\n"
+          "%d", dn, pid
+        );
       }
-      if (i > 1) fprintf(stderr, " %d", pid);
+      if (i >= 1)
+        fprintf(stderr, " %d", found);
+      pid = found;
+      i++;
     }
   }
   free(dn);
