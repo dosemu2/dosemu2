@@ -2358,10 +2358,6 @@ static void mhp_regs(int argc, char *argv[])
         mhp_printf("Trap %d, ", DBG_ARG(mhpdbgc.currcode));
     }
   }
-  if (DBG_TYPE(mhpdbgc.currcode) == DBG_INTx)
-    mhp_printf("\nInterrupt 0x%02X", DBG_ARG(mhpdbgc.currcode));
-  if (DBG_TYPE(mhpdbgc.currcode) == DBG_TRAP)
-    mhp_printf("\nTrap 0x%02X", DBG_ARG(mhpdbgc.currcode));
   if (DBG_TYPE(mhpdbgc.currcode) == DBG_GPF)
     mhp_printf("General Protection Fault, ");
 
