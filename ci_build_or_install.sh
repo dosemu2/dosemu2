@@ -2,16 +2,8 @@
 
 set -e
 
-# Nothing here is watched by anyone, so a question from dpkg is a hung run,
-# and a dropped connection should be retried by the tool that made it rather
-# than waited out: apt's own default socket timeout is two minutes.  This
-# also covers the download of the .deb files themselves, which is a place a
-# shell retry cannot help -- mk-build-deps may already be half unpacked by
-# then, and re-running its configuration from there is worse than the
-# failure.  Acquire::Retries retries the fetch instead, before anything is
-# unpacked.  Assume-Yes is set here rather than passed to mk-build-deps as
-# --tool="apt-get -y", because that would replace the tool devscripts calls
-# by default, flags and all, and one of them is --no-install-recommends.
+# Retry fetches, shorten apt's two-minute socket timeout, and never let dpkg
+# stop to ask: nobody is watching the runner.
 export DEBIAN_FRONTEND=noninteractive
 sudo tee /etc/apt/apt.conf.d/99ci-retries >/dev/null <<'EOF'
 Acquire::Retries "3";
@@ -21,12 +13,8 @@ APT::Get::Assume-Yes "true";
 DPkg::Options { "--force-confdef"; "--force-confold"; };
 EOF
 
-# Launchpad drops the PPA signing key lookup often enough to matter, and
-# add-apt-repository has no retry of its own: getSigningKeyData() raises and
-# the script is gone.  Seen as HTTP 504 and as HTTP 500 with the body
-# GPGKeyTemporarilyNotFoundError, which says in as many words that the key
-# is coming back.  It happens before anything is built, so a whole run is
-# spent on a lookup that would have worked a minute later.
+# add-apt-repository has no retry of its own, and Launchpad's key lookup
+# fails often enough to lose a run over it.
 add_apt_repository()
 {
   attempt=1
@@ -49,24 +37,10 @@ add_apt_repository()
   done
 }
 
-# apt does not fail when a repository's index cannot be fetched: it prints
-# "Err:" and "old ones used instead" and exits 0.  A 503 from Launchpad on
-# the PPA index therefore surfaces a minute and a half later, as
-# mk-build-deps failing to install fdpp-build-deps or as a dependency on
-# thunk-gen that cannot be satisfied, which reads like a packaging problem
-# and is not one -- or, in the packaged build, as an install that quietly
-# takes whatever the Ubuntu archive happens to hold under that name.  So
-# retry, and after the third attempt stop the script.
-#
-# Only an Err: on a Launchpad host counts, because a runner carries a dozen
-# sources this build has nothing to do with, and a 503 on one of those must
-# not fail a build that would otherwise pass.  Every Launchpad source here
-# is one the script added a moment ago and is about to install from.
-#
-# A failure of another kind -- a held dpkg lock, a sources.list that does
-# not parse -- prints no Err: line at all and keeps its own non-zero status,
-# so it stops the script on its own step instead of being retried as if it
-# were the network.
+# apt prints "Err:" and exits 0 when an index cannot be fetched, so a 503 on
+# the PPA surfaces much later as an unsatisfiable build dep.  Only Launchpad
+# hosts count: a runner carries a dozen sources this build has nothing to do
+# with.  Other failures print no Err: line and keep their own status.
 apt_update()
 {
   attempt=1
@@ -91,15 +65,8 @@ apt_update()
   done
 }
 
-# The point of the packaged build is to install dosemu2 and fdpp from our
-# PPA, and apt does not care where a name comes from.  apt_update() above
-# stops the run when it is a Launchpad index that is missing, but that is a
-# judgement about fetch errors; this is the fact itself, asked of apt just
-# before the install: is the version apt has picked one our PPA offers?  If
-# it is not -- an index that is stale rather than missing, a name that
-# something else on the runner also answers to -- installing it would give
-# a "packaged" test run of a package that is not ours, and that is worse
-# than not running at all.
+# apt does not care where a name comes from, so check that the version it
+# picked is one our PPA offers before installing it.
 require_from_ppa()
 {
   for pkg in "$@" ; do
