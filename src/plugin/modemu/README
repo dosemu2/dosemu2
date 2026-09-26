@@ -1,119 +1,90 @@
-About...
---------
+vmodem - a modem for DOS that dials over TCP
+============================================
 
-			 Modemu Version 0.0.1
-			 ====================
-				   
-		Copyright (c) 1995, 1996 Toru Egashira
+This plugin gives a DOS serial port a Hayes modem whose "phone line" is
+a TCP socket. DOS dials with ATD, and the far end is a host and port.
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or (at
-your option) any later version.
-
-This program is distributed in the hope that it will be useful, but
-WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+The AT command set, the telnet option negotiation and the socket are in
+libmodemu2k <https://github.com/theimpossibleastronaut/modemu2k>. This
+plugin connects that library to dosemu2's emulated 16550.
 
 
-NOTICE
-------
-
-This program is, as the version number saids, in the ALPHA development
-stage.  Don't expect the next version (if exists) will be compatible
-with this version.  And especially, DON'T EXPECT IT IS SAFE.  (Of
-course, the author thinks this version works well for his purpose --
-BBS access via Internet.)
-
-
-What is Modemu?
----------------
-
-Modemu is a TELNET client with a modem-like user interface.  It can
-redirect its I/O to a pty so that a comm program can handle the pty as
-a tty with a real modem.
-
-
-Compilation
------------
-
-On Linux, just type "make".  Other systems require some changes in
-Makefile and/or sources.  "Make install" is not supported.  Just copy
-the executable file "modemu" to a directory in your $PATH.  Only the
-executable file is required to run.
-
-Making SOCKSified or Termified Modemu also requires changes in
-Makefile.  Revive some commented-out lines and rewrite directory
-specifications to reflect your configurations.
-
-
-Sample Usage
+Requirements
 ------------
 
-1) Stand alone usage
+libmodemu2k 0.2.5 or newer, with its development headers. `configure`
+lists `modemu` among the enabled plugins when it is found.
 
-  Invoked with no option,
-
-  > modemu
-
-  Modemu reads from standard input and writes to standard output.
-  Input
-
-  > atd"localhost
-
-  (prompt ">" is not shown) and you will see your host's login prompt.
-  When logout, you will get "NO CARRIER" indication.
-  Then input
-
-  > at%q
-
-  to quit Modemu.
-
-2) With a comm program
-
-  (This example uses XC as the comm program. The author haven't tested
-  any other programs.)
-
-  Invoke with "-c" option,
-
-  > modemu -c "xc -l tty%s"
-
-  you see XC runs. Go to the terminal mode and input
-
-  > atd"localhost
-
-  Yes, Modemu makes the comm program a TELNET client.  Now you can use
-  comm program's scripting and file xfer(*) facilities on TELNET.
-
-  To quit Modemu, just quit the comm program.
-
-(*) Almost all file xfer protocols require 8bit through connection,
-which means Modemu must be in the binary transmission mode.  See %B
-command description in man pages.
+0.2.5 is not released yet, so build it from git master for now. The
+driver needs m2k_pending_to_line(), which is the port's transmit-queue
+depth and was added after 0.2.4.
 
 
-Any Ideas?
-----------
+Configuration
+-------------
 
-Bug fixes/reports, comments, suggestions and useful usage examples are
-welcome.  Send e-mails to:
-	toru@jms.jeton.or.jp (preferably), or
-	egashira@nwk.CL.nec.co.jp
+In ~/.dosemurc:
 
-Messages in Japanese are of course welcome.
+    $_com1 = "vmodem"
 
 
-History
--------
+Test 1: dial out, using only DOS built-ins
+------------------------------------------
 
-v0.0 (950406)
- - Initial public release.
+This needs nothing installed in the DOS drive.
 
-v0.0.1 (960113)
- - Fixed the "connect()-2: .." bug.
-   Merely the v0.0 of "fix1" applied, thus no new features are added.
+In a Linux terminal, listen on a port:
+
+    nc -l 2323
+
+Start dosemu2 with the config above, and at the DOS prompt:
+
+    ECHO ATD"127.0.0.1 2323" > COM1
+    ECHO HELLO FROM DOS > COM1
+
+`nc` prints HELLO FROM DOS. That is the DOS-to-peer direction.
+
+For the other direction, read the port from DOS:
+
+    TYPE COM1
+
+It prints CONNECT, the two lines about escaping to command mode, and
+then whatever you type into the `nc` window. `TYPE` stops at a Ctrl-Z,
+so to get back to the DOS prompt, type Ctrl-V Ctrl-Z in the `nc`
+window and press Enter. (Ctrl-V tells the terminal to pass the next
+key through instead of acting on it.)
+
+`ECHO` cannot hang up. The call is online at this point, so anything
+written to COM1 goes down the socket, `ATH` included. Quit dosemu2, or
+use a terminal program as below. Test 2 is the one that shows the
+whole call.
+
+
+Test 2: dial out from a DOS terminal program
+--------------------------------------------
+
+Any DOS comm program works - Terminate, Telix, Telemate, or the
+terminal built into Dos Navigator. Set it to COM1. The line speed does
+not matter: nothing on the wire runs at it.
+
+Dial the same listener as above:
+
+    ATD"127.0.0.1 2323"
+
+Anything typed in either window appears in the other.
+
+To reach a real telnet BBS, dial its host and port:
+
+    ATD"bbs.example.org 23"
+
+`+++` returns to command mode without dropping the call, `ATO` goes
+back online, and `ATH` hangs up. Leave about a second of silence
+before and after the `+++`, as with a real modem: three plus signs in
+the middle of a stream are data, not an escape.
+
+
+Seeing what the modem is doing
+------------------------------
+
+Run dosemu2 with `-D+s` to log the serial subsystem. The library's own
+narration appears there, prefixed MODEMU2K.
