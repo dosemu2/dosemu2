@@ -2381,6 +2381,90 @@ static void mhp_regs(int argc, char *argv[])
   mhp_cmd("u * 1");
 }
 
+static void mhp_kvm(int argc, char *argv[])
+{
+  static const char *const segname[6] = {"CS", "SS", "DS", "ES", "FS", "GS"};
+  struct kvm_vcpu_state st;
+  int i;
+
+  if (kvm_get_vcpu_state(&st) < 0) {
+    mhp_printf("no KVM vCPU to ask\n");
+    return;
+  }
+
+  mhp_printf("\nEAX: %08x EBX: %08x ECX: %08x EDX: %08x\n",
+             st.eax, st.ebx, st.ecx, st.edx);
+  mhp_printf("ESI: %08x EDI: %08x EBP: %08x ESP: %08x\n",
+             st.esi, st.edi, st.ebp, st.esp);
+  mhp_printf("EIP: %08x EFLAGS: %08x\n", st.eip, st.eflags);
+  for (i = 0; i < 6; i++)
+    mhp_printf("%s: %04x base %08x limit %08x %s dpl %d%s\n",
+               segname[i], st.seg[i].sel, st.seg[i].base, st.seg[i].limit,
+               st.seg[i].db ? "32bit" : "16bit", st.seg[i].dpl,
+               st.seg[i].present ? "" : " (not present)");
+  mhp_printf("CR0: %08x CR2: %08x CR3: %08x CR4: %08x\n",
+             st.cr0, st.cr2, st.cr3, st.cr4);
+  mhp_printf("GDTR: %08x limit %04x   IDTR: %08x limit %04x\n",
+             st.gdt.base, st.gdt.limit, st.idt.base, st.idt.limit);
+  mhp_printf("TR: %04x base %08x limit %08x   LDTR: %04x base %08x limit %08x\n",
+             st.tr.sel, st.tr.base, st.tr.limit,
+             st.ldt.sel, st.ldt.base, st.ldt.limit);
+  /* dosemu always points TR at its monitor, so anything else means the CPU
+   * was not running dosemu's own task when it last left KVM */
+  mhp_printf("monitor at %08x, %s\n", st.monitor_base,
+             st.tr.base == st.monitor_base ?
+             "which is what TR holds: this is dosemu's own context" :
+             "which is not what TR holds: a client ran with tables of its own");
+}
+
+static void mhp_monitor(int argc, char *argv[])
+{
+  unsigned char buf[256];
+  unsigned int addr, nbytes = 64;
+  int i, i2, rc;
+
+  if (argc < 2) {
+    mhp_printf("Usage: mon <address> [size]\n");
+    return;
+  }
+  if (!getval_ui(argv[1], 16, &addr)) {
+    mhp_printf("Invalid address '%s'\n", argv[1]);
+    return;
+  }
+  if (argc > 2 && (!getval_ui(argv[2], 0, &nbytes) || nbytes == 0 ||
+                   nbytes > sizeof(buf))) {
+    mhp_printf("Invalid size '%s'\n", argv[2]);
+    return;
+  }
+  rc = kvm_read_monitor(addr, buf, nbytes);
+  if (rc == -2) {
+    mhp_printf("Only useful when DOSEMU runs on KVM, and it does not\n");
+    return;
+  }
+  if (rc < 0) {
+    mhp_printf("%08x is not inside the KVM monitor\n", addr);
+    return;
+  }
+
+  mhp_printf("\n");
+  for (i = 0; i < nbytes; i++) {
+    if ((i & 0x0f) == 0x00)
+      mhp_printf("%08x ", addr + i);
+    mhp_printf("%02X ", buf[i]);
+    if ((i & 0x0f) == 0x0f || i == nbytes - 1) {
+      for (i2 = i; (i2 & 0x0f) != 0x0f; i2++)
+        mhp_printf("   ");
+      mhp_printf(" ");
+      for (i2 = i & ~0x0f; i2 <= i; i2++) {
+        unsigned char c = buf[i2] & 0x7f;
+
+        mhp_printf("%c", c >= 0x20 ? c : '.');
+      }
+      mhp_printf("\n");
+    }
+  }
+}
+
 static void mhp_regs32(int argc, char *argv[])
 {
   reg32 ^= 1;
@@ -3045,6 +3129,8 @@ static const struct cmd_db cmdtab[] = {
   {"ti",            mhp_trace},
   {"tc",            mhp_tracec},
   {"r32",           mhp_regs32},
+  {"kvm",           mhp_kvm},
+  {"mon",           mhp_monitor},
   {"bp",            mhp_bp},
   {"bc",            mhp_bc},
   {"bl",            mhp_bl},

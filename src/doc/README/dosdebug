@@ -380,6 +380,59 @@ wether a DPMI-client is active (in_dpmi).
 </para>
 </listitem></varlistentry>
 <varlistentry>
+<term>kvm</term>
+<listitem>
+<para>
+		  dump the vCPU as KVM itself has it at the last exit from
+		  it: the general registers, each segment with its base,
+		  limit and size, CR0/CR2/CR3/CR4, and GDTR, IDTR, TR and
+		  LDTR.
+</para>
+<para>
+		  This is not the same thing as <emphasis>r</emphasis>. The
+		  registers <emphasis>r</emphasis> shows are the ones DOSEMU
+		  keeps for the task it is running, and while a client runs
+		  with page tables and descriptor tables of its own - a VCPI
+		  client in ring 0, say - those hold the context of whoever
+		  handed it the CPU, not the context the CPU is really in.
+		  The control and descriptor table registers are not reachable
+		  any other way.
+</para>
+<para>
+		  The last line says where DOSEMU's monitor is and whether TR
+		  points at it. DOSEMU always loads TR with its monitor's
+		  task, so a TR that holds something else is a client that
+		  went to ring 0 with descriptor and page tables of its own,
+		  and CR3, GDTR and IDTR are then that client's too. Which
+		  of the two you get depends on where the CPU was when it
+		  last left KVM, so it is not always the one you want; stop
+		  closer to the client and look again.
+</para>
+<para>
+		  Only useful when DOSEMU runs on KVM; it says so otherwise.
+</para>
+</listitem></varlistentry>
+<varlistentry>
+<term>mon addr [size]</term>
+<listitem>
+<para>
+		  Dump memory inside the KVM monitor, at the address the guest
+		  sees it at - the address a client's page tables point at,
+		  and the one <emphasis>kvm</emphasis> reports for CR3, GDTR
+		  and the rest.
+</para>
+<para>
+		  The monitor is DOSEMU's own memory. It is mapped into the
+		  guest but not into the DOS memory a linear address names,
+		  so <emphasis>d</emphasis> cannot reach it and says so. This
+		  is the way to read what the monitor's own code left behind:
+		  the registers a VCPI client's mode switch saved, say.
+</para>
+<para>
+		  Only useful when DOSEMU runs on KVM; it says so otherwise.
+</para>
+</listitem></varlistentry>
+<varlistentry>
 <term>bp addr</term>
 <listitem>
 <para>
