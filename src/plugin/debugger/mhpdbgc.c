@@ -63,6 +63,9 @@
 #include "coopth.h"
 #include "kvm.h"
 #include "Asm/ldt.h"
+#ifdef X86_EMULATOR
+#include "cpu-emu.h"
+#endif
 
 #define MHP_PRIVATE
 #include "mhpdbg.h"
@@ -2415,6 +2418,17 @@ static void mhp_kill(int argc, char *argv[])
     leavedos(1);
 }
 
+/* Patching an int3 into the client's code is a write the CPU emulator does
+ * not see, so its translation of that code has to be thrown away by hand. */
+static void mhp_poke_code(dosaddr_t addr, uint8_t val)
+{
+  WRITE_BYTE(addr, val);
+#ifdef X86_EMULATOR
+  if (IS_EMU())
+    e_invalidate(addr, 1);
+#endif
+}
+
 void mhp_bpset(void)
 {
   int i1;
@@ -2430,7 +2444,7 @@ void mhp_bpset(void)
       }
       mhpdbgc.brktab[i1].opcode = READ_BYTE(mhpdbgc.brktab[i1].brkaddr);
       if (i1 != trapped_bp)
-        WRITE_BYTE(mhpdbgc.brktab[i1].brkaddr, 0xCC);
+        mhp_poke_code(mhpdbgc.brktab[i1].brkaddr, 0xCC);
     }
   }
   return;
@@ -2465,13 +2479,13 @@ void mhp_bpclr(void)
         } else {
           mhpdbgc.brktab[i1].opcode = opcode;
           if (i1 != trapped_bp) {
-            WRITE_BYTE(mhpdbgc.brktab[i1].brkaddr, 0xCC);
+            mhp_poke_code(mhpdbgc.brktab[i1].brkaddr, 0xCC);
             mhp_printf("Warning: code at breakpoint %d has been overwritten (0x%02x)\n", i1, opcode);
           }
         }
       }
 
-      WRITE_BYTE(mhpdbgc.brktab[i1].brkaddr, mhpdbgc.brktab[i1].opcode);
+      mhp_poke_code(mhpdbgc.brktab[i1].brkaddr, mhpdbgc.brktab[i1].opcode);
     }
   }
 }
