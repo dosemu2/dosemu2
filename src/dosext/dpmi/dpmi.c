@@ -5012,10 +5012,64 @@ static void do_legacy_cpu_exception(cpuctx_t *scp, INTDESC entry)
   _eflags &= ~(TF | NT | AC);
 }
 
+/*
+ * DANG_BEGIN_FUNCTION tp7_delay_calibration
+ *
+ * Turbo Pascal 7 and Borland Pascal 7 size their Delay() loop by counting
+ * iterations between two BIOS ticks and dividing the count by 55.  The
+ * quotient has to fit in AX, and on anything faster than a mid-nineties PC
+ * it no longer does: the div overflows and the unit reports "Runtime error
+ * 200" before the program draws anything.
+ *
+ * In real mode comcom's r200fix works around this by putting the original
+ * INT 0 vector back, which reaches the program because the real mode
+ * interrupt table is shared.  A protected mode client has no shared table.
+ * Exception 0 is dispatched from the per-client tables below, and a 16-bit
+ * client does not inherit the 32-bit shell's handlers (see inherit_idt in
+ * dpmi_init()), so nothing the shell installs can reach it.  The protected
+ * mode half therefore has to come from the host.
+ *
+ * Recognise the calibration by the nine bytes it always compiles to and
+ * saturate the quotient, which is what the binary patches for this have
+ * always done.  Delay() then runs short rather than the program dying.
+ * Only AX is defined by this: the instruction after the div stores AX and
+ * never looks at the remainder.
+ *
+ * DANG_END_FUNCTION
+ */
+static int tp7_delay_calibration(cpuctx_t *scp)
+{
+  static const unsigned char sig[] = {
+    0xf7, 0xd0,			/* not ax          */
+    0xf7, 0xd2,			/* not dx          */
+    0xb9, 0x37, 0x00,		/* mov cx, 55      */
+    0xf7, 0xf1			/* div cx  <- here */
+  };
+  const unsigned before = sizeof(sig) - 2;
+  unsigned char *csp;
+
+  if (_eip < before)
+    return 0;
+  csp = SEL_ADR(_cs, _eip - before);
+  if (memcmp(csp, sig, sizeof(sig)) != 0)
+    return 0;
+
+  D_printf("DPMI: TP7 Delay() calibration overflowed at %#x:%#x, saturating\n",
+	_cs, _eip);
+  _LWORD(eax) = 0xffff;
+  _LWORD(edx) = 0;
+  _LWORD(eip) += 2;
+  return 1;
+}
+
 static void do_cpu_exception(cpuctx_t *scp)
 {
   D_printf("DPMI: do_cpu_exception(0x%02x) at %#x:%#x, ss:esp=%x:%x, cr2=%#x, err=%#x\n",
 	_trapno, _cs, _eip, _ss, _esp, _cr2, _err);
+
+  if (_trapno == 0 && tp7_delay_calibration(scp))
+    return;
+
   if (debug_level('M') > 5)
     D_printf("DPMI: %s\n", DPMI_show_state(scp));
 
