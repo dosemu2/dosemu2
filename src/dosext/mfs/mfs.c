@@ -144,14 +144,6 @@ TODO:
 */
 
 #include <stdio.h>
-#ifdef __linux__
-#include <sys/vfs.h>
-#else
-#ifdef __FreeBSD__
-#include <sys/param.h>
-#include <sys/mount.h>
-#endif
-#endif
 #include <sys/ioctl.h>
 #include <errno.h>
 #include <sys/statvfs.h>
@@ -180,17 +172,9 @@ TODO:
 #include "fslib/fslib.h"
 #include "mfs.h"
 
-#ifdef __linux__
-#include <linux/msdos_fs.h>
-#endif
-
 static void *fpath_dict;
 
 #define Addr(s,x,y)     Addr_8086(((s)->x), ((s)->y))
-/* vfat_ioctl to use is short for int2f/ax=11xx, both for int21/ax=71xx */
-#ifdef __linux__
-static long vfat_ioctl = VFAT_IOCTL_READDIR_BOTH;
-#endif
 /* these universal globals defined here (externed in mfs.h) */
 int mfs_enabled = FALSE;
 
@@ -640,20 +624,6 @@ select_drive(struct vm86_regs *state, int *drive)
   return DRV_FOUND;
 }
 
-#ifdef __linux__
-static int file_on_fat(const char *name)
-{
-  struct statfs buf;
-  return statfs(name, &buf) == 0 && buf.f_type == MSDOS_SUPER_MAGIC;
-}
-
-static int fd_on_fat(int fd)
-{
-  struct statfs buf;
-  return fstatfs(fd, &buf) == 0 && buf.f_type == MSDOS_SUPER_MAGIC;
-}
-#endif
-
 static int get_attr_simple(int mode)
 {
   int attr = 0;
@@ -679,37 +649,23 @@ static int handle_xattr(int attr, int mode)
 
 int get_dos_attr(const char *fname, int mode, int drive)
 {
-  int attr;
+  int idx = REDIR_DEVICE_IDX(drives[drive].options);
+  int attr = vfs_get_dos_attr(vfs_get_fs(idx), fname, mode);
 
-#ifdef __linux__
-  if (fname && file_on_fat(fname) && (S_ISREG(mode) || S_ISDIR(mode))) {
-    vfs_fs_t *fs = vfs_get_fs(REDIR_DEVICE_IDX(drives[drive].options));
-    vfs_file_t *vfd = vfs_open(fs, fname, O_RDONLY);
-    if (vfd) {
-      int res = ioctl(vfd->fd, FAT_IOCTL_GET_ATTRIBUTES, &attr);
-      vfs_close(vfd);
-      if (res == 0)
-	return attr;
-    }
-  }
-#endif
-
+  if (attr != -1)
+    return attr;
   if (cdrom(drives[drive]))
     return get_attr_simple(mode);
-  attr = mfs_getxattr_file(REDIR_DEVICE_IDX(drives[drive].options), fname);
+  attr = mfs_getxattr_file(idx, fname);
   return handle_xattr(attr, mode);
 }
 
 static int get_dos_attr_fd(vfs_file_t *fd, int mode, const char *name, int drive)
 {
-  int attr;
+  int attr = vfs_fget_dos_attr(fd, mode);
 
-#ifdef __linux__
-  if (fd_on_fat(fd->fd) && (S_ISREG(mode) || S_ISDIR(mode)) &&
-      ioctl(fd->fd, FAT_IOCTL_GET_ATTRIBUTES, &attr) == 0)
+  if (attr != -1)
     return attr;
-#endif
-
   if (cdrom(drives[drive]))
     return get_attr_simple(mode);
   attr = mfs_getxattr_file(REDIR_DEVICE_IDX(drives[drive].options), name);
@@ -730,38 +686,30 @@ static int get_unix_attr(int attr)
   return mode;
 }
 
-#ifdef __linux__
-int set_fat_attr(vfs_file_t *fd, int attr)
-{
-  return ioctl(fd->fd, FAT_IOCTL_SET_ATTRIBUTES, &attr);
-}
-#endif
-
 int set_dos_attr(char *fpath, int attr, int drive)
 {
-#ifdef __linux__
-  vfs_fs_t *fs = vfs_get_fs(REDIR_DEVICE_IDX(drives[drive].options));
-  vfs_file_t *vfd = NULL;
-  int res;
+  int idx = REDIR_DEVICE_IDX(drives[drive].options);
+  vfs_fs_t *fs = vfs_get_fs(idx);
+  int res = vfs_set_dos_attr(fs, fpath, attr);
 
-  if (fpath && file_on_fat(fpath))
-    vfd = vfs_open(fs, fpath, O_RDONLY);
-  if (vfd) {
-    res = set_fat_attr(vfd, attr);
+  /* ENOSYS means the backend has no native attrs, anything else is
+   * a failure of the native ones and is not to be papered over with
+   * the xattr */
+  if (!(res == -1 && errno == ENOSYS)) {
     if (res && errno != ENOTTY) {
-      int oldattr = 1;
-      ioctl(vfd->fd, FAT_IOCTL_GET_ATTRIBUTES, &oldattr);
+      int oldattr = vfs_get_dos_attr(fs, fpath, S_IFREG);
+
+      if (oldattr == -1)
+	oldattr = 1;
       if (dos_would_allow(fpath, "FAT_IOCTL_SET_ATTRIBUTES", attr == oldattr))
 	res = 0;
     }
-    vfs_close(vfd);
     return res;
   }
-#endif
 
   if (cdrom(drives[drive]))
     return -1;
-  return mfs_setattr(REDIR_DEVICE_IDX(drives[drive].options), fpath, attr);
+  return mfs_setattr(idx, fpath, attr);
 }
 
 int dos_utime(const char *fpath, time_t atime, time_t mtime, int drive)
@@ -970,13 +918,10 @@ int mfs_redirector(struct vm86_regs *regs, char *stk, int revect)
 {
   int ret;
 
-#ifdef __linux__
-  vfat_ioctl = VFAT_IOCTL_READDIR_SHORT;
-#endif
+  /* int2f/ax=11xx has no long names, int21/ax=71xx has */
+  vfs_set_short_names(1);
   ret = dos_fs_redirect(regs, stk);
-#ifdef __linux__
-  vfat_ioctl = VFAT_IOCTL_READDIR_BOTH;
-#endif
+  vfs_set_short_names(0);
 
   switch (ret) {
   case FALSE:
@@ -1590,32 +1535,13 @@ struct mfs_dir *dos_opendir(const char *name, int drive)
 {
   struct mfs_dir *dir;
   vfs_fs_t *fs = vfs_get_fs(REDIR_DEVICE_IDX(drives[drive].options));
-  vfs_file_t *vfile = NULL;
-  vfs_dir_t *vdir = NULL;
-#ifdef __linux__
-  struct __fat_dirent de[2];
+  vfs_dir_t *vdir = vfs_opendir(fs, name);
 
-  if (file_on_fat(name)) {
-    vfile = vfs_open(fs, name, O_RDONLY | O_DIRECTORY | O_CLOEXEC);
-    if (!vfile)
-      return NULL;
-    if (ioctl(vfile->fd, vfat_ioctl, de) != -1) {
-      vfs_lseek(vfile, 0, SEEK_SET);
-    } else {
-      vfs_close(vfile);
-      vfile = NULL;
-    }
-  }
-#endif
-  if (!vfile) {
-    vdir = vfs_opendir(fs, name);
-    if (!vdir) {
-      error("opendir failed: %s\n", strerror(errno));
-      return NULL;
-    }
+  if (!vdir) {
+    error("opendir failed: %s\n", strerror(errno));
+    return NULL;
   }
   dir = malloc(sizeof *dir);
-  dir->vfile = vfile;
   dir->vdir = vdir;
   dir->nr = 0;
   return (dir);
@@ -1626,30 +1552,12 @@ struct mfs_dirent *dos_readdir(struct mfs_dir *dir)
   if (dir->nr <= 1) {
     dir->de.d_name = dir->de.d_long_name = dir->nr ? ".." : ".";
   } else do {
-    if (dir->vdir) {
-      struct dirent *de = vfs_readdir(dir->vdir);
-      if (de == NULL)
-	return NULL;
-      dir->de.d_name = dir->de.d_long_name = de->d_name;
-    } else {
-#ifdef __linux__
-      static struct __fat_dirent de[2];
-      int ret;
+    struct vfs_dirent de;
 
-      ret = (int)RPT_SYSCALL(ioctl(dir->vfile->fd, vfat_ioctl, de));
-      if (ret == -1 || de[0].d_reclen == 0)
-        return NULL;
-
-      dir->de.d_name = de[0].d_name;
-      dir->de.d_long_name = de[1].d_name;
-      if (dir->de.d_long_name[0] == '\0' ||
-	  vfat_ioctl == VFAT_IOCTL_READDIR_SHORT) {
-        dir->de.d_long_name = dir->de.d_name;
-      }
-#else
+    if (vfs_readdir(dir->vdir, &de) == -1)
       return NULL;
-#endif
-    }
+    dir->de.d_name = de.d_name;
+    dir->de.d_long_name = de.d_long_name;
   } while (strcmp(dir->de.d_name, ".") == 0 ||
 	   strcmp(dir->de.d_name, "..") == 0);
   dir->nr++;
@@ -1658,12 +1566,8 @@ struct mfs_dirent *dos_readdir(struct mfs_dir *dir)
 
 int dos_closedir(struct mfs_dir *dir)
 {
-  int ret;
+  int ret = vfs_closedir(dir->vdir);
 
-  if (dir->vdir)
-    ret = vfs_closedir(dir->vdir);
-  else
-    ret = vfs_close(dir->vfile);
   free(dir);
   return (ret);
 }
@@ -3316,7 +3220,7 @@ static struct file_fd *do_open_prn(const char *filename1, const char *fpath)
     if (printer_open(prn_num) != 0)
       return NULL;
     f = do_claim_fd(fpath);
-    f->fd = vfs_file_wrap_posix(prn_num);
+    f->prn = prn_num;
     f->type = TYPE_PRINTER;
     return f;
 }
@@ -3491,8 +3395,8 @@ static int dos_fs_redirect(struct vm86_regs *state, char *stk)
         return TRUE;
       }
       if (f->type == TYPE_PRINTER) {
-        printer_close(f->fd->fd);
-        Debug0(("printer %p closed\n", f->fd));
+        printer_close(f->prn);
+        Debug0(("printer %i closed\n", f->prn));
       } else {
         mfs_close(f);
       }
@@ -3611,7 +3515,7 @@ static int dos_fs_redirect(struct vm86_regs *state, char *stk)
       Debug0(("Write file fd=%p count=%x sft_mode=%x\n", f->fd, cnt, sft_open_mode(sft)));
       if (f->type == TYPE_PRINTER) {
         for (ret = 0; ret < cnt; ret++) {
-          if (printer_write(f->fd->fd, READ_BYTE(dta + ret)) != 1)
+          if (printer_write(f->prn, READ_BYTE(dta + ret)) != 1)
             break;
         }
         SETWORD(&state->ecx, ret);
@@ -4102,7 +4006,7 @@ do_create_truncate:
         fname[0] = 0;
         fext[0] = 0;
         f = do_claim_fd(fpath);
-        f->fd = vfs_file_wrap_posix(prn_num);
+        f->prn = prn_num;
         f->type = TYPE_PRINTER;
       } else {
         struct stat st;
@@ -4140,12 +4044,8 @@ do_create_truncate:
           return FALSE;
         }
         f->type = TYPE_DISK;
-#ifdef __linux__
-	if (file_on_fat(fpath))
-          set_fat_attr(f->fd, attr);
-        else
-#endif
-        if (get_attr_simple(f->st.st_mode) != attr)
+	if (vfs_fset_dos_attr(f->fd, attr) == -1 && errno == ENOSYS &&
+	    get_attr_simple(f->st.st_mode) != attr)
           mfs_setxattr_file(REDIR_DEVICE_IDX(drives[drive].options),
               f->name, attr);
       }

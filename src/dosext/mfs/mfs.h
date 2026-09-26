@@ -265,7 +265,6 @@ struct mfs_dirent
 struct mfs_dir
 {
   vfs_dir_t *vdir;
-  vfs_file_t *vfile;
   struct mfs_dirent de;
   unsigned int nr;
 };
@@ -378,7 +377,6 @@ extern void build_ufs_path_(char *ufs, const char *path, int drive,
                            int lowercase);
 extern int find_file(char *fpath, struct stat *st, int *doserror, int drive);
 extern int get_dos_attr(const char *fname, int mode, int drive);
-extern int set_fat_attr(vfs_file_t *fd, int attr);
 extern int set_dos_attr(char *fname, int attr, int drive);
 extern int dos_utime(const char *fpath, time_t atime, time_t mtime, int drive);
 extern void time_to_dos(time_t clock, u_short *date, u_short *time);
@@ -409,6 +407,7 @@ struct file_fd
   char *name;
   int idx;
   vfs_file_t *fd;
+  int prn;             // printer number for TYPE_PRINTER
   int type;
   void *shlock;
   void **shemu_locks;  // for share modes emulation

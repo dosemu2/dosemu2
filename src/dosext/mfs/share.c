@@ -94,6 +94,8 @@ struct file_fd *do_claim_fd(const char *name)
             f->shemu_locks = malloc(sizeof(void *) * lk_MAX);
             f->idx = i;
             f->shlock = NULL;
+            f->fd = NULL;
+            f->prn = -1;
             ret = f;
             break;
         }
@@ -213,10 +215,11 @@ static int open_share(const char *fname, int open_mode, int share_mode,
 static int do_mfs_open(int mfs_idx, struct file_fd *f, const char *fname,
         int flags, int share_mode, int *r_err)
 {
-    int fd, err, i;
+    int err, i;
     void *shlock;
     void *exlock;
     void *async;
+    vfs_file_t *vfile;
     int is_writable = (flags == O_WRONLY || flags == O_RDWR);
 
     *r_err = ACCESS_DENIED;
@@ -264,13 +267,13 @@ static int do_mfs_open(int mfs_idx, struct file_fd *f, const char *fname,
         *r_err = SHARING_VIOLATION;
         goto err3;
     }
-    fd = mfs_async_getfd(async);
+    vfile = vfs_async_getfile(fs, async);
     async = NULL;  // exclude from cleanup
-    if (fd == -1)
+    if (!vfile)
         goto err4;
     shlock_close(exlock);
 
-    f->fd = vfs_file_wrap_posix(fd);
+    f->fd = vfile;
     f->shlock = shlock;
     f->share_mode = share_mode;
     f->psp = sda_cur_psp(sda);
@@ -286,11 +289,8 @@ err3:
             shlock_close(f->shemu_locks[i]);
     }
 err2:
-    if (async) {
-        fd = mfs_async_getfd(async);
-        if (fd != -1)
-            vfs_close(vfs_file_wrap_posix(fd));
-    }
+    if (async)
+        vfs_async_cancel(fs, async);
 err:
     shlock_close(exlock);
     return -1;
