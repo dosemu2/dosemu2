@@ -330,17 +330,62 @@ Bit8u xstart,Bit8u ystart,Bit8u cols,Bit8u nbcols,Bit8u cheight,Bit8u attr)
 }
 
 // --------------------------------------------------------------------------------------------
+/* A packed-pixel frame buffer is linear and, for anything above 320x200,
+ * much larger than the 64K window at 0xa000: 640x400 already needs 250K.
+ * Addressing it through the window means picking the right bank for every
+ * scan line, so go to the frame buffer directly instead. */
+static unsigned char *lin_ptr(Bit32u off, unsigned *len)
+{
+ if(vga.mem.base==NULL||off>=vga.mem.size)return NULL;
+ if(*len>vga.mem.size-off)*len=vga.mem.size-off;
+ return vga.mem.base+off;
+}
+
+static void lin_move(Bit32u dest,Bit32u src,unsigned len)
+{
+ unsigned char *d,*s;
+ unsigned dlen=len,slen=len;
+
+ d=lin_ptr(dest,&dlen);
+ s=lin_ptr(src,&slen);
+ if(d==NULL||s==NULL)return;
+ len=dlen<slen?dlen:slen;
+ memmove(d,s,len);
+ vga_mark_dirty(dest,len);
+}
+
+static void lin_write(Bit32u dest,const unsigned char *buf,unsigned len)
+{
+ unsigned char *d;
+
+ d=lin_ptr(dest,&len);
+ if(d==NULL)return;
+ memcpy(d,buf,len);
+ vga_mark_dirty(dest,len);
+}
+
+static void lin_fill(Bit32u dest,Bit8u attr,unsigned len)
+{
+ unsigned char *d;
+
+ d=lin_ptr(dest,&len);
+ if(d==NULL)return;
+ memset(d,attr,len);
+ vga_mark_dirty(dest,len);
+}
+
 static void vgamem_copy_lin(
 Bit8u xstart,Bit8u ysrc,Bit8u ydest,Bit8u cols,Bit8u nbcols,Bit8u cheight)
 {
- Bit16u src,dest;
+ Bit32u src,dest,line;
  Bit8u i;
 
- src=(ysrc*cheight*nbcols+xstart)*8;
- dest=(ydest*cheight*nbcols+xstart)*8;
+ line=(Bit32u)nbcols*8;
+ src=((Bit32u)ysrc*cheight*nbcols+xstart)*8;
+ dest=((Bit32u)ydest*cheight*nbcols+xstart)*8;
  for(i=0;i<cheight;i++)
   {
-    memcpyb(0xa000,dest+i*nbcols*8,0xa000,src+i*nbcols*8,cols*8);
+    lin_move(dest+i*line,src+i*line,cols*8);
   }
 }
 
@@ -348,13 +393,15 @@ Bit8u xstart,Bit8u ysrc,Bit8u ydest,Bit8u cols,Bit8u nbcols,Bit8u cheight)
 static void vgamem_fill_lin(
 Bit8u xstart,Bit8u ystart,Bit8u cols,Bit8u rows,Bit8u nbcols,Bit8u cheight,Bit8u attr)
 {
- Bit16u dest;
- Bit8u i;
+ Bit32u dest,line;
+ unsigned i,lines;
 
- dest=(ystart*cheight*nbcols+xstart)*8;
- for(i=0;i<cheight*rows;i++)
+ line=(Bit32u)nbcols*8;
+ dest=((Bit32u)ystart*cheight*nbcols+xstart)*8;
+ lines=(unsigned)cheight*rows;
+ for(i=0;i<lines;i++)
   {
-   memsetb(0xa000,dest+i*nbcols*8,attr,cols*8);
+   lin_fill(dest+i*line,attr,cols*8);
   }
 }
 
@@ -699,36 +746,25 @@ static void write_gfx_char_cga(Bit16u vstart,Bit8u car,Bit8u attr,
 static void write_gfx_char_lin(Bit16u vstart,Bit8u car,Bit8u attr,
 	Bit8u xcurs,Bit8u ycurs,Bit8u nbcols,Bit8u cheight)
 {
- Bit8u i,j,mask,data,plane;
+ Bit8u i,j,mask;
  Bit8u *fdata;
  Bit16u src;
- Bit32u addr,dest;
+ Bit32u addr,line;
+ unsigned char pix[8];
 
  fdata = dosaddr_to_unixaddr(IVEC(0x43));
- addr=xcurs*8+ycurs*nbcols*8*cheight+vstart;
- plane = addr >> 16;
- port_outw(VGAREG_SEQU_ADDRESS, ((1 << (plane + 8))) | 2);  // switch plane
+ line=(Bit32u)nbcols*8;
+ addr=(Bit32u)xcurs*8+(Bit32u)ycurs*cheight*line+vstart;
  src = car * cheight;
  for(i=0;i<cheight;i++)
   {
-   dest = addr+i*nbcols*8 - (plane << 16);
-   if (dest & ~0xffff)
-    {
-     plane++;
-     port_outw(VGAREG_SEQU_ADDRESS, ((1 << (plane + 8))) | 2);  // switch plane
-     dest -= 0x10000;
-    }
    mask = 0x80;
    for(j=0;j<8;j++)
     {
-     data = 0x00;
-     if (fdata[src+i] & mask)
-      {
-       data = attr;
-      }
-     write_byte_far(0xa000,dest+j,data);
+     pix[j] = (fdata[src+i] & mask) ? attr : 0x00;
      mask >>= 1;
     }
+   lin_write(addr+i*line,pix,8);
   }
 }
 
