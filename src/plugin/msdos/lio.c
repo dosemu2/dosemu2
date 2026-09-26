@@ -30,7 +30,12 @@
 #include "hlpmisc.h"
 #include "lio.h"
 
-#define D_16_32(x) (is_32 ? (x) : (x) & 0xffff)
+/* The registers a DOS call was given follow the code that issued it, not
+ * the bitness the client registered with: a 32bit client may run 16bit
+ * code, which sets dx and cx and never the high halves. The frame we
+ * build below and the real mode call we make are the client's own, so
+ * those keep is_32. */
+#define A_16_32(x) (api_32 ? (x) : (x) & 0xffff)
 
 enum { DOSHLP_LR, DOSHLP_LW, LIOHLP_MAX };
 
@@ -40,6 +45,7 @@ struct liohlp_priv {
     unsigned short rm_seg;
     void (*post)(cpuctx_t *);
     int is_32;
+    int api_32;
 };
 static struct liohlp_priv lio_priv[LIOHLP_MAX];
 
@@ -60,7 +66,7 @@ static unsigned short lio_rmseg(cpuctx_t *scp, int off, void *arg)
     return h->rm_seg;
 }
 
-static void liohlp_setup(int hlp, int is_32,
+static void liohlp_setup(int hlp, int is_32, int api_32,
 	unsigned short rm_seg, void (*post)(cpuctx_t *))
 {
     struct liohlp_priv *h = &lio_priv[hlp];
@@ -68,6 +74,7 @@ static void liohlp_setup(int hlp, int is_32,
     h->rm_seg = rm_seg;
     h->post = post;
     h->is_32 = is_32;
+    h->api_32 = api_32;
 }
 
 static void do_callf(cpuctx_t *scp, int is_32, struct pmaddr_s pma)
@@ -88,17 +95,17 @@ static void do_callf(cpuctx_t *scp, int is_32, struct pmaddr_s pma)
     _eip = pma.offset;
 }
 
-void msdos_lr_helper(cpuctx_t *scp, int is_32,
+void msdos_lr_helper(cpuctx_t *scp, int is_32, int api_32,
 	unsigned short rm_seg, void (*post)(cpuctx_t *))
 {
-    liohlp_setup(DOSHLP_LR, is_32, rm_seg, post);
+    liohlp_setup(DOSHLP_LR, is_32, api_32, rm_seg, post);
     do_callf(scp, is_32, doshlp_get_entry(helpers[DOSHLP_LR].entry));
 }
 
-void msdos_lw_helper(cpuctx_t *scp, int is_32,
+void msdos_lw_helper(cpuctx_t *scp, int is_32, int api_32,
 	unsigned short rm_seg, void (*post)(cpuctx_t *))
 {
-    liohlp_setup(DOSHLP_LW, is_32, rm_seg, post);
+    liohlp_setup(DOSHLP_LW, is_32, api_32, rm_seg, post);
     do_callf(scp, is_32, doshlp_get_entry(helpers[DOSHLP_LW].entry));
 }
 
@@ -119,9 +126,10 @@ static void lrhlp_thr(void *arg)
     __dpmi_regs *rmreg = &_rmreg;
     unsigned short rm_seg = hlp->rm_seg;
     int is_32 = hlp->is_32;
-    dosaddr_t buf = GetSegmentBase(_ds) + D_16_32(_edx);
+    int api_32 = hlp->api_32;
+    dosaddr_t buf = GetSegmentBase(_ds) + A_16_32(_edx);
     dosaddr_t dos_buf = SEGOFF2LINEAR(rm_seg, 0);
-    int len = D_16_32(_ecx);
+    int len = A_16_32(_ecx);
     int done = 0;
 
     if (rm_seg == (unsigned short)-1) {
@@ -183,9 +191,10 @@ static void lwhlp_thr(void *arg)
     __dpmi_regs *rmreg = &_rmreg;
     unsigned short rm_seg = hlp->rm_seg;
     int is_32 = hlp->is_32;
-    dosaddr_t buf = GetSegmentBase(_ds) + D_16_32(_edx);
+    int api_32 = hlp->api_32;
+    dosaddr_t buf = GetSegmentBase(_ds) + A_16_32(_edx);
     dosaddr_t dos_buf = SEGOFF2LINEAR(rm_seg, 0);
-    int len = D_16_32(_ecx);
+    int len = A_16_32(_ecx);
     int done = 0;
 
     if (rm_seg == (unsigned short)-1) {
