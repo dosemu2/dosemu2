@@ -86,6 +86,14 @@
 
 static vga_mode_info *get_vmi(void)
 {
+    /* The BDA has room for only 7 bits of mode number, so it cannot name a
+     * VESA mode: int 10h stores 0x7f there for the ones that have no VGA
+     * number at all, and truncation makes the rest answer to some unrelated
+     * mode.  Either way we would end up working on the wrong mode info --
+     * a 32bpp mode read back as 16bpp, say.  This is the host side of the
+     * BIOS, so ask vgaemu which mode is really up instead. */
+    if (vga.VESA_mode >= 0x100)
+        return vga_emu_find_mode(vga.VESA_mode, NULL);
     return vga_emu_find_mode(READ_BYTE(BIOS_VIDEO_MODE), NULL);
 }
 
@@ -330,6 +338,175 @@ Bit8u xstart,Bit8u ystart,Bit8u cols,Bit8u nbcols,Bit8u cheight,Bit8u attr)
 }
 
 // --------------------------------------------------------------------------------------------
+//
+// Direct colour (15/16/24/32 bpp) support.
+//
+// These modes differ from the ones above in two ways.  A pixel is a packed
+// RGB value rather than a palette index, so the 8 bit colour the int 10h
+// caller hands us has to go through the DAC first; and the framebuffer is
+// far larger than the 64k window at 0xa0000, so it cannot be addressed the
+// way the other paths address it.  We therefore write to the VGA memory
+// directly and mark the touched pages dirty, which is what vga_write() does
+// once it has resolved an address.
+//
+
+static int direct_colour(int type)
+{
+ return type == LINEAR15 || type == LINEAR16 ||
+        type == LINEAR24 || type == LINEAR32;
+}
+
+static int dc_bytes(int type)
+{
+ switch(type)
+  {
+   case LINEAR15:
+   case LINEAR16: return 2;
+   case LINEAR24: return 3;
+   case LINEAR32: return 4;
+  }
+ return 0;
+}
+
+// Turn an int 10h colour into what this mode keeps in video memory.
+static unsigned dc_colour(int type, Bit8u attr)
+{
+ DAC_entry de;
+ unsigned r, g, b, sh;
+
+ DAC_get_entry(&de, attr);
+ sh = vga.dac.bits < 8 ? 8 - vga.dac.bits : 0;
+ r = de.r << sh; g = de.g << sh; b = de.b << sh;
+ // Replicate the top bits into the ones the DAC does not have, or the
+ // brightest palette entry would come out as 0xfc rather than white.
+ if(sh)
+  {
+   r |= r >> vga.dac.bits;
+   g |= g >> vga.dac.bits;
+   b |= b >> vga.dac.bits;
+  }
+ r &= 0xff; g &= 0xff; b &= 0xff;
+
+ switch(type)
+  {
+   case LINEAR15:
+     return ((r >> 3) << 10) | ((g >> 3) << 5) | (b >> 3);
+   case LINEAR16:
+     return ((r >> 3) << 11) | ((g >> 2) << 5) | (b >> 3);
+  }
+ return (r << 16) | (g << 8) | b;
+}
+
+// One pixel, without telling anyone the screen changed.  A run of these is
+// cheaper to report once at the end than one at a time.
+static void dc_poke(unsigned off, unsigned colour, int bytes)
+{
+ int i;
+
+ for(i = 0; i < bytes; i++)
+   vga.mem.base[off + i] = colour >> (i * 8);
+}
+
+static void dc_put(unsigned off, unsigned colour, int bytes)
+{
+ if(off + bytes > vga.mem.size)
+   return;
+ dc_poke(off, colour, bytes);
+ vga_mark_dirty(off, bytes);
+}
+
+static void dc_fill(unsigned off, unsigned colour, int bytes, unsigned pixels)
+{
+ unsigned i, len = pixels * bytes;
+
+ if(!pixels || off + len > vga.mem.size)
+   return;
+ for(i = 0; i < pixels; i++)
+   dc_poke(off + i * bytes, colour, bytes);
+ vga_mark_dirty(off, len);
+}
+
+static unsigned dc_get(unsigned off, int bytes)
+{
+ unsigned v = 0;
+ int i;
+
+ if(off + bytes > vga.mem.size)
+   return 0;
+ for(i = 0; i < bytes; i++)
+   v |= (unsigned)vga.mem.base[off + i] << (i * 8);
+ return v;
+}
+
+// Bytes from the start of video memory to the top left of a character cell.
+static unsigned dc_cell(unsigned vstart, Bit8u xcurs, Bit8u ycurs,
+	Bit8u cheight, int bytes)
+{
+ return vstart + (unsigned)ycurs * cheight * vga.scan_len +
+        (unsigned)xcurs * 8 * bytes;
+}
+
+// --------------------------------------------------------------------------------------------
+static void write_gfx_char_dc(unsigned vstart,Bit8u car,Bit8u attr,
+	Bit8u xcurs,Bit8u ycurs,Bit8u cheight,int type)
+{
+ Bit8u *fdata;
+ Bit8u i,j,mask;
+ int bytes = dc_bytes(type);
+ unsigned fg = dc_colour(type, attr);
+ unsigned bg = dc_colour(type, 0);
+ unsigned src;
+
+ fdata = dosaddr_to_unixaddr(IVEC(0x43));
+ src = (unsigned)car * cheight;
+ for(i=0;i<cheight;i++)
+  {
+   unsigned dest = dc_cell(vstart,xcurs,ycurs,cheight,bytes) + i * vga.scan_len;
+   if(dest + 8 * bytes > vga.mem.size)
+     continue;
+   mask = 0x80;
+   for(j=0;j<8;j++)
+    {
+     dc_poke(dest + j * bytes, (fdata[src+i] & mask) ? fg : bg, bytes);
+     mask >>= 1;
+    }
+   vga_mark_dirty(dest, 8 * bytes);
+  }
+}
+
+// --------------------------------------------------------------------------------------------
+static void vgamem_fill_dc(
+Bit8u xstart,Bit8u ystart,Bit8u cols,Bit8u rows,Bit8u cheight,Bit8u attr,int type)
+{
+ int bytes = dc_bytes(type);
+ unsigned colour = dc_colour(type, attr);
+ unsigned i, n = (unsigned)cheight * rows;
+
+ for(i=0;i<n;i++)
+   dc_fill(dc_cell(0,xstart,ystart,cheight,bytes) + i * vga.scan_len,
+           colour, bytes, (unsigned)cols * 8);
+}
+
+// --------------------------------------------------------------------------------------------
+static void vgamem_copy_dc(
+Bit8u xstart,Bit8u ysrc,Bit8u ydest,Bit8u cols,Bit8u cheight,int type)
+{
+ int bytes = dc_bytes(type);
+ unsigned len = (unsigned)cols * 8 * bytes;
+ Bit8u i;
+
+ for(i=0;i<cheight;i++)
+  {
+   unsigned src = dc_cell(0,xstart,ysrc,cheight,bytes) + i * vga.scan_len;
+   unsigned dest = dc_cell(0,xstart,ydest,cheight,bytes) + i * vga.scan_len;
+   if(src + len > vga.mem.size || dest + len > vga.mem.size)
+     continue;
+   memmove(vga.mem.base + dest, vga.mem.base + src, len);
+   vga_mark_dirty(dest, len);
+  }
+}
+
+// --------------------------------------------------------------------------------------------
 static void vgamem_copy_lin(
 Bit8u xstart,Bit8u ysrc,Bit8u ydest,Bit8u cols,Bit8u nbcols,Bit8u cheight)
 {
@@ -431,10 +608,10 @@ Bit8u dir)
   }
  else
   {
-   // FIXME gfx modes > 8 bpp not supported
    address=READ_WORD(BIOS_VIDEO_MEMORY_USED)*page;
    cheight=read_bda_byte(BIOSMEM_CHAR_HEIGHT);
-   if(nblines==0&&rul==0&&cul==0&&rlr==nbrows-1&&clr==nbcols-1&&vmi->type!=LINEAR8)
+   if(nblines==0&&rul==0&&cul==0&&rlr==nbrows-1&&clr==nbcols-1&&
+      vmi->type!=LINEAR8&&!direct_colour(vmi->type))
     {
      switch(vmi->type)
       {
@@ -522,6 +699,31 @@ Bit8u dir)
               vgamem_fill_lin(cul,i,cols,1,nbcols,cheight,attr);
              else
               vgamem_copy_lin(cul,i-nblines,i,cols,nbcols,cheight);
+            }
+          }
+         break;
+       case LINEAR15:
+       case LINEAR16:
+       case LINEAR24:
+       case LINEAR32:
+         if(nblines==0)
+          vgamem_fill_dc(cul,rul,cols,rlr-rul+1,cheight,attr,vmi->type);
+         else if(dir==SCROLL_UP)
+          {for(i=rul;i<=rlr;i++)
+            {
+             if(i+nblines>rlr)
+              vgamem_fill_dc(cul,i,cols,1,cheight,attr,vmi->type);
+             else
+              vgamem_copy_dc(cul,i+nblines,i,cols,cheight,vmi->type);
+            }
+          }
+         else
+          {for(i=rlr;i>=rul;i--)
+            {
+             if(i<rul+nblines)
+              vgamem_fill_dc(cul,i,cols,1,cheight,attr,vmi->type);
+             else
+              vgamem_copy_dc(cul,i-nblines,i,cols,cheight,vmi->type);
             }
           }
          break;
@@ -764,7 +966,6 @@ static void biosfn_write_char_attr (Bit8u car,Bit8u page,Bit8u attr,
   }
  else
   {
-   // FIXME gfx modes > 8 bpp not supported
    address=READ_WORD(BIOS_VIDEO_MEMORY_USED)*page;
    cheight=read_bda_byte(BIOSMEM_CHAR_HEIGHT);
    bpp=vmi->color_bits;
@@ -781,6 +982,12 @@ static void biosfn_write_char_attr (Bit8u car,Bit8u page,Bit8u attr,
          break;
        case LINEAR8:
          write_gfx_char_lin(address,car,attr,xcurs,ycurs,nbcols,cheight);
+         break;
+       case LINEAR15:
+       case LINEAR16:
+       case LINEAR24:
+       case LINEAR32:
+         write_gfx_char_dc(address,car,attr,xcurs,ycurs,cheight,vmi->type);
          break;
 #ifdef DEBUG
        default:
@@ -826,7 +1033,6 @@ static void biosfn_write_char_only (Bit8u car,Bit8u page,Bit8u attr,
   }
  else
   {
-   // FIXME gfx modes > 8 bpp not supported
    address=READ_WORD(BIOS_VIDEO_MEMORY_USED)*page;
    cheight=read_bda_byte(BIOSMEM_CHAR_HEIGHT);
    bpp=vmi->color_bits;
@@ -843,6 +1049,12 @@ static void biosfn_write_char_only (Bit8u car,Bit8u page,Bit8u attr,
          break;
        case LINEAR8:
          write_gfx_char_lin(address,car,attr,xcurs,ycurs,nbcols,cheight);
+         break;
+       case LINEAR15:
+       case LINEAR16:
+       case LINEAR24:
+       case LINEAR32:
+         write_gfx_char_dc(address,car,attr,xcurs,ycurs,cheight,vmi->type);
          break;
 #ifdef DEBUG
        default:
@@ -955,6 +1167,20 @@ ASM_END
        READ_WORD(BIOS_VIDEO_MEMORY_USED)*BH;
      write_byte_far(0xa000,addr,AL);
      break;
+   case LINEAR15:
+   case LINEAR16:
+   case LINEAR24:
+   case LINEAR32:
+    {
+     int bytes = dc_bytes(vmi->type);
+     unsigned off = READ_WORD(BIOS_VIDEO_MEMORY_USED)*BH+
+       (unsigned)DX*vga.scan_len+(unsigned)CX*bytes;
+     unsigned colour = dc_colour(vmi->type, AL & 0x7f);
+     if(AL & 0x80)
+       colour ^= dc_get(off, bytes);
+     dc_put(off, colour, bytes);
+    }
+     break;
 #ifdef DEBUG
    default:
      unimplemented();
@@ -1014,6 +1240,32 @@ static unsigned char biosfn_read_pixel(Bit8u BH,Bit16u CX,Bit16u DX)
      addr=CX+DX*(read_bda_word(BIOSMEM_NB_COLS)*8)+
        READ_WORD(BIOS_VIDEO_MEMORY_USED)*BH;
      attr=read_byte_far(0xa000,addr);
+     break;
+   case LINEAR15:
+   case LINEAR16:
+   case LINEAR24:
+   case LINEAR32:
+    {
+     // There is no palette index in video memory to hand back, so look for
+     // the entry this pixel would have come from.  That makes a pixel the
+     // BIOS itself drew read back as the colour it was drawn with; for any
+     // other pixel there is no right answer, and we return the low byte.
+     int bytes = dc_bytes(vmi->type);
+     unsigned off = READ_WORD(BIOS_VIDEO_MEMORY_USED)*BH+
+       (unsigned)DX*vga.scan_len+(unsigned)CX*bytes;
+     unsigned pix = dc_get(off, bytes);
+     unsigned k;
+     if(bytes == 4) pix &= 0xffffff;
+     attr = pix;
+     for(k=0;k<0x100;k++)
+      {
+       if(dc_colour(vmi->type, k) == pix)
+        {
+         attr = k;
+         break;
+        }
+      }
+    }
      break;
    default:
 #ifdef DEBUG
@@ -1106,8 +1358,7 @@ static void biosfn_write_teletype(Bit8u car,Bit8u page,Bit8u attr,Bit8u flag)
     else
      {
       address=READ_WORD(BIOS_VIDEO_MEMORY_USED)*page;
-      // FIXME gfx modes > 8 bpp not supported
-      cheight=read_bda_byte(BIOSMEM_CHAR_HEIGHT);
+         cheight=read_bda_byte(BIOSMEM_CHAR_HEIGHT);
       bpp=vmi->color_bits;
       switch(vmi->type)
        {
@@ -1120,6 +1371,12 @@ static void biosfn_write_teletype(Bit8u car,Bit8u page,Bit8u attr,Bit8u flag)
           break;
         case LINEAR8:
           write_gfx_char_lin(address,car,attr,xcurs,ycurs,nbcols,cheight);
+          break;
+        case LINEAR15:
+        case LINEAR16:
+        case LINEAR24:
+        case LINEAR32:
+          write_gfx_char_dc(address,car,attr,xcurs,ycurs,cheight,vmi->type);
           break;
 #ifdef DEBUG
         default:
