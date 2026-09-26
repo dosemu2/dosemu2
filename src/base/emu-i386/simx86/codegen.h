@@ -140,6 +140,7 @@
 #define O_MOVS_ScaD	105
 #define O_MOVS_CmpD	106
 #define O_RDTSC		107
+#define O_CMOV		108
 
 #define JMP_TAILCODE	112
 
