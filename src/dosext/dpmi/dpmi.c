@@ -5131,6 +5131,19 @@ static void return_from_hwint(cpuctx_t *scp, void * const sp)
   unsigned char imr;
   unsigned int val;
   int inum;
+
+  /* The frame below belongs to the delivery that is still outstanding.
+   * Without one there is nothing here but whatever the client left on
+   * its stack, and reading it would put the client back at an address
+   * of our own choosing, over and over: a client whose handler restores
+   * SS:SP from a saved copy and irets a second time then never leaves
+   * that loop, and nothing says so because the count only goes down.
+   * Say it once and stop, the way a corrupted frame below does. */
+  if (!in_dpmi_irq) {
+    error("DPMI: return from hardware interrupt that was not delivered\n");
+    D_printf("%s", DPMI_show_state(scp));
+    leavedos(38);
+  }
   leave_lpms(scp);
       D_printf("DPMI: Return from hardware interrupt handler, "
     "in_dpmi_pm_stack=%i\n", DPMI_CLIENT.in_dpmi_pm_stack);
