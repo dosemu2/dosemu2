@@ -175,10 +175,6 @@ static dpmi_pm_block_root host_pm_block_root;
 static uint8_t _ldt_buffer[LDT_ENTRIES * LDT_ENTRY_SIZE];
 uint8_t *ldt_buffer = _ldt_buffer;
 static unsigned short _dpmi_sel16, _dpmi_sel32;
-unsigned short dpmi_sel(void)
-{
-  return DPMI_CLIENT.is_32 ? _dpmi_sel32 : _dpmi_sel16;
-}
 unsigned short dpmi_sel16(void) { return _dpmi_sel16; }
 unsigned short dpmi_sel32(void) { return _dpmi_sel32; }
 
@@ -337,6 +333,13 @@ static SEGDESC Segments(unsigned short ldt_entry)
 /* with THUNK_16_32 a 16bit client may run 32bit code */
 #define API_32x(sel) (DPMI_CLIENT.is_32 || (Segments((sel) >> 3).is_32 && \
     ext__thunk_16_32))
+
+/* our code selector of the bitness of the running code */
+unsigned short dpmi_sel(void)
+{
+  cpuctx_t *scp = &DPMI_CLIENT.stack_frame;
+  return API_32x(_cs) ? _dpmi_sel32 : _dpmi_sel16;
+}
 
 static void *SEL_ADR_LDT(unsigned short sel, unsigned int reg, int is_32)
 {
@@ -2334,7 +2337,7 @@ static void do_ldt_call(cpuctx_t *scp, ldt_calldesc call, int ent,
     dpmi_pusha(scp, sp, 1);
     sp = SEL_ADR(_ss, _esp);
     make_retf_frame(scp, sp, dpmi_sel(),
-            DPMI_CLIENT.is_32 ? DPMI_SEL_OFF(DPMI_return_from_LDTcall) :
+            API_32x(_cs) ? DPMI_SEL_OFF(DPMI_return_from_LDTcall) :
             DPMI_SEL_OFF(DPMI_return_from_LDTcall16));
     _do_ldt_call(scp, call, ent, num);
     D_printf("DPMI: LDT call %i to %x:%x sel=%x,%i\n",
@@ -2446,7 +2449,7 @@ static void ldt_process_end(cpuctx_t *scp, ldt_calldesc call,
 
 static void dpmi_ldt_call(cpuctx_t *scp)
 {
-    ldt_calldesc call = DPMI_CLIENT.is_32 ? ldt_call32 : ldt_call16;
+    ldt_calldesc call = API_32x(_cs) ? ldt_call32 : ldt_call16;
     int i;
     struct chunk_state state = { .ent = -1 };
 
