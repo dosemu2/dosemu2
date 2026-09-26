@@ -116,13 +116,16 @@ static void fdpp_panic(const char *msg)
 
 static void fdpp_print(int prio, const char *format, va_list ap)
 {
-    switch(prio) {
+    switch(prio & 0xffff) {
     case FDPP_PRINT_TERMINAL:
         vfprintf(stderr, format, ap);
         break;
     case FDPP_PRINT_LOG:
         if (debug_level('f')) {
-            log_printf("fdpp: ");
+#ifdef FDPP_PRINT_LOG_NOPREFIX
+            if (!(prio & FDPP_PRINT_LOG_NOPREFIX))
+#endif
+                log_printf("fdpp: ");
             vlog_printf(format, ap);
         }
         break;
