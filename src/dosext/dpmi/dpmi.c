@@ -4098,7 +4098,7 @@ static void do_pm_int(cpuctx_t *scp, int i)
     *--ssp = _cs;
     *--ssp = _eip;
     *--ssp = dpmi_flags_to_stack(_eflags);
-    *--ssp = dpmi_sel();
+    *--ssp = _dpmi_sel32;
     *--ssp = DPMI_SEL_OFF(DPMI_return_from_pm);
     _esp -= 48;
   } else {
@@ -4118,7 +4118,7 @@ static void do_pm_int(cpuctx_t *scp, int i)
     *--ssp = _cs;
     *--ssp = (unsigned short) _eip;
     *--ssp = (unsigned short) dpmi_flags_to_stack(_eflags);
-    *--ssp = dpmi_sel();
+    *--ssp = _dpmi_sel16;
     *--ssp = DPMI_SEL_OFF(DPMI_return_from_pm);
     LO_WORD(_esp) -= 24;
   }
@@ -4875,11 +4875,11 @@ static void do_pm_cpu_exception(cpuctx_t *scp, INTDESC entry)
   *--ssp = _eip;
   *--ssp = _err;
   if (DPMI_CLIENT.is_32) {
-    *--ssp = dpmi_sel();
+    *--ssp = _dpmi_sel32;
     *--ssp = DPMI_SEL_OFF(DPMI_return_from_ext_exception);
   } else {
     *--ssp = 0;
-    *--ssp = (dpmi_sel() << 16) | DPMI_SEL_OFF(DPMI_return_from_ext_exception);
+    *--ssp = (_dpmi_sel16 << 16) | DPMI_SEL_OFF(DPMI_return_from_ext_exception);
   }
   /* Standard exception stack frame - DPMI 0.9 */
   if (DPMI_CLIENT.is_32) {
@@ -4889,7 +4889,7 @@ static void do_pm_cpu_exception(cpuctx_t *scp, INTDESC entry)
     *--ssp = _cs;
     *--ssp = _eip;
     *--ssp = _err;
-    *--ssp = dpmi_sel();
+    *--ssp = _dpmi_sel32;
     *--ssp = DPMI_SEL_OFF(DPMI_return_from_exception);
   } else {
     *--ssp = 0;
@@ -4900,7 +4900,7 @@ static void do_pm_cpu_exception(cpuctx_t *scp, INTDESC entry)
     *--ssp = (old_ss << 16) | (unsigned short) old_esp;
     *--ssp = ((unsigned short) dpmi_flags_to_stack(_eflags) << 16) | _cs;
     *--ssp = (_LWORD_(eip) << 16) | _err;
-    *--ssp = (dpmi_sel() << 16) | DPMI_SEL_OFF(DPMI_return_from_exception);
+    *--ssp = (_dpmi_sel16 << 16) | DPMI_SEL_OFF(DPMI_return_from_exception);
   }
   ADD_16_32(_esp, -0x58);
 
@@ -4946,7 +4946,7 @@ int dpmi_realmode_exception(unsigned trapno, unsigned err, uint32_t cr2)
     *--ssp = DPMI_SEL_OFF(DPMI_return_from_rm_ext_exception);
   } else {
     *--ssp = 0;
-    *--ssp = (dpmi_sel() << 16) | DPMI_SEL_OFF(DPMI_return_from_rm_ext_exception);
+    *--ssp = (_dpmi_sel16 << 16) | DPMI_SEL_OFF(DPMI_return_from_rm_ext_exception);
   }
   /* Standard exception stack frame - DPMI 0.9 */
   if (DPMI_CLIENT.is_32) {
@@ -4967,7 +4967,7 @@ int dpmi_realmode_exception(unsigned trapno, unsigned err, uint32_t cr2)
     *--ssp = (old_ss << 16) | (unsigned short) old_esp;
     *--ssp = ((unsigned short) dpmi_flags_to_stack(_eflags) << 16) | _cs;
     *--ssp = (_LWORD_(eip) << 16) | _err;
-    *--ssp = (dpmi_sel() << 16) | DPMI_SEL_OFF(DPMI_return_from_rm_exception);
+    *--ssp = (_dpmi_sel16 << 16) | DPMI_SEL_OFF(DPMI_return_from_rm_exception);
   }
   ADD_16_32(_esp, -0x58);
 
@@ -5000,7 +5000,7 @@ static void do_legacy_cpu_exception(cpuctx_t *scp, INTDESC entry)
     *--ssp = _cs;
     *--ssp = _eip;
     *--ssp = _err;
-    *--ssp = dpmi_sel();
+    *--ssp = _dpmi_sel32;
     *--ssp = DPMI_SEL_OFF(DPMI_return_from_exception);
     ADD_16_32(_esp, -0x20);
   } else {
@@ -5008,7 +5008,7 @@ static void do_legacy_cpu_exception(cpuctx_t *scp, INTDESC entry)
     *--ssp = (old_ss << 16) | (unsigned short) old_esp;
     *--ssp = ((unsigned short) dpmi_flags_to_stack(_eflags) << 16) | _cs;
     *--ssp = (_LWORD_(eip) << 16) | _err;
-    *--ssp = (dpmi_sel() << 16) | DPMI_SEL_OFF(DPMI_return_from_exception);
+    *--ssp = (_dpmi_sel16 << 16) | DPMI_SEL_OFF(DPMI_return_from_exception);
     ADD_16_32(_esp, -0x14);
   }
 
