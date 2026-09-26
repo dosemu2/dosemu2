@@ -267,6 +267,7 @@ void dpmi_init(void);
 extern unsigned short dpmi_sel(void);
 extern unsigned short dpmi_sel16(void);
 extern unsigned short dpmi_sel32(void);
+int dpmi_api32(cpuctx_t *scp);
 unsigned dpmi_mem_size(void);
 void dump_maps(void);
 

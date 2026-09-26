@@ -334,6 +334,12 @@ static SEGDESC Segments(unsigned short ldt_entry)
 #define API_32x(sel) (DPMI_CLIENT.is_32 || (Segments((sel) >> 3).is_32 && \
     ext__thunk_16_32))
 
+/* the bitness of the API for the running code, as int31 serves it */
+int dpmi_api32(cpuctx_t *scp)
+{
+  return API_32x(_cs);
+}
+
 /* our code selector of the bitness of the running code */
 unsigned short dpmi_sel(void)
 {
