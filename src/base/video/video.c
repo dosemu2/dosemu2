@@ -177,7 +177,6 @@ struct video_system *video_get(const char *name)
 static void init_video_none(void)
 {
     c_printf("VID: Video set to Video_none\n");
-    config.cardtype = CARD_NONE;
     config.console_video = config.mapped_bios = config.vga = 0;
     Video=&Video_none;
     config.term = 1;
@@ -362,22 +361,18 @@ static void do_reserve_vmem(dosaddr_t base, int len)
 
 static void reserve_video_memory(void)
 {
-  if (config.umb_b0 && !config.dualmon) {
-    if (!config.umb_a0)
-      do_reserve_vmem(GRAPH_BASE, GRAPH_SIZE);
-    if (!config.umb_b8)
-      do_reserve_vmem(VGA_PHYS_TEXT_BASE, VGA_TEXT_SIZE);
-  } else if (config.umb_b8) {
-    if (!config.umb_a0)
-      do_reserve_vmem(GRAPH_BASE, GRAPH_SIZE);
-    if (!config.umb_b0)
-      do_reserve_vmem(MDA_PHYS_TEXT_BASE, VGA_TEXT_SIZE);
-  } else {
-    if (!config.umb_a0)
-      do_reserve_vmem(VMEM_BASE, VMEM_SIZE);
-    else
-      do_reserve_vmem(VMEM_BASE + 0x10000, VMEM_SIZE - 0x10000);
+  int umb_b0 = config.umb_b0 && !config.dualmon;
+
+  if (!config.umb_a0 && !umb_b0 && !config.umb_b8) {
+    do_reserve_vmem(VMEM_BASE, VMEM_SIZE);
+    return;
   }
+  if (!config.umb_a0)
+    do_reserve_vmem(GRAPH_BASE, GRAPH_SIZE);
+  if (!umb_b0)
+    do_reserve_vmem(MDA_PHYS_TEXT_BASE, MDA_TEXT_SIZE);
+  if (!config.umb_b8)
+    do_reserve_vmem(VGA_PHYS_TEXT_BASE, VGA_TEXT_SIZE);
 }
 
 void
