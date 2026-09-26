@@ -2341,9 +2341,9 @@ static void do_ldt_call_b(cpuctx_t *scp, ldt_calldesc call, int ent,
 
     save_pm_regs(scp);
     sp = enter_lpms(scp);
+    _do_ldt_call(scp, call, ent, num);
     make_xretf_frame(scp, sp, dpmi_sel(),
             DPMI_SEL_OFF(DPMI_return_from_LDTExitCall));
-    _do_ldt_call(scp, call, ent, num);
     D_printf("DPMI: LDT bulk call %i to %x:%x sel=%x,%i\n",
                     cnt, _cs, _eip, _ebx, _ecx);
 }
@@ -3553,10 +3553,10 @@ static void dpmi_realmode_callback(int rmcb_client, int num)
      * will produce an exception 10 as soon as we return from the
      * callback! */
     _eflags =  REG(eflags)&(~(AC|VM|TF|NT));
-    make_iret_frame(scp, sp, dpmi_sel(),
-	    DPMI_SEL_OFF(DPMI_return_from_rm_callback));
     _cs = DPMIclient[rmcb_client].realModeCallBack[num].selector;
     _eip = DPMIclient[rmcb_client].realModeCallBack[num].offset;
+    make_iret_frame(scp, sp, dpmi_sel(),
+	    DPMI_SEL_OFF(DPMI_return_from_rm_callback));
     SetSelector(DPMIclient[rmcb_client].realModeCallBack[num].rm_ss_selector,
 		(SREG(ss)<<4), 0xffff, DPMI_CLIENT.is_32,
 		MODIFY_LDT_CONTENTS_DATA, 0, 0, 0, 0);
@@ -3633,6 +3633,8 @@ static void do_RSP_call(cpuctx_t *scp, int num, int clnt,
 
   save_pm_regs(scp);
   sp = enter_lpms(scp);
+  _cs = DPMI_CLIENT.RSP_cs[num];
+  _eip = eip;
   if (terminating == 1)
     make_xretf_frame(scp, sp, dpmi_sel(),
         DPMI_SEL_OFF(DPMI_return_from_RSPcall_exit));
@@ -3643,8 +3645,6 @@ static void do_RSP_call(cpuctx_t *scp, int num, int clnt,
 
   _es = _fs = _gs = 0;
   _ds = DPMI_CLIENT.RSP_ds[num];
-  _cs = DPMI_CLIENT.RSP_cs[num];
-  _eip = eip;
   _eax = terminating;
   _ebx = clnt;
   /* extension: ecx has inherit_idt flag on startup and prev client on term */
@@ -4221,9 +4221,9 @@ static void run_pm_dos_int(int i)
   }
 
   D_printf("DPMI: Calling protected mode handler for DOS int 0x%02x\n", i);
-  make_iret_frame(scp, sp, dpmi_sel(), ret_eip);
   _cs = DPMI_CLIENT.Interrupt_Table[i].selector;
   _eip = DPMI_CLIENT.Interrupt_Table[i].offset;
+  make_iret_frame(scp, sp, dpmi_sel(), ret_eip);
   _eflags &= ~(TF | NT | AC);
   dpmi_set_pm(1);
   dpmi_cli();
@@ -4796,6 +4796,8 @@ static void cpu_exception_rm(cpuctx_t *scp, int trapno)
 static void do_default_cpu_exception(cpuctx_t *scp, int trapno)
 {
     void * sp;
+    unsigned short cs;
+    uint32_t eip;
     sp = (uint16_t *)SEL_ADR(_ss,_esp);
 
 #ifdef TRACE_DPMI
@@ -4828,11 +4830,13 @@ static void do_default_cpu_exception(cpuctx_t *scp, int trapno)
       cpu_exception_rm(scp, trapno);
       return;
     }
-    make_iret_frame(scp, sp, _cs, _eip);
-    dpmi_cli();
-    _eflags &= ~(TF | NT | AC);
+    cs = _cs;
+    eip = _eip;
     _cs = DPMI_CLIENT.Interrupt_Table[trapno].selector;
     _eip = DPMI_CLIENT.Interrupt_Table[trapno].offset;
+    make_iret_frame(scp, sp, cs, eip);
+    dpmi_cli();
+    _eflags &= ~(TF | NT | AC);
 }
 
 /*
@@ -5634,13 +5638,13 @@ static int dpmi_gpf_simple(cpuctx_t *scp, uint8_t *lina, void *sp, int *rv)
         uint32_t eip2 = _eip;
 	if (debug_level('M')>=9)
           D_printf("DPMI: int 0x%x\n", lina[1]);
-	make_iret_frame(scp, sp, _cs, _eip);
+	_cs = DPMI_CLIENT.Interrupt_Table[inum].selector;
+	_eip = DPMI_CLIENT.Interrupt_Table[inum].offset;
+	make_iret_frame(scp, sp, cs2, eip2);
 	if (inum<=7) {
 	  dpmi_cli();
 	}
 	_eflags &= ~(TF | NT | AC);
-	_cs = DPMI_CLIENT.Interrupt_Table[inum].selector;
-	_eip = DPMI_CLIENT.Interrupt_Table[inum].offset;
 	D_printf("DPMI: call inthandler %#02x(%#04x) at %#04x:%#08x\n\t\tret=%#04x:%#08x\n",
 		inum, _LWORD(eax), _cs, _eip, cs2, eip2);
 	if ((inum == 0x2f)&&((_LWORD(eax)==
