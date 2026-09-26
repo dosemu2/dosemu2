@@ -232,11 +232,11 @@ static inline dosaddr_t EMUADDR_REL(const unsigned char *a)
 */
 extern uint8_t *lowmem_base;
 
-#define UNIX_READ_BYTE(addr)		(*(Bit8u *) (addr))
+#define UNIX_READ_BYTE(addr)		(*(const Bit8u *) (addr))
 #define UNIX_WRITE_BYTE(addr, val)	(*(Bit8u *) (addr) = (val) )
-#define UNIX_READ_WORD(addr)		(*(Bit16u *) (addr))
+#define UNIX_READ_WORD(addr)		(*(const Bit16u *) (addr))
 #define UNIX_WRITE_WORD(addr, val)	(*(Bit16u *) (addr) = (val) )
-#define UNIX_READ_DWORD(addr)		(*(Bit32u *) (addr))
+#define UNIX_READ_DWORD(addr)		(*(const Bit32u *) (addr))
 #define UNIX_WRITE_DWORD(addr, val)	(*(Bit32u *) (addr) = (val) )
 
 #define LOWMEM(addr) ((void *)(&lowmem_base[addr]))
