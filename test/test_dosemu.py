@@ -82,6 +82,7 @@ from func_network import network_mtcp
 from func_ipx import ipx_relay
 from func_pktdrvr import pktdriver_api
 from func_pit_mode_2 import pit_mode_2
+from func_pit_readback_status import pit_readback_status
 
 
 class OurTestCase(BaseTestCase):
@@ -1596,6 +1597,10 @@ class OurTestCase(BaseTestCase):
     def test_pit_mode_2(self):
         """PIT Mode 2"""
         pit_mode_2(self)
+
+    def test_pit_readback_status(self):
+        """PIT Read-back status"""
+        pit_readback_status(self)
 
 DRDOS701TestCase = drdos701(OurTestCase, {
     "test_command_com_psp_fcbs": KNOWNFAIL,
