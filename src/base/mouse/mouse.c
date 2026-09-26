@@ -41,14 +41,30 @@ static int mouse_tid;
 
 static void reset_scale(void);
 
+/* The mickey counters are 64 bit, but every caller hands them to the guest
+ * in a 16 bit register.  A program that polls rarely, or one that moved the
+ * mouse across a large host screen with a fine scaling factor, can easily
+ * accumulate more than fits there, and letting that value wrap turns a long
+ * move right into a long move left -- which is what the cursor jumping to
+ * the opposite corner looks like.  Report what a 16 bit register can carry
+ * and leave the rest in the counter for the next read. */
+static int mickey_clamp(long long mk)
+{
+	if (mk > 32767)
+		return 32767;
+	if (mk < -32768)
+		return -32768;
+	return mk;
+}
+
 static int mickeyx(void)
 {
-	return (mouse.unscm_x / (mouse.px_range * 8));
+	return mickey_clamp(mouse.unscm_x / (mouse.px_range * 8));
 }
 
 static int mickeyy(void)
 {
-	return (mouse.unscm_y / (mouse.py_range * 8));
+	return mickey_clamp(mouse.unscm_y / (mouse.py_range * 8));
 }
 
 static int _get_mx(void)
@@ -1546,11 +1562,12 @@ mouse_mickeys(void)
   LWORD(ecx) = mkx;
   LWORD(edx) = mky;
 
-  /* counters get reset after read */
+  /* counters get reset after read, but only by what we reported: with a
+   * clamped value the remainder must survive to the next read */
   if (mkx)
-    mouse.unscm_x -= get_unsc_mk_x(mkx) * 8;
+    mouse.unscm_x -= (long long)mkx * mouse.px_range * 8;
   if (mky)
-    mouse.unscm_y -= get_unsc_mk_y(mky) * 8;
+    mouse.unscm_y -= (long long)mky * mouse.py_range * 8;
 
   if (dragged.cnt) {
     dragged.cnt = 0;
