@@ -337,7 +337,8 @@ static void handle_console_input(char *line)
   /* Check if command valid */
   cmd = find_cmd(line);
   if (!cmd) {
-    fprintf(fpconout, "Command '%s' not implemented\n", line);
+    fprintf(fpconout, "Command '%.*s' not implemented, type ? for the list\n",
+            (int)strcspn(line, " \t"), line);
     return;
   }
 
