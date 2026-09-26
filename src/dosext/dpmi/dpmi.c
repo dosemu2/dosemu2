@@ -1824,8 +1824,8 @@ void dpmi_set_interrupt_vector(unsigned char num, DPMI_INTDESC desc)
         if (DEFAULT_INT(num) || num < 0x20)
             kvm_set_idt_default(num);
         else
-            kvm_set_idt(num, desc.selector, desc.offset32, DPMI_CLIENT.is_32,
-                    num >= 8);
+            kvm_set_idt(num, desc.selector, desc.offset32,
+                    API_32x(desc.selector), num >= 8);
         break;
       case CPUVM_NATIVE:
         if (num == 0x80 && desc.selector != dpmi_sel())
@@ -4086,7 +4086,7 @@ static void do_pm_int(cpuctx_t *scp, int i)
   DPMI_CLIENT.imr[1] = port_inb(0xa1);
 
   D_printf("DPMI: Calling protected mode handler for int 0x%02x\n", i);
-  if (DPMI_CLIENT.is_32) {
+  if (API_32x(DPMI_CLIENT.Interrupt_Table[i].selector)) {
     unsigned int *ssp = sp;
     *--ssp = imr | (i << 8);
     *--ssp = 0;	/* reserved */
@@ -4859,6 +4859,7 @@ static void do_pm_cpu_exception(cpuctx_t *scp, INTDESC entry)
   unsigned int *ssp;
   unsigned short old_ss;
   unsigned int old_esp;
+  int is_32 = API_32x(entry.selector);
 
   old_ss = _ss;
   old_esp = _esp;
@@ -4877,7 +4878,7 @@ static void do_pm_cpu_exception(cpuctx_t *scp, INTDESC entry)
   *--ssp = _cs;  // xflags<<16 are always 0
   *--ssp = _eip;
   *--ssp = _err;
-  if (DPMI_CLIENT.is_32) {
+  if (is_32) {
     *--ssp = _dpmi_sel32;
     *--ssp = DPMI_SEL_OFF(DPMI_return_from_ext_exception);
   } else {
@@ -4885,7 +4886,7 @@ static void do_pm_cpu_exception(cpuctx_t *scp, INTDESC entry)
     *--ssp = (_dpmi_sel16 << 16) | DPMI_SEL_OFF(DPMI_return_from_ext_exception);
   }
   /* Standard exception stack frame - DPMI 0.9 */
-  if (DPMI_CLIENT.is_32) {
+  if (is_32) {
     *--ssp = old_ss;
     *--ssp = old_esp;
     *--ssp = dpmi_flags_to_stack(_eflags);
@@ -4990,13 +4991,14 @@ static void do_legacy_cpu_exception(cpuctx_t *scp, INTDESC entry)
   unsigned int *ssp;
   unsigned short old_ss;
   unsigned int old_esp;
+  int is_32 = API_32x(entry.selector);
 
   old_ss = _ss;
   old_esp = _esp;
   ssp = enter_lpms(scp);
 
   /* Standard exception stack frame - DPMI 0.9 */
-  if (DPMI_CLIENT.is_32) {
+  if (is_32) {
     *--ssp = old_ss;
     *--ssp = old_esp;
     *--ssp = dpmi_flags_to_stack(_eflags);
