@@ -376,7 +376,8 @@ wether a DPMI-client is active (in_dpmi).
 <term>r32</term>
 <listitem>
 <para>
-		  dump regs in 32 bit format
+		  dump the regs, and switch between the 16 and 32 bit format
+		  <command>r</command> shows them in
 </para>
 </listitem></varlistentry>
 <varlistentry>
