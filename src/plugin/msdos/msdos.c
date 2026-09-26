@@ -1744,22 +1744,26 @@ int msdos_pre_extender(cpuctx_t *scp,
 	     * its size in paragraphs in si.  Anyone who does not know about
 	     * this passes neither, and still sees ax=0 and si=0, meaning that
 	     * no further lowmem is needed. */
-	    int want_pool = _LWORD(ecx) == DPMI_EXT_COOKIE &&
-		    (_LWORD(ebx) & DPMI_EXT_GET_POOL);
+	    int want_pool = (_LWORD(ebx) & DPMI_EXT_GET_POOL);
 
 	    _LWORD(eax) = 0;
 	    _LWORD(esi) = 0;
-	    /* 32bit DPMI supported (0x1),
-	     * entering from 16bit-PM supported (0x100),
-	     * entering from 32bit-PM supported (0x200),
-	     * IVT reinit supported (0x400),
-	     * private pool reported and relocatable (0x800),
+	    /*
+	     * BX flags:
+	     *   32bit DPMI supported (0x1)
+	     *   extended return format used (0x2)
+	     *   entering from 16bit-PM supported (0x100)
+	     *   entering from 32bit-PM supported (0x200)
+	     *   pool relocation supported (0x400)
+	     * BX actions, set by caller, cleared by handler:
+	     *   request pool info (0x1000, ext fmt)
 	     */
-	    _LWORD(ebx) = 1 | 0xf00;
+	    _LWORD(ebx) = 1 | 0x700;
 	    _LWORD(ecx) = 4;
 	    _HI(dx) = DPMI_VERSION;
 	    _LO(dx) = DPMI_MINOR_VERSION;
 	    if (want_pool) {
+		_LWORD(ebx) |= 2;  // extended return format
 		_LWORD(eax) = dpmi_get_private_pool(&paras);
 		_LWORD(esi) = paras;
 		if (!_LWORD(eax)) {

@@ -4483,7 +4483,7 @@ static void setup_int_exc(int inherit_idt)
 unsigned short dpmi_get_private_pool(unsigned short *r_paras)
 {
   *r_paras = DPMI_CLIENT.private_data_paras;
-  return ConvertSegmentToDescriptor(DPMI_CLIENT.private_data_segment);
+  return DPMI_CLIENT.private_data_segment;
 }
 
 static void dpmi_reinit(cpuctx_t *scp)
@@ -4498,16 +4498,13 @@ static void dpmi_reinit(cpuctx_t *scp)
   D_printf("%s", DPMI_show_state(scp));
   do_dpmi_retf(scp, SEL_ADR(_ss, _esp));
 
-  if (_LWORD(eax) & 0x800) {	/* extension: bx has the pool's new selector */
-    dosaddr_t base = GetSegmentBase(_LWORD(ebx));
-
-    /* we address it as a segment, and DOS calls run on stacks inside it */
-    if (base + (DPMI_CLIENT.private_data_paras << 4) > LOWMEM_SIZE) {
-      error("DPMI: private pool at 0x%x, %i para, does not fit under 1M\n",
-	  base, DPMI_CLIENT.private_data_paras);
+  if (_LWORD(eax) & DPMI_EXT_GET_POOL) {
+    if (DPMI_CLIENT.private_data_segment == _LWORD(ebx)) {
+      error("DPMI: private pool at 0x%x not relocated\n",
+         DPMI_CLIENT.private_data_segment);
       return;
     }
-    DPMI_CLIENT.private_data_segment = base >> 4;
+    DPMI_CLIENT.private_data_segment = _LWORD(ebx);
     D_printf("DPMI: private pool moved to 0x%04x, %i para\n",
 	DPMI_CLIENT.private_data_segment, DPMI_CLIENT.private_data_paras);
     reloc = 1;
