@@ -647,7 +647,9 @@ static int decode_symreg(char *regn, regnum_t *sym, int *typ)
   for (n = 0, p = reg_syms[0]; p ; p = reg_syms[++n]) {
     if (strcasecmp(regn, p) == 0) {
       if (typ)
-        *typ = (n < _EAXr) ? V_WORD : V_DWORD;
+        /* FL is the whole 32bit eflags, which is how 'r' prints it, so it
+         * does not fit the word the other names of its group carry */
+        *typ = (n < _EAXr && n != _FLr) ? V_WORD : V_DWORD;
       *sym = n;
       return 1;
     }
@@ -1749,11 +1751,25 @@ static int get_value(char *s, unsigned long *v)
     }
   }
 
+  /* Register.  Before the suffix is looked for, or FL loses its L and is
+   * left as an F nothing can parse.  A register carries its own size, so a
+   * suffix would have been ignored anyway. */
+  if (decode_symreg(s, &symreg, &t)) {
+    *v = mhp_getreg(symreg);
+    return t;
+  }
+
   /* Type suffix */
   if ((tt = strchr(wl, toupper_ascii(s[len - 1]))) != 0) {
     len--;
     s[len] = 0;
     t = (int)(tt - wl) << 1;
+    /* a register may not be suffixed, but one was accepted here before the
+     * lookup above existed, so keep taking it */
+    if (decode_symreg(s, &symreg, &t)) {
+      *v = mhp_getreg(symreg);
+      return t;
+    }
   } else {
     t = V_NONE;
   }
@@ -1774,12 +1790,6 @@ static int get_value(char *s, unsigned long *v)
         return V_WORD;
       return V_DWORD;
     }
-  }
-
-  /* Register */
-  if (decode_symreg(s, &symreg, &t)) {
-    *v = mhp_getreg(symreg);
-    return t;
   }
 
   /* Plain number */
