@@ -268,6 +268,9 @@ extern unsigned short dpmi_sel(void);
 extern unsigned short dpmi_sel16(void);
 extern unsigned short dpmi_sel32(void);
 int dpmi_api32(cpuctx_t *scp);
+void dpmi_do_iret(cpuctx_t *scp, int is_32);
+void dpmi_make_iret_frame(cpuctx_t *scp, uint32_t cs, uint32_t eip,
+	int is_32);
 unsigned dpmi_mem_size(void);
 void dump_maps(void);
 
