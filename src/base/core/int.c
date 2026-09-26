@@ -904,6 +904,16 @@ static int dos_helper(int stk_offs, int revect)
     return 1;
 }
 
+/* ext mem starts with the HMA: while someone owns it, int15 must not
+ * report ext mem, or a client that takes it from 1M up overwrites the
+ * HMA owner, e.g. DOS=HIGH [#1880] */
+static int int15_extmem = 1;
+
+void int15_set_extmem(int on)
+{
+    int15_extmem = on;
+}
+
 static int int15(void)
 {
     int num;
@@ -1084,7 +1094,7 @@ static int int15(void)
 	}
 
     case 0x88:
-	LWORD(eax) = EXTMEM_SIZE >> 10;
+	LWORD(eax) = int15_extmem ? EXTMEM_SIZE >> 10 : 0;
 	NOCARRY;
 	break;
 
@@ -3063,6 +3073,7 @@ void dos_post_boot_reset(void)
 	clnup_handler();
     clnup_handler = NULL;
     syscomdrv.num_scusers = 0;
+    int15_extmem = 1;
 #ifdef USE_MHPDBG
     mhp_reset_hma();
 #endif
