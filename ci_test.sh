@@ -58,6 +58,13 @@ case "${RUNTYPE}" in
     ;;
 esac
 
+cat >&2 << EOF6
+=====================================================
+=      Tests run on the terminal rendering          =
+=====================================================
+EOF6
+python3 test/test_term.py
+
 # This section here only runs for proving out test_comcom changes in PRs etc, the tests are
 # run for real in the Comcom64 repository
 if [ "${COMCOM_CHANGED}" = "true" ] ; then

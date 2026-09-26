@@ -1,5 +1,9 @@
+import fcntl
 import inspect
 import pexpect
+import pty
+import signal
+import struct
 import termios
 import string
 import random
@@ -10,17 +14,19 @@ import unittest
 from datetime import datetime, timezone
 from functools import wraps
 from hashlib import sha1
-from os import environ, rename, _exit
+from os import (environ, rename, close, execve, kill, read, waitpid,
+                _exit)
 from os.path import exists, join
 from pathlib import Path
 from platform import system, machine, release
 from ptyprocess import PtyProcessError
+from select import select
 from shutil import copy, rmtree, which
 from subprocess import (Popen, call, check_call, check_output,
                         DEVNULL, STDOUT, TimeoutExpired, CalledProcessError)
 from sys import argv, exit, stdout, stderr, version_info
 from tarfile import open as topen
-from time import sleep
+from time import monotonic, sleep
 from unittest.util import strclass
 
 __common_framework = True
@@ -744,6 +750,95 @@ class BaseTestCase(object):
 
         self.assertNotIn('Timeout:', ret)
         return ret
+
+    def runDosemuRaw(self, xargs, config=DOSEMU_CONF_DEFAULT, rows=25, cols=80,
+                     until=None, settle=1, timeout=None, env=None):
+        """Run dosemu2 under a pty and hand back every byte it wrote.
+
+        For tests that are about what reaches the terminal rather than
+        about what DOS did.  Unlike runDosemu() nothing is added to the
+        command line: `xargs` is passed verbatim, so the test chooses -t
+        or -td itself, and the pty is left with the settings dosemu2
+        found, because ONLCR and friends are part of what is measured.
+
+        The window size is set before the first output: the terminal
+        backend renders differently, and says so, with fewer than 25
+        lines.
+
+        `until` is a marker to wait for, usually printed by the DOS
+        program; the run is then given `settle` seconds and ended with
+        SIGTERM, so that whatever the backend writes on the way out is
+        captured too.
+        """
+        default_timeout = int(environ.get("DEFAULT_TIMEOUT", '15'))
+        if timeout is None:
+            timeout = default_timeout
+
+        self.mkfile("dosemu.conf", config, dname=self.imagedir)
+        logfile = self.topdir / self.logfiles['log'][0]
+        args = [str(self.dosemu)] + list(xargs) + [
+                "--Fimagedir", str(self.imagedir),
+                "-f", str(self.imagedir / "dosemu.conf"),
+                "-n",
+                "-q",
+                "-o", str(logfile)]
+        if environ.get("NO_KVM", '0') == '1' or self.use_cpu == 'emu':
+            args.extend(["-z", "0"])
+
+        if environ.get("NO_TESTRUN", '0') == '1':
+            print(f'\n\nNO_TESTRUN=1, command line to run test is\n{" ".join(args)}\n')
+            _exit(0)  # Don't let unittest handle it, just exit
+
+        pid, fd = pty.fork()
+        if pid == 0:
+            e = dict(environ)
+            if env:
+                e.update(env)
+            try:
+                execve(args[0], args, e)
+            finally:
+                _exit(127)
+
+        # before the first output: the backend looks at the size
+        fcntl.ioctl(fd, termios.TIOCSWINSZ,
+                    struct.pack("HHHH", rows, cols, 0, 0))
+
+        out = b""
+        deadline = monotonic() + timeout
+
+        def drain(until_time):
+            nonlocal out
+            while monotonic() < until_time:
+                r, _, _ = select([fd], [], [], 0.3)
+                if not r:
+                    continue
+                try:
+                    d = read(fd, 65536)
+                except OSError:
+                    return False
+                if not d:
+                    return False
+                out += d
+                if until is not None and until in out:
+                    return True
+            return until is None
+
+        try:
+            drain(deadline)
+            sleep(settle)
+            kill(pid, signal.SIGTERM)
+            drain(monotonic() + 10)
+        finally:
+            try:
+                kill(pid, signal.SIGKILL)
+                waitpid(pid, 0)
+            except OSError:
+                pass
+            close(fd)
+
+        self.logfiles['xpt'][1] = "output.log"
+        self.logfiles['xpt'][0].write_bytes(out)
+        return out
 
     def runDosemuCmdline(self, xargs, cwd=None, config=DOSEMU_CONF_DEFAULT, timeout=None):
         default_timeout = int(environ.get("DEFAULT_TIMEOUT", '15'))
