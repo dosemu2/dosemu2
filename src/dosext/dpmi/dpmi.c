@@ -5169,16 +5169,34 @@ static void return_from_hwint(cpuctx_t *scp, void * const sp)
     _HWORD(eip) = *ssp++;
     val = *ssp++;
   }
-  in_dpmi_irq--;
-  imr = val & 0xff;
-  port_outb(0x21, imr);
-  dpmi_sti();
-  inum = val >> 8;
-  /* w/a for DJGPP, see
-   * https://github.com/dosemu2/dosemu2/pull/2687
-   */
-  if (inum == 0x75)
-    port_outb(0xf2, 0);
+  if (in_dpmi_irq > 0) {
+    in_dpmi_irq--;
+    imr = val & 0xff;
+    port_outb(0x21, imr);
+    dpmi_sti();
+    inum = val >> 8;
+    /* w/a for DJGPP, see
+     * https://github.com/dosemu2/dosemu2/pull/2687
+     */
+    if (inum == 0x75)
+      port_outb(0xf2, 0);
+  } else {
+    /* A client can reach DPMI_return_from_pm on its own, by iret'ing to
+     * a frame our hw int handling left on the locked PM stack. There is
+     * no interrupt to return from then, so nothing on that frame is ours
+     * to act on: the interrupt mask above it was never saved by us, and
+     * putting it back would let a client program the 8259 and enable its
+     * interrupts through a frame it made up. Counting such a return would
+     * also make the nesting depth negative for the rest of the run, which
+     * switches off the cli work-around that tests it.
+     * The registers are restored all the same, since the client did ask
+     * to go there. */
+    static int warned;
+    if (!warned) {
+      warned = 1;
+      error("DPMI: return from hw int with none in progress\n");
+    }
+  }
 #ifdef USE_MHPDBG
   /* allow tracing from PM hwints */
   if (mhpdbg.active && tf)
