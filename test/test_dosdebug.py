@@ -119,9 +119,17 @@ class OurTestCase(BaseTestCase):
 
     def dbgStart(self):
         """Attach a dosdebug to the dosemu the test has running."""
-        self.dbgchild = pexpect.spawn(str(self.dosdebug), env=self.dbgenv)
-        self.dbgchild.logfile = self.dbgfile
-        self.dbgchild.setecho(False)
+        # A dumb terminal keeps readline from wrapping every prompt in the
+        # bracketed paste escapes, and without ONLCR the pty does not add a
+        # CR to every line, so the .dbg log reads as plain text.
+        env = self.dbgenv.copy()
+        env["TERM"] = "dumb"
+        self.dbgchild = pexpect.spawn(str(self.dosdebug), env=env)
+        fd = self.dbgchild.fileno()
+        attrs = termios.tcgetattr(fd)
+        attrs[1] &= ~termios.ONLCR
+        termios.tcsetattr(fd, termios.TCSANOW, attrs)
+        self.dbgchild.logfile_read = self.dbgfile
         self.dbgchild.expect([r"dosdebug> "], timeout=10)
 
     def dbgStop(self):
