@@ -463,7 +463,15 @@ unsigned int mhp_debug(unsigned code, unsigned int parm1, unsigned int parm2)
       if (test_bit(DBG_ARG(mhpdbgc.currcode), mhpdbg.intxxtab)) {
         if ((mhpdbgc.bpload == 1) && (DBG_ARG(mhpdbgc.currcode) == 0x21) && ((LWORD(eax) & 0xff0f) == 0x4b00)) {
           mhpdbgc.bpload_bp = SEGOFF2LINEAR(SREG(cs), LWORD(eip));
-          if (mhp_setbp(mhpdbgc.bpload_bp)) {
+          if (READ_BYTE(mhpdbgc.bpload_bp) == 0xf4) {
+            /* The EXEC was issued by a protected mode caller through a real
+             * mode call, and what it returns to is the hlt dosemu uses to
+             * get back there. An int3 over that breaks the return itself,
+             * so leave this one alone rather than take the machine down. */
+            mhp_printf("bpload: EXEC came from protected mode, not intercepting\n");
+            mhpdbgc.bpload_bp = 0;
+            mhpdbgc.bpload = 0;
+          } else if (mhp_setbp(mhpdbgc.bpload_bp)) {
             Bit16u int_op = READ_WORD(SEGOFF2LINEAR(SREG(cs), LWORD(eip) - 2));
             mhp_printf("bpload: intercepting EXEC\n");
             if (int_op == 0x21cd) {
