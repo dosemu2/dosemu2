@@ -341,6 +341,12 @@ unsigned short dpmi_sel(void)
   return API_32x(_cs) ? _dpmi_sel32 : _dpmi_sel16;
 }
 
+/* our own handler goes on with the frame of the code that calls it */
+static unsigned short handler_sel(unsigned short sel)
+{
+  return sel == _dpmi_sel16 ? dpmi_sel() : sel;
+}
+
 static void *SEL_ADR_LDT(unsigned short sel, unsigned int reg, int is_32)
 {
   dosaddr_t p;
@@ -1800,7 +1806,7 @@ static int ResizeDescriptorBlock(cpuctx_t *scp,
 DPMI_INTDESC dpmi_get_interrupt_vector(unsigned char num)
 {
     DPMI_INTDESC desc;
-    desc.selector = DPMI_CLIENT.Interrupt_Table[num].selector;
+    desc.selector = handler_sel(DPMI_CLIENT.Interrupt_Table[num].selector);
     desc.offset32 = DPMI_CLIENT.Interrupt_Table[num].offset;
     D_printf("DPMI: Get Prot. vec. bx=%x sel=%x, off=%x\n", num,
 	    desc.selector, desc.offset32);
@@ -1846,7 +1852,7 @@ DPMI_INTDESC dpmi_get_exception_handler(unsigned char num)
 {
     DPMI_INTDESC desc;
     assert(num < 0x20);
-    desc.selector = DPMI_CLIENT.Exception_Table[num].selector;
+    desc.selector = handler_sel(DPMI_CLIENT.Exception_Table[num].selector);
     desc.offset32 = DPMI_CLIENT.Exception_Table[num].offset;
     return desc;
 }
@@ -2227,7 +2233,7 @@ DPMI_INTDESC dpmi_get_pm_exc_addr(int num)
 {
     DPMI_INTDESC ret;
 
-    ret.selector = DPMI_CLIENT.Exception_Table_PM[num].selector;
+    ret.selector = handler_sel(DPMI_CLIENT.Exception_Table_PM[num].selector);
     ret.offset32 = DPMI_CLIENT.Exception_Table_PM[num].offset;
     return ret;
 }
@@ -5044,7 +5050,12 @@ static void do_cpu_exception(cpuctx_t *scp)
   if (DPMI_CLIENT.Exception_Table_PM[_trapno].selector != dpmi_sel() ||
       DPMI_CLIENT.Exception_Table_PM[_trapno].offset >=
       DPMI_SEL_OFF(DPMI_sel_end)) {
-    do_pm_cpu_exception(scp, DPMI_CLIENT.Exception_Table_PM[_trapno]);
+    INTDESC entry = DPMI_CLIENT.Exception_Table_PM[_trapno];
+    /* our own handler (msdos) chains to the legacy one with its frame */
+    if (entry.selector == _dpmi_sel16 &&
+        API_32x(DPMI_CLIENT.Exception_Table[_trapno].selector))
+      entry.selector = _dpmi_sel32;
+    do_pm_cpu_exception(scp, entry);
     return;
   }
   if (DPMI_CLIENT.Exception_Table[_trapno].selector != dpmi_sel()) {
@@ -5623,7 +5634,8 @@ static int dpmi_gpf_simple(cpuctx_t *scp, uint8_t *lina, void *sp, int *rv)
       }
 #endif
       if (!DEFAULT_INT(inum)) {
-	int flen = DPMI_CLIENT.is_32 ? 12 : 6;
+	int flen = API_32x(handler_sel(
+	    DPMI_CLIENT.Interrupt_Table[inum].selector)) ? 12 : 6;
 	/* The handler is the client's own, so the iret frame has to go on
 	 * the client's stack. EIP is still on the int instruction here. */
 	if (!client_stack_ok(scp, -flen, flen)) {
@@ -5649,7 +5661,7 @@ static int dpmi_gpf_simple(cpuctx_t *scp, uint8_t *lina, void *sp, int *rv)
         uint32_t eip2 = _eip;
 	if (debug_level('M')>=9)
           D_printf("DPMI: int 0x%x\n", lina[1]);
-	_cs = DPMI_CLIENT.Interrupt_Table[inum].selector;
+	_cs = handler_sel(DPMI_CLIENT.Interrupt_Table[inum].selector);
 	_eip = DPMI_CLIENT.Interrupt_Table[inum].offset;
 	make_iret_frame(scp, sp, cs2, eip2);
 	if (inum<=7) {
