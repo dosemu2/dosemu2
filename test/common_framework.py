@@ -968,6 +968,9 @@ class MyTestResult(unittest.TextTestResult):
 
         # Our logs
         for _, l in test.logfiles.items():
+            if not l[0].is_file():
+                l[0].write_text("Failed before any output was received\n")
+
             if not environ.get("CI"):
                 msgLines.append(f"Further info in file '{l[0].name}'\n")
                 continue
@@ -1009,9 +1012,6 @@ class MyTestResult(unittest.TextTestResult):
             self.stream.flush()
         self.failures.append((test, self.gather_info_for_failure(err, test)))
         self._mirrorOutput = True
-        for _, l in test.logfiles.items():
-            if not l[0].is_file():
-                l[0].write_text("Failed before any output was received\n")
         if getattr(test, 'shouldStop', None) is not None:
             self.shouldStop = test.shouldStop
         if getattr(self, 'failfast', False):
