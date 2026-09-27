@@ -2683,7 +2683,7 @@ static void mhp_print_ldt(int argc, char *argv[])
 
 static void mhp_debuglog(int argc, char *argv[])
 {
-  char buf[1024];
+  char buf[4096];
 
   if (argc > 1) {
     if (!strcmp(argv[1], "on")) {
@@ -2701,6 +2701,8 @@ static void mhp_debuglog(int argc, char *argv[])
     if (!strcmp(argv[1], "info")) {
       if (GetDebugInfoHelper(buf, sizeof(buf)))
         mhp_printf("%s", buf);
+      else
+        mhp_printf("%s\n", "internal buffer too small");
       return;
     }
 

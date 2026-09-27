@@ -181,12 +181,13 @@ int GetDebugInfoHelper(char *buf, int bufsize)
 
     num += snprintf(buf + num, bufsize - num, "%c%c%c: %-21s", ws,
                     DebugFlag(debug_levels[cls->letter]), cls->letter, cls->help_text);
-
+    assert(num < bufsize);
     if (num >= bufsize) // snprintf output was truncated
       return 0;
   }
 
   num += snprintf(buf + num, bufsize - num, "\n");
+  assert(num < bufsize);
   if (num >= bufsize) // snprintf output was truncated
     return 0;
 
