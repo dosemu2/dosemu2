@@ -304,6 +304,41 @@ class OurTestCase(BaseTestCase):
 
     # the tests
 
+    def test_dosdebug_devs(self):
+        """Dosdebug devs"""
+
+        self.mkfile("testit.bat", "c:\\simple\nrem end\n", newline="\r\n")
+        self.mkcom_with_nasm("simple", SIMPLE_ASM)
+
+        def body(args):
+            return self.dbgCmd("devs")
+
+        results = self.runWithDosdebug("testit.bat", body)
+
+        # These three drivers will always be there in some form.
+        # f997:0048 Char 'NUL     '
+        #   Attributes: 0x8004 (Char, NULDEV)
+        #   Routines: Strategy(f997:0eb2), Interrupt(f997:0eb7)
+
+        # f910:07e6 Char 'CLOCK$  '
+        #   Attributes: 0x8008 (Char, CLOCK)
+        #   Routines: Strategy(f910:0402), Interrupt(f910:04f9)
+
+        # f910:07f8 Block (6 Units)
+        #   Attributes: 0x08c2 (Block, Removable media calls, UNDEF7, Get/Set logical device calls, UNDEF1)
+        #   Routines: Strategy(f910:0402), Interrupt(f910:0500)
+
+        template = (
+            r"(?s)[0-9A-Fa-f]{{4}}:[0-9A-Fa-f]{{4}} {variant}\n"
+            r"\s*Attributes:.*?\n"
+            r"\s*Routines:\s*Strategy\([0-9A-Fa-f]{{4}}:[0-9A-Fa-f]{{4}}\),\s*"
+            r"Interrupt\([0-9A-Fa-f]{{4}}:[0-9A-Fa-f]{{4}}\)\n"
+        )
+
+        self.assertRegex(results, template.format(variant="Char 'NUL     '"))
+        self.assertRegex(results, template.format(variant=r"Char 'CLOCK\$  '"))
+        self.assertRegex(results, template.format(variant=r"Block \(\d+ Units\)"))
+
     def test_dosdebug_ivec(self):
         """Dosdebug ivec"""
 
