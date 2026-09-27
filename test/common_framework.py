@@ -241,8 +241,8 @@ class BaseTestCase(object):
         cls.systype = None
         cls.bootblocks = [(None, None)]
         cls.images = [(None, None)]
-        cls.autoexec = "autoexec.bat"
-        cls.confsys = "config.sys"
+        cls.autoexec = None
+        cls.confsys = None
 
         cls.logfiles = {}
         cls.msg = None
@@ -380,15 +380,18 @@ class BaseTestCase(object):
         self.setUpDosVersion()
 
         # Tag the end of autoexec.bat for runDosemu()
-        self.mkfile(self.autoexec, "\r\n@echo " + IPROMPT + "\r\n", mode="a")
+        if self.autoexec is not None:
+            self.mkfile(self.autoexec, "\r\n@echo " + IPROMPT + "\r\n", mode="a")
 
     def setUpDosAutoexec(self):
         # Use the standard shipped autoexec
-        copy(self.cmddir / self.autoexec, self.workdir)
+        if self.autoexec is not None:
+            copy(self.cmddir / self.autoexec, self.workdir)
 
     def setUpDosConfig(self):
         # Use the standard shipped config
-        copy(self.cmddir / self.confsys, self.workdir)
+        if self.confsys is not None:
+            copy(self.cmddir / self.confsys, self.workdir)
 
     def setUpDosVersion(self):
         # FreeCom / Comcom32 compatible

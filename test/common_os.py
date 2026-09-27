@@ -231,6 +231,7 @@ def msdos622(baseclass, actions):
             ]
             cls.systype = SYSTYPE_MSDOS_INTERMEDIATE
             cls.autoexec = "autoemu.bat"
+            cls.confsys = "config.sys"
             cls.bootblocks = [
                 ("boot-306-4-17.blk", "d40c24ef5f5f9fd6ef28c29240786c70477a0b06"),
                 ("boot-615-4-17.blk", "7fc96777727072471dbaab6f817c8d13262260d2"),
@@ -282,6 +283,7 @@ def msdos700(baseclass, actions):
             ]
             cls.systype = SYSTYPE_MSDOS_NEW
             cls.autoexec = "autoemu.bat"
+            cls.confsys = "config.sys"
             cls.bootblocks = [
                 ("boot-306-4-17.blk", "8c016e339ca6b8126fd2026ed3a7eeeb6cbb8903"),
                 ("boot-615-4-17.blk", "b6fdddbfb37442a2762d5897de1aa7d7a694286a"),
@@ -339,6 +341,7 @@ def msdos710(baseclass, actions):
             ]
             cls.systype = SYSTYPE_MSDOS_NEW
             cls.autoexec = "autoemu.bat"
+            cls.confsys = "config.sys"
             cls.bootblocks = [
                 ("boot-306-4-17.blk", "0f520de6e2a33ef8fd336b2844957689fc1060e9"),
                 ("boot-615-4-17.blk", "5e49a8ee7747191d87a2214cc0281736262687b9"),
