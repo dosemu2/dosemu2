@@ -256,9 +256,15 @@ void mhp_init(void)
 
 static void reopen_fdin(void)
 {
+  /* Open the new reader before closing the old one: the fifo must never
+   * be left without a reader, or a dosdebug connecting right after the
+   * previous one left gets ENXIO.  dosdebug itself opens and closes the
+   * fifo to see if we are alive, then opens it again for real, and the
+   * open goes through the fs service, so the gap is not small. */
+  int fd = mfs_open_file(fdin_idx, pipename_in, O_RDONLY | O_NONBLOCK | O_CLOEXEC);
   remove_from_io_select(fdin);
   close(fdin);
-  fdin = mfs_open_file(fdin_idx, pipename_in, O_RDONLY | O_NONBLOCK | O_CLOEXEC);
+  fdin = fd;
   if (fdin != -1) {
     /* Remove O_NONBLOCK. O_CLOEXEC unaffected. */
     fcntl(fdin, F_SETFL, 0);
