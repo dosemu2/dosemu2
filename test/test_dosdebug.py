@@ -307,7 +307,7 @@ class OurTestCase(BaseTestCase):
     def test_dosdebug_devs(self):
         """Dosdebug devs"""
 
-        self.mkfile("testit.bat", "c:\\simple\nrem end\n", newline="\r\n")
+        self.mkbat_testit("simple")
         self.mkcom_with_nasm("simple", SIMPLE_ASM)
 
         def body(args):
@@ -342,7 +342,7 @@ class OurTestCase(BaseTestCase):
     def test_dosdebug_ivec(self):
         """Dosdebug ivec"""
 
-        self.mkfile("testit.bat", "c:\\simple\nrem end\n", newline="\r\n")
+        self.mkbat_testit("simple")
         self.mkcom_with_nasm("simple", SIMPLE_ASM)
 
         def body(args):
@@ -356,7 +356,7 @@ class OurTestCase(BaseTestCase):
     def test_dosdebug_step_rm(self):
         """Dosdebug single step in real mode"""
 
-        self.mkfile("testit.bat", "c:\\simple\nrem end\n", newline="\r\n")
+        self.mkbat_testit("simple")
         self.mkcom_with_nasm("simple", SIMPLE_ASM)
 
         def body(args):
@@ -395,7 +395,7 @@ class OurTestCase(BaseTestCase):
     def test_dosdebug_step_over_int_pm(self):
         """Dosdebug step over an int in protected mode"""
 
-        self.mkfile("testit.bat", "c:\\pmint\nrem end\n", newline="\r\n")
+        self.mkbat_testit("pmint")
         self.mkcom_with_nasm("pmint", PMINT_ASM)
 
         def body(args):

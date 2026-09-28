@@ -489,6 +489,9 @@ class BaseTestCase(object):
             args += extraargs
         check_call(args)
 
+    def mkbat_testit(self, name):
+        self.mkfile("testit.bat", f"c:\\{name}\nrem end\n", newline="\r\n")
+
     def mkfile(self, fname, content, dname=None, mode="w", newline=None):
         if dname is None:
             p = self.workdir / fname
