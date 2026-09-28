@@ -22,7 +22,7 @@ DOS, which needs comcom64 and so a dj64 build.
 import re
 import unittest
 
-from time import sleep
+from time import monotonic, sleep
 
 from common_framework import (BaseTestCase, DOSEMU_CONF_DEFAULT,
                               main, main_setup, mark)
@@ -271,6 +271,44 @@ KEYS = [
     ("stray byte",  [(b"\xc3", GIVE_UP)],                   [0x2e00]),
     ("after stray", [(b"b", 0)],                            [0x3062]),
 ]
+
+# name, the pieces to type with the pause after each, what int 16h owes us
+KITTY_KEYS = [
+    ("escape",        [(b"\x1b[27u", 0)],                   [0x011b]),
+    ("a",             [(b"\x1b[97u", 0)],                   [0x1e61]),
+    ("shift-a",       [(b"\x1b[97;2u", 0)],                 [0x1e41]),
+    ("ctrl-a",        [(b"\x1b[97;5u", 0)],                 [0x1e01]),
+    ("alt-a",         [(b"\x1b[97;3u", 0)],                 [0x1e00]),
+    ("ctrl-shift-a",  [(b"\x1b[97;6u", 0)],                 [0x1e01]),
+    ("space",         [(b"\x1b[32u", 0)],                   [0x3920]),
+    ("tab",           [(b"\x1b[9u", 0)],                    [0x0f09]),
+    ("backspace",     [(b"\x1b[127u", 0)],                  [0x0e08]),
+    ("ctrl-enter",    [(b"\x1b[13;5u", 0)],                 [0x1c0a]),
+    # the event type is a sub-parameter of the modifiers
+    ("a press",       [(b"\x1b[97;5:1u", 0)],               [0x1e01]),
+    ("a repeat",      [(b"\x1b[97;5:2u", 0)],               [0x1e01]),
+    ("a release",     [(b"\x1b[97;5:3u", 0)],               []),
+    # the third parameter is the text, not another key
+    ("a with text",   [(b"\x1b[97;1;97u", 0)],              [0x1e61]),
+    # the private use area numbers keys a PC keyboard does not have
+    ("f13",           [(b"\x1b[57376u", 0)],                []),
+    ("keypad 1",      [(b"\x1b[57400u", 0)],                []),
+    ("no key at all", [(b"\x1b[u", 0)],                     []),
+    # arriving in two reads, as over a slow line
+    ("split ctrl-a",  [(b"\x1b[97", SPLIT_GAP), (b";5u", 0)], [0x1e01]),
+    # and the legacy encodings keep working next to them
+    ("legacy up",     [(b"\x1b[A", 0)],                     [0x48e0]),
+    ("legacy F5",     [(b"\x1b[15~", 0)],                   [0x3f00]),
+    ("legacy ctrl-a", [(b"\x01", 0)],                       [0x1e01]),
+    ("legacy mouse",  [(b"\x1b[<35;10;5M", 0)],             []),
+]
+
+# the question, kitty's answer, an ordinary terminal's, and the two modes
+KITTY_QUERY = b"\x1b[?u"
+KITTY_YES = b"\x1b[?1u"
+KITTY_NO = b"\x1b[?1;2c"
+KITTY_ON = b"\x1b[>1u"
+KITTY_OFF = b"\x1b[<u"
 
 # The SGR colour the terminal backend is expected to pick for each of the
 # sixteen DOS attribute values.  The low three bits are in the other order
@@ -614,9 +652,189 @@ class TerminalKeysTestCase(BaseTestCase, unittest.TestCase):
         return report
 
 
+class TerminalKittyKeysTestCase(BaseTestCase, unittest.TestCase):
+    """The keyboard protocol kitty added, issue #1379.
+
+    The terminal here is this test: it answers the backend's question the
+    way kitty would, and then types what kitty would type.
+    """
+
+    attrs = {'terminal'}
+    runs = {}
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.prettyname = "TermKitty"
+        # There is no DOS distribution to unpack
+        cls.tarfile = ""
+
+    test_0_basic_boot = None
+
+    @mark('terminal')
+    def test_the_terminal_is_asked_whether_it_speaks_the_protocol(self):
+        """the backend asks, and asks something every terminal answers"""
+        run = self.run_as(KITTY_YES)
+        self.assertIn(KITTY_QUERY, run["out"],
+                      "the backend never asked about the protocol")
+        i = run["out"].index(KITTY_QUERY) + len(KITTY_QUERY)
+        self.assertEqual(run["out"][i:i + 3], b"\x1b[c",
+                         "nothing was asked that an ordinary terminal "
+                         "would answer, so a 'no' would never arrive")
+
+    @mark('terminal')
+    def test_a_terminal_that_answers_gets_the_protocol_switched_on(self):
+        """kitty's answer turns it on, and leaving turns it off again"""
+        run = self.run_as(KITTY_YES)
+        self.assertIn(KITTY_ON, run["out"],
+                      "the protocol was never switched on")
+        self.assertIn(KITTY_OFF, run["out"],
+                      "the terminal was left in it")
+
+    @mark('terminal')
+    def test_a_terminal_that_says_no_is_left_as_it_was(self):
+        """a terminal that only answers the other question is left alone"""
+        run = self.run_as(KITTY_NO)
+        self.assertNotIn(KITTY_ON, run["out"],
+                         "the protocol was switched on for a terminal that "
+                         "never said it knows one")
+        self.assertNotIn(b"[?1;2c", run["report_raw"],
+                         "the terminal's answer was typed at DOS")
+
+    @mark('terminal')
+    def test_every_key_the_protocol_reports_becomes_the_right_key(self):
+        """what kitty sends turns into the scancodes DOS expects"""
+        got = self.run_as(KITTY_YES)["report"]
+        wrong = ["%s: wanted %s, got %s"
+                 % (name, self.hex(want), self.hex(got[name]))
+                 for name, pieces, want in KITTY_KEYS if got[name] != want]
+        if wrong:
+            self.fail("\n".join(wrong))
+
+    @mark('terminal')
+    def test_escape_arrives_without_the_wait(self):
+        """the Escape key no longer spends the timeout in the backend"""
+        run = self.run_as(KITTY_YES)
+        bare, csi = run["bare_esc"], run["csi_esc"]
+        if bare[0] is None or csi[0] is None:
+            self.skipTest("an Escape never arrived at all")
+        self.assertEqual(csi[1], [0x011b],
+                         "the sequence did not arrive as the Escape key, "
+                         "so its timing says nothing")
+        self.assertGreater(bare[0], 0.2,
+                           "a lone escape byte no longer waits, so this "
+                           "test is measuring something else")
+        self.assertLess(csi[0], 0.2,
+                        "the Escape key still waits out the timeout: "
+                        "%.3fs against %.3fs for a lone escape byte"
+                        % (csi[0], bare[0]))
+
+    def hex(self, keys):
+        return " ".join("%04x" % k for k in keys) or "nothing"
+
+    def relog(self):
+        """Hand this test the logs of the shared run."""
+        self.logfiles['xpt'][1] = "output.log"
+        self.logfiles['xpt'][0].write_bytes(self.runs[self.answer]["out"])
+        self.logfiles['log'][0].write_text(self.runs[self.answer]["log"])
+
+    def run_as(self, answer):
+        """Be a terminal that answers `answer', and note what DOS got."""
+        self.answer = answer
+        if answer in self.runs:
+            self.relog()
+            return self.runs[answer]
+
+        # dosemu2 takes its command interpreter from DOSEMU2_COMCOM_DIR
+        self.mkcom_with_nasm("command", KEYS_PROBE)
+
+        result = self.workdir / "keys.txt"
+        marks = []
+        seen = {"bare": None, "csi": None, "raw": b""}
+
+        def talk(t):
+            if not t.ready:
+                return
+            # the question was asked while DOS was booting; answer it now
+            # that the backend is reading the terminal in earnest
+            t.write(answer)
+            sleep(0.5)
+            t.read()
+            for name, pieces, want in KITTY_KEYS:
+                before = len(result.read_bytes())
+                for data, gap in pieces:
+                    t.write(data)
+                    if gap:
+                        sleep(gap)
+                sleep(0.5)
+                t.read()
+                marks.append((name, before))
+            # a mark of its own, so the keys timed below do not land in
+            # the last case's share of the report
+            marks.append((None, len(result.read_bytes())))
+            seen["bare"] = self.time_key(t, result, b"\x1b")
+            seen["csi"] = self.time_key(t, result, b"\x1b[27u")
+            sleep(1)
+            t.read()
+            seen["raw"] = result.read_bytes()
+
+        out = self.runDosemuRaw(
+            ("-t", "-kt"), config=CONF, rows=ROWS, cols=COLS,
+            until=b"GO", timeout=RUN_TIMEOUT, interact=talk,
+            env={"DOSEMU2_COMCOM_DIR": str(self.workdir),
+                 "TERM": TERM, "LC_ALL": "C.UTF-8"})
+
+        if not marks:
+            self.skipTest("the probe never ran; this build may have no "
+                          "terminal plugin")
+
+        data = seen["raw"]
+        report = {}
+        for i, (name, before) in enumerate(marks):
+            if name is None:
+                continue
+            end = marks[i + 1][1] if i + 1 < len(marks) else len(data)
+            chunk = data[before:end].decode("ascii", "replace")
+            report[name] = [int(l[4:8], 16) for l in chunk.split("\r\n")
+                            if l.startswith("key ")]
+        run = {
+            "out": out,
+            "log": self.boot_log(),
+            "report": report,
+            "report_raw": data,
+            "bare_esc": seen["bare"],
+            "csi_esc": seen["csi"],
+        }
+        self.runs[answer] = run
+        return run
+
+    def time_key(self, t, result, seq, tries=3):
+        """The shortest time `seq' took to show up, and what showed up."""
+        best = None
+        keys = []
+        for _ in range(tries):
+            before = len(result.read_bytes())
+            start = monotonic()
+            t.write(seq)
+            while monotonic() - start < 3:
+                if len(result.read_bytes()) > before:
+                    took = monotonic() - start
+                    if best is None or took < best:
+                        best = took
+                    break
+                sleep(0.005)
+            sleep(0.3)
+            t.read()
+            chunk = result.read_bytes()[before:].decode("ascii", "replace")
+            keys = [int(l[4:8], 16) for l in chunk.split("\r\n")
+                    if l.startswith("key ")]
+        return best, keys
+
+
 if __name__ == "__main__":
     cases = [
         TerminalRenderTestCase,
         TerminalKeysTestCase,
+        TerminalKittyKeysTestCase,
     ]
     main(main_setup(cases))
