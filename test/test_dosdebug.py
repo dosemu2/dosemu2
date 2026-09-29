@@ -353,6 +353,61 @@ class OurTestCase(BaseTestCase):
         self.assertRegex(results, r"  33  [0-9A-F]{4}:[0-9A-F]{4}\(MOUSE_INT33_OFF\)")
         self.assertRegex(results, r"  61  [0-9A-F]{4}:[0-9A-F]{4}\(TCPDRV_OFF\)")
 
+    def test_dosdebug_log(self):
+        """Dosdebug log exercise"""
+
+        self.mkbat_testit("simple")
+        self.mkcom_with_nasm("simple", SIMPLE_ASM)
+
+        config = DOSEMU_CONF_DEFAULT + '$_debug = "-D-d"\n'
+
+        # dosdebug> log
+        # current Debug-log flags:
+        # -#-A-B-C-D-E-F-I-J-L-M+N-P-Q-R-S-T-W-X-Z-a+c-d-e-f-g-h-i-j-k-m-n-p-q-r-s-u-v+w-x
+        #
+        # dosdebug> log info
+        #
+        # -#: default int           -A: ASPI                  -B: dosdebug trace
+        # -C: CDROM                 -D: dos int 21h           -E: EMS
+        # -F: MMIO trace            -I: IPC                   -J: dj64
+        # -L: TCP                   -M: DPMI                  +N: NE2000 emulation
+        # -P: Packet driver         -Q: Mapping driver        -R: disk READ
+        # -S: SOUND                 -T: I/O trace             -W: disk WRITE
+        # -X: X support             -Z: PCI                   -a: Set all levels
+        # +c: configuration         -d: disk msgs             -e: cpu-emu
+        # -f: fdpp                  -g: general messages      -h: hardware
+        # -i: I/O instructions      -j: joystick              -k: keyboard
+        # -m: mouse                 -n: IPX network           -p: printer
+        # -q: DMA                   -r: PIC request           -s: serial
+        # -u: Unicode translation   -v: video                 +w: warnings
+        # -x: XMS
+
+        def body(args):
+            steps = []
+            steps += (self.dbgCmd("log"),)
+            steps += (self.dbgCmd("log info"),)
+            steps += (self.dbgCmd("log +d"),)
+            steps += (self.dbgCmd("log"),)
+            steps += (self.dbgCmd("log info"),)
+            steps += (self.dbgCmd("log +6d"),)
+            steps += (self.dbgCmd("log"),)
+            steps += (self.dbgCmd("log info"),)
+            return '|'.join(steps)
+
+        results = self.runWithDosdebug("testit.bat", body, config=config)
+
+        self.assertNotIn('Timeout', results)
+
+        steps = results.split('|')
+        self.assertRegex(steps[0], r"(?m)^.*-d", steps[0])
+        self.assertRegex(steps[1], r"(?m)^.*-d: disk msgs", steps[1])
+        self.assertRegex(steps[2], r"(?m)^flags updated", steps[2])
+        self.assertRegex(steps[3], r"(?m)^.*\+d", steps[3])
+        self.assertRegex(steps[4], r"(?m)^.*\+d: disk msgs", steps[4])
+        self.assertRegex(steps[5], r"(?m)^flags updated", steps[5])
+        self.assertRegex(steps[6], r"(?m)^.*6d", steps[6])
+        self.assertRegex(steps[7], r"(?m)^.*6d: disk msgs", steps[7])
+
     def test_dosdebug_step_rm(self):
         """Dosdebug single step in real mode"""
 
