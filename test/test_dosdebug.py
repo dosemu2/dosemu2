@@ -282,7 +282,7 @@ class OurTestCase(BaseTestCase):
                     self.dbgStart()
                     try:
                         self.dbgCmd("stop")
-                        child.send(cmd + '\r\n')
+                        child.send(cmd + '\n')
                         ret = body(body_args)
                     finally:
                         self.dbgCmd("g")
