@@ -255,12 +255,11 @@ class OurTestCase(BaseTestCase):
 
         # The debugger fifos live in the XDG runtime directory, named after
         # the pid, and dosdebug refuses to start when it finds more than one
-        # live pair there.  A directory of our own per test is what keeps the
-        # dosemu a previous test has not finished dying from failing this
-        # one: sharing the caller's directory makes that a race.
+        # live pair there. Avoid a race by creating a run directory per test.
+        run = self.imagedir / "run"
+        run.mkdir()
         self.dbgenv = environ.copy()
-        tmprundir = mkdtemp(prefix="dosemu2-dbg-")
-        self.dbgenv["XDG_RUNTIME_DIR"] = tmprundir
+        self.dbgenv["XDG_RUNTIME_DIR"] = str(run)
 
         child = pexpect.spawn(str(self.dosemu), args, env=self.dbgenv)
 
@@ -300,8 +299,6 @@ class OurTestCase(BaseTestCase):
             child.close(force=True)
         except PtyProcessError:
             pass
-
-        rmtree(tmprundir, ignore_errors=True)
 
         return ret
 
