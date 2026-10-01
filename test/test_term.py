@@ -951,11 +951,118 @@ class TerminalKeysTestCase(BaseTestCase, unittest.TestCase):
         return self.__class__.keys, report
 
 
+# The terminal the mouse case asks for.  Its terminfo entry has to name a
+# mouse report prefix, or the backend will not offer mouse support at all.
+MOUSE_TERM = "xterm"
+
+# What xterm_mouse_init() puts on the terminal, and what
+# xterm_mouse_close() is expected to take back off it.
+MOUSE_ON = [b"\033[?9h", b"\033[?1000h", b"\033[?1002h", b"\033[?1003h"]
+MOUSE_OFF = [b"\033[?9l", b"\033[?1000l", b"\033[?1002l", b"\033[?1003l"]
+
+MOUSE_PROBE = r"""
+; Say one word so the test knows DOS is up, then sit on a key that never
+; comes.  Nothing is painted, so every escape sequence in the capture is
+; one the backend put there of its own accord.
+	org	0x100
+	bits	16
+	cpu	386
+
+start:
+	mov	ah, 0x09
+	mov	dx, msg
+	int	0x21
+	mov	ah, 0x08		; wait for a key, quietly
+	int	0x21
+	mov	ax, 0x4c00
+	int	0x21
+
+msg	db	'MOUSEPROBE', 13, 10, '$'
+"""
+
+
+class DumbModeMouseTestCase(SharedRun, BaseTestCase, unittest.TestCase):
+    """Who gets the terminal's mouse switched on, and who does not.
+
+    Dumb video mode draws no screen, so a mouse position in it means
+    nothing, and gpm is already kept out of it.  The xterm mouse client is
+    not: it rides in on the term plugin, which -kt loads for the keyboard
+    alone, and puts the terminal into any-event tracking.  Every movement
+    then comes back as a report that dumb mode has nobody to give to, and
+    a terminal that does not speak SGR leaves the bytes on the screen
+    (issue #2980).
+    """
+
+    attrs = {'terminal'}
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.prettyname = "TermMouse"
+        # There is no DOS distribution to unpack
+        cls.tarfile = ""
+        cls.runs = {}
+        cls.bootlogs = {}
+
+    test_0_basic_boot = None
+
+    def setUp(self):
+        """Without a mouse prefix in terminfo the backend offers nothing."""
+        super().setUp()
+        try:
+            kmous = check_output(["tput", "-T", MOUSE_TERM, "kmous"])
+        except (OSError, CalledProcessError):
+            kmous = b""
+        if len(kmous) < 3 or not kmous.startswith(b"\033["):
+            self.skipTest(f"terminfo entry for {MOUSE_TERM} names no mouse")
+        self.mkcom_with_nasm("command", MOUSE_PROBE)
+
+    @mark('terminal')
+    def test_terminal_mode_still_tracks_the_mouse(self):
+        """-t has a screen to point at, so tracking belongs there"""
+        out = self.capture("-t", "-kt")
+        missing = [s for s in MOUSE_ON if s not in out]
+        self.assertEqual(missing, [], repr(out))
+
+    @mark('terminal')
+    def test_dumb_mode_leaves_the_mouse_alone(self):
+        """-td has no screen, so nothing may switch tracking on"""
+        out = self.capture("-td", "-kt")
+        unwanted = [s for s in MOUSE_ON if s in out]
+        self.assertEqual(unwanted, [], repr(out))
+
+    @mark('terminal')
+    def test_tracking_is_taken_back_off_at_the_end(self):
+        """what -t switched on is switched off again on the way out"""
+        out = self.capture("-t", "-kt")
+        missing = [s for s in MOUSE_OFF if s not in out]
+        self.assertEqual(missing, [], repr(out))
+
+    def capture(self, *opts):
+        """Run dosemu2 once under a pty and keep every byte it wrote."""
+        if opts in self.__class__.runs:
+            self.__class__.raw = self.__class__.runs[opts]
+            self.__class__.bootlog = self.__class__.bootlogs[opts]
+            self.relog()
+            return self.__class__.runs[opts]
+
+        out = self.runDosemuRaw(
+            opts, config=CONF, rows=ROWS, cols=COLS,
+            until=b"MOUSEPROBE", timeout=RUN_TIMEOUT,
+            env={"DOSEMU2_COMCOM_DIR": str(self.workdir),
+                 "TERM": MOUSE_TERM, "LC_ALL": "C.UTF-8"})
+
+        self.__class__.runs[opts] = out
+        self.__class__.bootlogs[opts] = self.boot_log()
+        return out
+
+
 if __name__ == "__main__":
     cases = [
         TerminalRenderTestCase,
         TerminalHostProgramTestCase,
         TerminalBlinkTestCase,
         TerminalKeysTestCase,
+        DumbModeMouseTestCase,
     ]
     main(main_setup(cases))
