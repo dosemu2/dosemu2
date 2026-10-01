@@ -11,12 +11,14 @@ in which cell, and compares that with what DOS wrote.
 It needs no DOS distribution and no display: the program that paints is
 assembled on the spot and handed to dosemu2 as its command interpreter.
 
-What it does not cover is the rendering of a host terminal program run from
-DOS, which needs comcom64 and so a dj64 build.
+A second case takes the other direction: it runs a host terminal program
+from DOS through unix.com, so what the program draws crosses a pty, the DOS
+screen and the backend before the same terminal reads it back.
 """
 
 import re
 import unittest
+from shutil import which
 
 from common_framework import (BaseTestCase, DOSEMU_CONF_DEFAULT,
                               main, main_setup, mark)
@@ -158,6 +160,7 @@ class Screen:
         self.bg = [[40] * cols for _ in range(rows)]
         self.y = self.x = 0
         self.cfg, self.cbg = 37, 40
+        self.top, self.bot = 0, rows - 1
 
     def text(self, row):
         return "".join(self.ch[row]).rstrip()
@@ -208,12 +211,28 @@ class Screen:
         self.x += 1
 
     def newline(self):
-        if self.y + 1 < self.rows:
+        if self.y == self.bot:
+            self.delete_lines(1, self.top)
+        elif self.y + 1 < self.rows:
             self.y += 1
+
+    def delete_lines(self, n, at):
+        """Take n lines away at row `at`, the rest of the region moving up."""
+        if not self.top <= at <= self.bot:
             return
         for a, blank in ((self.ch, " "), (self.fg, 37), (self.bg, 40)):
-            a.pop(0)
-            a.append([blank] * self.cols)
+            del a[at:at + n]
+            for _ in range(min(n, self.bot - at + 1)):
+                a.insert(self.bot, [blank] * self.cols)
+
+    def insert_lines(self, n, at):
+        """Open n blank lines at row `at`, the rest of the region moving down."""
+        if not self.top <= at <= self.bot:
+            return
+        for a, blank in ((self.ch, " "), (self.fg, 37), (self.bg, 40)):
+            for _ in range(min(n, self.bot - at + 1)):
+                a.insert(at, [blank] * self.cols)
+            del a[self.bot + 1:self.bot + 1 + n]
 
     def erase(self, cells):
         for y, x in cells:
@@ -266,6 +285,19 @@ class Screen:
                 self.erase([(self.y, x) for x in range(self.x + 1)])
             else:
                 self.erase([(self.y, x) for x in range(self.cols)])
+        elif f == "r":
+            top, bot = p(0), p(1, self.rows)
+            if 1 <= top < bot <= self.rows:
+                self.top, self.bot = top - 1, bot - 1
+                self.y = self.x = 0
+        elif f == "M":
+            self.delete_lines(p(0), self.y)
+        elif f == "L":
+            self.insert_lines(p(0), self.y)
+        elif f == "S":
+            self.delete_lines(p(0), self.top)
+        elif f == "T":
+            self.insert_lines(p(0), self.top)
         elif f == "m":
             for v in (params or [0]):
                 if v == 0:
@@ -280,7 +312,21 @@ class Screen:
                     self.cbg = 40
 
 
-class TerminalRenderTestCase(BaseTestCase, unittest.TestCase):
+class SharedRun(object):
+    """One run read by every test of a case.
+
+    The framework looks at each test's own dosemu and output logs when it
+    fails, so a test that took the screen from the cache has to be given
+    them; without that a failure has nothing to show.
+    """
+
+    def relog(self):
+        self.logfiles['xpt'][1] = "output.log"
+        self.logfiles['xpt'][0].write_bytes(self.__class__.raw)
+        self.logfiles['log'][0].write_text(self.__class__.bootlog)
+
+
+class TerminalRenderTestCase(SharedRun, BaseTestCase, unittest.TestCase):
 
     attrs = {'terminal'}
 
@@ -337,17 +383,6 @@ class TerminalRenderTestCase(BaseTestCase, unittest.TestCase):
         self.assertIsNotNone(s.title, s.dump())
         self.assertIn("dosemu2", s.title)
 
-    def relog(self):
-        """Hand this test the logs of the shared run.
-
-        The framework looks at this test's own dosemu and output logs when
-        it fails, so a test that took the screen from the cache has to be
-        given them; without that a failure here has nothing to show.
-        """
-        self.logfiles['xpt'][1] = "output.log"
-        self.logfiles['xpt'][0].write_bytes(self.__class__.raw)
-        self.logfiles['log'][0].write_text(self.__class__.bootlog)
-
     def render(self):
         """Run the probe once under a pty and read the screen back.
 
@@ -391,8 +426,118 @@ class TerminalRenderTestCase(BaseTestCase, unittest.TestCase):
         return screen
 
 
+# The host program to run from DOS.  aainfo draws a page with its slang
+# driver and leaves on its own, which is all this needs; it is not installed
+# everywhere, so the case skips when it is missing.
+HOST_PROG = "aainfo"
+HOST_DONE = "HOSTDONE"
+
+# comcom32 hands its children TERM=djgpp, the ncurses entry for the ANSI
+# emulation DOS has, which is what the program should be drawing for.  It
+# comes with ncurses-term, and without it the program says so and quits.
+DOS_TERM = "djgpp"
+
+
+class TerminalHostProgramTestCase(SharedRun, BaseTestCase,
+                                  unittest.TestCase):
+    """A host terminal program run from DOS, drawn on the DOS screen.
+
+    unix.com gives the program a pty, dos2linux pours what it writes into
+    the DOS screen, and the backend puts that on the terminal.  A page that
+    a curses-like library drew on the host therefore has to arrive as the
+    same page here.
+    """
+
+    attrs = {'terminal'}
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.prettyname = "TermHost"
+        # There is no DOS distribution to unpack
+        cls.tarfile = ""
+        cls.autoexec = "fdppauto.bat"
+        cls.confsys = "fdppconf.sys"
+        cls.prog = which(HOST_PROG)
+        cls.screen = None
+        cls.raw = None
+        cls.bootlog = ""
+
+    test_0_basic_boot = None
+
+    @mark('terminal')
+    def test_what_the_host_program_drew_arrives(self):
+        """the page a host program draws comes out on the terminal"""
+        s = self.host()
+        text = s.dump()
+        self.assertRegex(text, r"AAlib version:\d", text)
+        self.assertIn("Display:", text)
+        self.assertIn("Keyboard:", text)
+
+    @mark('terminal')
+    def test_the_host_program_talks_to_a_terminal(self):
+        """it finds a terminal driver, so TERM reached it intact"""
+        s = self.host()
+        text = s.dump()
+        self.assertRegex(text, r"Current driver:Slang driver", text)
+        self.assertRegex(text, r"Current driver:Slang keyboard driver", text)
+
+    @mark('terminal')
+    def test_the_host_program_sees_the_dos_screen_size(self):
+        """the size DOS has is the size the program draws for"""
+        s = self.host()
+        text = s.dump()
+        self.assertRegex(text, r"Width\s+:%i\b" % COLS, text)
+        self.assertRegex(text, r"Height\s+:%i\b" % (ROWS - 1), text)
+
+    @mark('terminal')
+    def test_dos_is_still_there_afterwards(self):
+        """the program leaves and DOS carries on writing"""
+        s = self.host()
+        text = s.dump()
+        rows = [s.text(y) for y in range(ROWS)]
+        self.assertIn(HOST_DONE, rows, text)
+        self.assertIn("C:\\>", rows, text)
+
+    def host(self):
+        """Run the host program once under a pty and read the screen back."""
+        if self.__class__.screen is not None:
+            self.relog()
+            return self.__class__.screen
+
+        if self.prog is None:
+            self.skipTest("%s is not installed" % HOST_PROG)
+
+        # cls, so the boot messages are not part of the page being read
+        self.mkfile(self.autoexec,
+                    f"cls\nunix {HOST_PROG}\necho {HOST_DONE}\n",
+                    mode="a", newline="\r\n")
+
+        config = CONF + f'$_unix_exec = "{self.prog}"\n$_sound = (0)\n'
+
+        out = self.runDosemuRaw(
+            ("-t", "-ks"), config=config, rows=ROWS, cols=COLS,
+            until=HOST_DONE.encode(), timeout=RUN_TIMEOUT,
+            env={"TERM": TERM, "LC_ALL": "C.UTF-8"})
+
+        log = self.boot_log()
+        self.__class__.bootlog = log
+        if "VID: Video set to Video_term" not in log and b"\x1b[" not in out:
+            self.skipTest("this build has no terminal plugin")
+        if b"Unknown terminal" in out:
+            self.skipTest("no terminfo entry for %s; install ncurses-term"
+                          % DOS_TERM)
+
+        screen = Screen()
+        screen.feed(out)
+        self.__class__.raw = out
+        self.__class__.screen = screen
+        return screen
+
+
 if __name__ == "__main__":
     cases = [
         TerminalRenderTestCase,
+        TerminalHostProgramTestCase,
     ]
     main(main_setup(cases))
