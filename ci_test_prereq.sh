@@ -11,6 +11,7 @@ sudo add-apt-repository -y ppa:stsp-0/gcc-ia16
 sudo apt update -q
 
 sudo apt install -y \
+  libaa-bin \
   acl \
   comcom32 \
   comcom64 \
@@ -19,6 +20,7 @@ sudo apt install -y \
   python3-cpuinfo \
   python3-pexpect \
   mtools \
+  ncurses-term \
   gcc-djgpp \
   djgpp-dev \
   qemu-system-common \
