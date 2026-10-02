@@ -153,6 +153,7 @@ TODO:
 #endif
 #endif
 #include <sys/ioctl.h>
+#include <fcntl.h>
 #include <errno.h>
 #include <sys/statvfs.h>
 #include <ctype.h>
@@ -647,10 +648,50 @@ static int file_on_fat(const char *name)
   return statfs(name, &buf) == 0 && buf.f_type == MSDOS_SUPER_MAGIC;
 }
 
-static int fd_on_fat(int fd)
+/*
+ * The FAT attribute ioctls want a descriptor, but file_on_fat() is a
+ * statfs() on the host path, so they only ever run on a real file of a
+ * real host FAT filesystem: open the path here rather than borrow the
+ * descriptor out of a vfs file, which a backend need not have at all.
+ *
+ * *opened, when asked for, says whether there was a file to ask in the
+ * first place, the way a NULL from vfs_open() used to.
+ */
+static int fat_get_attr(const char *fpath, int *attr, int *opened)
 {
-  struct statfs buf;
-  return fstatfs(fd, &buf) == 0 && buf.f_type == MSDOS_SUPER_MAGIC;
+  int fd = open(fpath, O_RDONLY | O_CLOEXEC);
+  int res;
+
+  if (opened)
+    *opened = (fd != -1);
+  if (fd == -1)
+    return -1;
+  res = ioctl(fd, FAT_IOCTL_GET_ATTRIBUTES, attr);
+  close(fd);
+  return res;
+}
+
+static int fat_set_attr(const char *fpath, int attr, int *opened)
+{
+  int fd = open(fpath, O_RDONLY | O_CLOEXEC);
+  int res, err;
+
+  if (opened)
+    *opened = (fd != -1);
+  if (fd == -1)
+    return -1;
+  res = ioctl(fd, FAT_IOCTL_SET_ATTRIBUTES, &attr);
+  if (res && errno != ENOTTY) {
+    int oldattr = 1;
+
+    ioctl(fd, FAT_IOCTL_GET_ATTRIBUTES, &oldattr);
+    if (dos_would_allow(fpath, "FAT_IOCTL_SET_ATTRIBUTES", attr == oldattr))
+      res = 0;
+  }
+  err = errno;
+  close(fd);
+  errno = err;
+  return res;
 }
 #endif
 
@@ -682,37 +723,14 @@ int get_dos_attr(const char *fname, int mode, int drive)
   int attr;
 
 #ifdef __linux__
-  if (fname && file_on_fat(fname) && (S_ISREG(mode) || S_ISDIR(mode))) {
-    vfs_fs_t *fs = vfs_get_fs(REDIR_DEVICE_IDX(drives[drive].options));
-    vfs_file_t *vfd = vfs_open(fs, fname, O_RDONLY);
-    if (vfd) {
-      int res = ioctl(vfd->fd, FAT_IOCTL_GET_ATTRIBUTES, &attr);
-      vfs_close(vfd);
-      if (res == 0)
-	return attr;
-    }
-  }
-#endif
-
-  if (cdrom(drives[drive]))
-    return get_attr_simple(mode);
-  attr = mfs_getxattr_file(REDIR_DEVICE_IDX(drives[drive].options), fname);
-  return handle_xattr(attr, mode);
-}
-
-static int get_dos_attr_fd(vfs_file_t *fd, int mode, const char *name, int drive)
-{
-  int attr;
-
-#ifdef __linux__
-  if (fd_on_fat(fd->fd) && (S_ISREG(mode) || S_ISDIR(mode)) &&
-      ioctl(fd->fd, FAT_IOCTL_GET_ATTRIBUTES, &attr) == 0)
+  if (fname && file_on_fat(fname) && (S_ISREG(mode) || S_ISDIR(mode)) &&
+      fat_get_attr(fname, &attr, NULL) == 0)
     return attr;
 #endif
 
   if (cdrom(drives[drive]))
     return get_attr_simple(mode);
-  attr = mfs_getxattr_file(REDIR_DEVICE_IDX(drives[drive].options), name);
+  attr = mfs_getxattr_file(REDIR_DEVICE_IDX(drives[drive].options), fname);
   return handle_xattr(attr, mode);
 }
 
@@ -730,32 +748,15 @@ static int get_unix_attr(int attr)
   return mode;
 }
 
-#ifdef __linux__
-int set_fat_attr(vfs_file_t *fd, int attr)
-{
-  return ioctl(fd->fd, FAT_IOCTL_SET_ATTRIBUTES, &attr);
-}
-#endif
-
 int set_dos_attr(char *fpath, int attr, int drive)
 {
 #ifdef __linux__
-  vfs_fs_t *fs = vfs_get_fs(REDIR_DEVICE_IDX(drives[drive].options));
-  vfs_file_t *vfd = NULL;
-  int res;
+  if (fpath && file_on_fat(fpath)) {
+    int opened;
+    int res = fat_set_attr(fpath, attr, &opened);
 
-  if (fpath && file_on_fat(fpath))
-    vfd = vfs_open(fs, fpath, O_RDONLY);
-  if (vfd) {
-    res = set_fat_attr(vfd, attr);
-    if (res && errno != ENOTTY) {
-      int oldattr = 1;
-      ioctl(vfd->fd, FAT_IOCTL_GET_ATTRIBUTES, &oldattr);
-      if (dos_would_allow(fpath, "FAT_IOCTL_SET_ATTRIBUTES", attr == oldattr))
-	res = 0;
-    }
-    vfs_close(vfd);
-    return res;
+    if (opened)
+      return res;
   }
 #endif
 
@@ -4142,7 +4143,7 @@ do_create_truncate:
         f->type = TYPE_DISK;
 #ifdef __linux__
 	if (file_on_fat(fpath))
-          set_fat_attr(f->fd, attr);
+          fat_set_attr(fpath, attr, NULL);
         else
 #endif
         if (get_attr_simple(f->st.st_mode) != attr)
@@ -4612,7 +4613,7 @@ do_create_truncate:
         SETWORD(&state->eax, HANDLE_INVALID);
         return FALSE;
 	}
-      WRITE_DWORD(buffer, get_dos_attr_fd(f->fd, f->st.st_mode, f->name, drive));
+      WRITE_DWORD(buffer, get_dos_attr(f->name, f->st.st_mode, drive));
 #define unix_to_win_time(ut) \
 ( \
   ((unsigned long long)ut + (369 * 365 + 89)*24*60*60ULL) * 10000000 \
