@@ -28,6 +28,60 @@ start:
 msg:	db "SIMPLE OK",13,10,'$'
 """
 
+# Something to take the keys the debugger injects: it prints every key it
+# gets as the word int 16h returned, and leaves on ESC.
+KEYWAIT_ASM = r"""
+	cpu 386
+	org 100h
+	bits 16
+start:
+	mov dx, msg.ready
+	mov ah, 9
+	int 21h
+.key:
+	xor ah, ah
+	int 16h			; wait for a key, ah=scancode al=ascii
+	mov bx, ax		; puthex works in ax, so keep the key here
+	mov dx, msg.key
+	mov ah, 9
+	int 21h
+	mov al, bh
+	call puthex
+	mov al, bl
+	call puthex
+	mov dx, msg.crlf
+	mov ah, 9
+	int 21h
+	cmp bl, 1Bh
+	jne .key
+	mov ax, 4C00h
+	int 21h
+
+puthex:				; al as two hex digits
+	push ax
+	shr al, 4
+	call .digit
+	pop ax
+	and al, 0Fh
+	call .digit
+	ret
+.digit:
+	add al, '0'
+	cmp al, '9'
+	jbe .put
+	add al, 7
+.put:
+	mov dl, al
+	mov ah, 2
+	int 21h
+	ret
+
+msg:
+.ready:	db "KEYWAIT READY",13,10,'$'
+.key:	db "KEY=$"
+.crlf:	db 13,10,'$'
+"""
+
 # A minimal DPMI client. It does nothing but enter 16-bit protected mode and
 # issue a few int 31h from there, which is all a debugger test needs: an int
 # instruction executing in protected mode, at a known place, over and over.
@@ -407,6 +461,43 @@ class OurTestCase(BaseTestCase):
         self.assertRegex(steps[5], r"(?m)^flags updated", steps[5])
         self.assertRegex(steps[6], r"(?m)^.*6d", steps[6])
         self.assertRegex(steps[7], r"(?m)^.*6d: disk msgs", steps[7])
+
+    def test_dosdebug_injchar(self):
+        """Dosdebug injchar"""
+
+        self.mkbat_testit("keywait")
+        self.mkcom_with_nasm("keywait", KEYWAIT_ASM)
+
+        def body(args):
+            # the injection is a coopth thread, so DOS has to be running
+            steps = []
+            steps += (self.dbgCmd("g"),)
+            steps += (self.dbgCmd("injchar"),)
+            steps += (self.dbgCmd("injchar q"),)
+            steps += (self.dbgCmd("injchar 65536"),)
+            steps += (self.dbgCmd("injchar 65"),)
+            steps += (self.dbgCmd("injchar 0x1b"),)
+            return '|'.join(steps)
+
+        results = self.runWithDosdebug("testit.bat", body)
+        screen = self.logfiles['xpt'][0].read_bytes().decode('ASCII', 'replace')
+
+        self.assertNotIn('Timeout', results)
+
+        steps = results.split('|')
+
+        # an argument is required, and has to be a number dosdebug can read
+        self.assertIn("missing argument", steps[1], steps[1])
+        self.assertIn("Invalid character code 'q'", steps[2], steps[2])
+        # int 16h AX=0500h takes a word, so anything larger is not a key
+        self.assertIn("Invalid character code '65536'", steps[3], steps[3])
+
+        # decimal and hex both go in, and the program gets what was sent
+        self.assertIn("injecting 0x41", steps[4], steps[4])
+        self.assertIn("injecting 0x1b", steps[5], steps[5])
+        self.assertIn("KEYWAIT READY", screen)
+        self.assertIn("KEY=0041", screen)
+        self.assertIn("KEY=001B", screen)
 
     def test_dosdebug_step_rm(self):
         """Dosdebug single step in real mode"""
