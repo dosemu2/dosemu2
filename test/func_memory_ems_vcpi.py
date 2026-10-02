@@ -113,6 +113,24 @@ section .text
     call    puts
     call    show_buf
 
+    mov     ax, 5100h               ; grow the handle to 4 logical pages
+    mov     bx, 4
+    mov     dx, [handle]
+    int     67h
+    or      ah, ah
+    jnz     noreall
+
+    xor     bx, bx                  ; the data of logical page 0 survived,
+    call    map_page                ; and its address is good again
+    call    do_de06
+    mov     si, mphys2
+    call    puts
+    call    show_phys
+    call    do_move
+    mov     si, mpage2
+    call    puts
+    call    show_buf
+
 release:
     mov     ax, 4500h               ; release handle
     mov     dx, [handle]
@@ -133,6 +151,10 @@ node06:
     jmp     release
 node0a:
     mov     si, mnode0a
+    call    puts
+    jmp     release
+noreall:
+    mov     si, mnoreall
     call    puts
     jmp     release
 done:
@@ -334,14 +356,17 @@ mvcpi       db 'VCPI=',0
 mpic        db 'PIC=',0
 mphys0      db 'PHYS0=',0
 mphys1      db 'PHYS1=',0
+mphys2      db 'PHYS2=',0
 mpage0      db 'PAGE0=',0
 mpage1      db 'PAGE1=',0
+mpage2      db 'PAGE2=',0
 mnoems      db 'NOEMS',13,10,0
 mnovcpi     db 'NOVCPI',13,10,0
 mnode06     db 'NODE06',13,10,0
 mnode0a     db 'NODE0A',13,10,0
 mnomap      db 'NOMAP',13,10,0
 mnomove     db 'NOMOVE',13,10,0
+mnoreall    db 'NOREALL',13,10,0
 """)
 
     self.mkfile("testit.bat", """\
@@ -384,6 +409,15 @@ $_jemm = (on)
     # obtained for, whatever is mapped into the window now.
     self.assertIn("PAGE0=AAAAAAAA", results)
     self.assertIn("PAGE1=BBBBBBBB", results)
+
+    # Growing the handle moves its memory, so its physical home is taken
+    # again, and the data has to come along to the new address.
+    self.assertNotIn("NOREALL", results, "int 67h AX=5100h failed")
+    phys2 = re.findall(r"PHYS2=([0-9a-f]{8})", results)
+    self.assertEqual(len(phys2), 1, results)
+    self.assertGreaterEqual(int(phys2[0], 16), 0x110000,
+                            "physical address is not in the EMS window")
+    self.assertIn("PAGE2=AAAAAAAA", results)
 
 
 def memory_ems_vcpi_disabled(self):
