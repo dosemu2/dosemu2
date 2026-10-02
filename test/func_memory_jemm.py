@@ -124,6 +124,9 @@ rem end
     results = self.runDosemu("testit.bat", config="""\
 $_hdimage = "dXXXXs/c:hdtype1 +1"
 $_floppy_a = ""
+# $_jemm turns the VCPI pool on too, and that has to fit below 16M
+# together with the first megabyte and extended memory
+$_ext_mem = (6144)
 $_ems = (8192)
 $_jemm = (on)
 """)
@@ -402,6 +405,9 @@ rem end
     results = self.runDosemu("testit.bat", config="""\
 $_hdimage = "dXXXXs/c:hdtype1 +1"
 $_floppy_a = ""
+# $_jemm turns the VCPI pool on too, and that has to fit below 16M
+# together with the first megabyte and extended memory
+$_ext_mem = (6144)
 $_ems = (8192)
 $_jemm = (on)
 """)
@@ -489,6 +495,9 @@ rem end
     results = self.runDosemu("testit.bat", config="""\
 $_hdimage = "dXXXXs/c:hdtype1 +1"
 $_floppy_a = ""
+# $_jemm turns the VCPI pool on too, and that has to fit below 16M
+# together with the first megabyte and extended memory
+$_ext_mem = (6144)
 $_ems = (8192)
 $_jemm = (on)
 """)
@@ -525,6 +534,9 @@ rem end
     results = self.runDosemu("testit.bat", config="""\
 $_hdimage = "dXXXXs/c:hdtype1 +1"
 $_floppy_a = ""
+# $_jemm turns the VCPI pool on too, and that has to fit below 16M
+# together with the first megabyte and extended memory
+$_ext_mem = (6144)
 $_ems = (8192)
 $_jemm = (on)
 """)
