@@ -141,20 +141,18 @@
 #define LOWMEM_SIZE 0x100000
 #define EXTMEM_SIZE ((unsigned)(config.ext_mem << 10))
 #define XMS_SIZE ((unsigned)(config.xms_size << 10))
-/* Physical pages handed out by VCPI AX=DE06h.  They sit right below the XMS
- * window so that they stay under the 16M the ISA DMA controller can reach;
- * without $_jemm = (on) the window is empty and the layout is unchanged.
- *
- * The pool is as large as EMS itself.  A VCPI manager that installs itself
- * over dosemu2 - JEMM does - asks for the physical address of every page of
- * its own handle rather than of a DMA buffer alone, so a client can end up
- * pinning all of EMS, and a pool that is a fixed fraction of it always runs
- * out somewhere in the middle of the install. */
-#define VCPI_POOL_SIZE ((unsigned)(config.jemm ? (config.ems_size << 10) : 0))
 /* ext mem is counted from 1M and the HMA is its first 64K, so it ends at
- * LOWMEM_SIZE + EXTMEM_SIZE, and the pool starts there */
-#define vcpi_pool_base (LOWMEM_SIZE + EXTMEM_SIZE)
-#define xms_base (vcpi_pool_base + VCPI_POOL_SIZE)
+ * LOWMEM_SIZE + EXTMEM_SIZE and the XMS window starts there */
+#define xms_base (LOWMEM_SIZE + EXTMEM_SIZE)
+/* EMS memory has a window of its own above everything else, the DPMI area
+ * included, and that is where an EMS page has its physical address.  Unlike
+ * XMS, whose blocks get one from map_EMB() when a client locks them, EMS has
+ * no lock function, so every page carries its home for as long as its handle
+ * lives; VCPI AX=DE06h reports it.  The window is $_ems large, which is all
+ * the handles can hold: the pages in conventional memory are the OS handle's
+ * and have an address there already.  ems_mem_base is set by
+ * map_memory_space(), which is where the layout is decided. */
+#define EMS_MEM_SIZE ((unsigned)(config.ems_size << 10))
 
 #ifndef __ASSEMBLER__
 
@@ -242,6 +240,9 @@ static inline dosaddr_t EMUADDR_REL(const unsigned char *a)
    once, at startup
 */
 extern uint8_t *lowmem_base;
+
+/* where EMS memory lives, see EMS_MEM_SIZE above */
+extern dosaddr_t ems_mem_base;
 
 #define UNIX_READ_BYTE(addr)		(*(Bit8u *) (addr))
 #define UNIX_WRITE_BYTE(addr, val)	(*(Bit8u *) (addr) = (val) )
