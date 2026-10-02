@@ -27,6 +27,7 @@
 #include "emu.h"
 #include "dosemu_debug.h"
 #include "fslib/fslib.h"
+#include "utilities.h"
 #include "vfs.h"
 
 /*
@@ -190,11 +191,50 @@ static int posix_dir_dirfd(vfs_dir_t *dir)
   return dir->fd;
 }
 
+static int posix_dir_scandir(vfs_dir_t *dir, char ***namelist,
+    int (*filter)(const char *name))
+{
+  struct dirent **dlist;
+  char **list;
+  int i, num, cnt = 0;
+
+  if (!dir || dir->fd == -1)
+    return -1;
+  num = fdscandir(dir->fd, &dlist, NULL, alphasort);
+  if (num < 0)
+    return -1;
+  /* one spare, so that an empty directory still gets an array */
+  list = malloc((num + 1) * sizeof(*list));
+  if (list) {
+    for (i = 0; i < num; i++) {
+      if (filter && !filter(dlist[i]->d_name))
+        continue;
+      list[cnt] = strdup(dlist[i]->d_name);
+      if (!list[cnt]) {
+        while (cnt--)
+          free(list[cnt]);
+        free(list);
+        list = NULL;
+        break;
+      }
+      cnt++;
+    }
+  }
+  for (i = 0; i < num; i++)
+    free(dlist[i]);
+  free(dlist);
+  if (!list)
+    return -1;
+  *namelist = list;
+  return cnt;
+}
+
 static const struct vfs_dir_ops posix_dir_ops = {
   .closedir = posix_dir_closedir,
   .readdir = posix_dir_readdir,
   .fstatdir = posix_dir_fstatdir,
   .fstatat = posix_dir_fstatat,
+  .scandir = posix_dir_scandir,
   .dirfd = posix_dir_dirfd,
 };
 
@@ -535,4 +575,12 @@ int vfs_dirfd(vfs_dir_t *dir)
   if (!dir || !dir->ops || !dir->ops->dirfd)
     return -1;
   return dir->ops->dirfd(dir);
+}
+
+int vfs_scandir(vfs_dir_t *dir, char ***namelist,
+    int (*filter)(const char *name))
+{
+  if (!dir || !dir->ops || !dir->ops->scandir)
+    return -1;
+  return dir->ops->scandir(dir, namelist, filter);
 }

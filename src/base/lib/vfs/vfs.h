@@ -55,6 +55,13 @@ struct vfs_dir_ops {
   int (*fstatdir)(vfs_dir_t *file, struct stat *sb);
   int (*fstatat)(vfs_dir_t *dir, const char *pathname, struct stat *statbuf, int flags);
   int (*dirfd)(vfs_dir_t *dir);
+  /*
+   * Reads the rest of the directory into a sorted array of names. A
+   * backend with a host directory scans it its own way - the posix one
+   * through fdscandir() - and one without builds the array itself.
+   */
+  int (*scandir)(vfs_dir_t *dir, char ***namelist,
+      int (*filter)(const char *name));
 };
 
 struct vfs_fs {
@@ -109,5 +116,11 @@ struct dirent *vfs_readdir(vfs_dir_t *dir);
 int vfs_fstatat(vfs_dir_t *dir, const char *pathname, struct stat *statbuf, int flags);
 int vfs_fstatdir(vfs_dir_t *dir, struct stat *statbuf);
 int vfs_dirfd(vfs_dir_t *dir);
+/*
+ * Reads the rest of the directory into a sorted array of names, each
+ * malloc'd, and so is the array. Returns the number of entries, or -1.
+ */
+int vfs_scandir(vfs_dir_t *dir, char ***namelist,
+    int (*filter)(const char *name));
 
 #endif
