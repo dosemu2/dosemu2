@@ -772,10 +772,12 @@ class BaseTestCase(object):
         backend renders differently, and says so, with fewer than 25
         lines.
 
-        `until` is a marker to wait for, usually printed by the DOS
-        program; the run is then given `settle` seconds and ended with
-        SIGTERM, so that whatever the backend writes on the way out is
-        captured too.
+        `until` is what says the run is done: a marker to wait for in
+        the output, usually printed by the DOS program, or a callable
+        handed what has arrived so far, for a program whose only sign of
+        life is a file it writes.  The run is then given `settle`
+        seconds and ended with SIGTERM, so that whatever the backend
+        writes on the way out is captured too.
         """
         default_timeout = int(environ.get("DEFAULT_TIMEOUT", '15'))
         if timeout is None:
@@ -813,20 +815,21 @@ class BaseTestCase(object):
         out = b""
         deadline = monotonic() + timeout
 
+        done = until if callable(until) else lambda o: until in o
+
         def drain(until_time):
             nonlocal out
             while monotonic() < until_time:
                 r, _, _ = select([fd], [], [], 0.3)
-                if not r:
-                    continue
-                try:
-                    d = read(fd, 65536)
-                except OSError:
-                    return False
-                if not d:
-                    return False
-                out += d
-                if until is not None and until in out:
+                if r:
+                    try:
+                        d = read(fd, 65536)
+                    except OSError:
+                        return False
+                    if not d:
+                        return False
+                    out += d
+                if until is not None and done(out):
                     return True
             return until is None
 
