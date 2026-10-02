@@ -536,3 +536,44 @@ int vfs_dirfd(vfs_dir_t *dir)
     return -1;
   return dir->ops->dirfd(dir);
 }
+
+static int cmp_names(const void *a, const void *b)
+{
+  return strcoll(*(char *const *)a, *(char *const *)b);
+}
+
+int vfs_scandir(vfs_dir_t *dir, char ***namelist,
+    int (*filter)(const char *name))
+{
+  struct dirent *de;
+  char **list = NULL;
+  int num = 0;
+  int cap = 0;
+
+  while ((de = vfs_readdir(dir))) {
+    if (filter && !filter(de->d_name))
+      continue;
+    if (num == cap) {
+      char **nl;
+
+      cap = cap ? cap * 2 : 32;
+      nl = realloc(list, cap * sizeof(*list));
+      if (!nl)
+        goto err;
+      list = nl;
+    }
+    list[num] = strdup(de->d_name);
+    if (!list[num])
+      goto err;
+    num++;
+  }
+  qsort(list, num, sizeof(*list), cmp_names);
+  *namelist = list;
+  return num;
+
+err:
+  while (num--)
+    free(list[num]);
+  free(list);
+  return -1;
+}
