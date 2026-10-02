@@ -1,3 +1,27 @@
+from common_framework import DOSEMU_CONF_DEFAULT
+
+# Every kernel but fdpp is marked UNSUPPORTED for these tests in
+# test_dosemu.py: under JEMM our BIOS sits at segment 0, inside the first
+# 64K, and only the fdpp kernel is told to load above it; every other
+# kernel is put there by its own boot sector and lands on top of us.  The
+# VCPI test is in that list too, because $_jemm is the one option for both
+# halves of the stand-in, so asking for VCPI asks for all of this.  The
+# entry ends in a $ because re.match is not anchored at the end, and the
+# off-by-default tests have to keep running everywhere.
+
+# $_jemm turns the VCPI pool on too, and that has to fit below 16M
+# together with the first megabyte and extended memory
+JEMM_CONF = DOSEMU_CONF_DEFAULT + """\
+$_ext_mem = (6144)
+$_ems = (8192)
+$_jemm = (on)
+"""
+
+EMS_CONF = DOSEMU_CONF_DEFAULT + """\
+$_ems = (8192)
+"""
+
+
 # JEMM's private API lives on int 15h AX=1209h with a two-letter function
 # code in BX.  'AC' is the probe the Origin games use before they make a
 # single EMS call, and 'VE' is the version they check.
@@ -115,17 +139,9 @@ mve     db 'VE=',0
 def memory_jemm_api(self):
     self.mkcom_with_nasm("jemmtest", JEMM_PROBE)
 
-    self.mkfile("testit.bat", """\
-c:\\jemmtest
-rem end
-""", newline="\r\n")
+    self.mkbat_testit("jemmtest")
 
-    results = self.runDosemu("testit.bat", config="""\
-$_hdimage = "dXXXXs/c:hdtype1 +1"
-$_floppy_a = ""
-$_ems = (8192)
-$_jemm = (on)
-""")
+    results = self.runDosemu("testit.bat", config=JEMM_CONF)
 
     # AX=0 and BX=1209h is what the games test for, CX is JEMM's own
     self.assertIn("AC=0000/1209/0006", results)
@@ -135,16 +151,9 @@ $_jemm = (on)
 def memory_jemm_disabled(self):
     self.mkcom_with_nasm("jemmoff", JEMM_PROBE)
 
-    self.mkfile("testit.bat", """\
-c:\\jemmoff
-rem end
-""", newline="\r\n")
+    self.mkbat_testit("jemmoff")
 
-    results = self.runDosemu("testit.bat", config="""\
-$_hdimage = "dXXXXs/c:hdtype1 +1"
-$_floppy_a = ""
-$_ems = (8192)
-""")
+    results = self.runDosemu("testit.bat", config=EMS_CONF)
 
     # nothing answers, so the registers come back as they went in
     self.assertIn("AC=1209/4143/", results)
@@ -393,17 +402,9 @@ mnoems  db 'NOEMS',13,10,0
 mnomap  db 'NOMAP',13,10,0
 """)
 
-    self.mkfile("testit.bat", """\
-c:\\jemmwnd
-rem end
-""", newline="\r\n")
+    self.mkbat_testit("jemmwnd")
 
-    results = self.runDosemu("testit.bat", config="""\
-$_hdimage = "dXXXXs/c:hdtype1 +1"
-$_floppy_a = ""
-$_ems = (8192)
-$_jemm = (on)
-""")
+    results = self.runDosemu("testit.bat", config=JEMM_CONF)
 
     self.assertNotIn("NOEMS", results)
     self.assertNotIn("NOMAP", results)
@@ -480,17 +481,9 @@ mnoxms  db 'NOXMS',13,10,'$'
 mnofree db 'NOFREE',13,10,'$'
 """)
 
-    self.mkfile("testit.bat", """\
-c:\\jemmxms
-rem end
-""", newline="\r\n")
+    self.mkbat_testit("jemmxms")
 
-    results = self.runDosemu("testit.bat", config="""\
-$_hdimage = "dXXXXs/c:hdtype1 +1"
-$_floppy_a = ""
-$_ems = (8192)
-$_jemm = (on)
-""")
+    results = self.runDosemu("testit.bat", config=JEMM_CONF)
 
     self.assertNotIn("NOXMS", results)
     self.assertNotIn("NOFREE", results)
@@ -516,17 +509,9 @@ int main(void)
 }
 """)
 
-    self.mkfile("testit.bat", """\
-c:\\jmouse
-rem end
-""", newline="\r\n")
+    self.mkbat_testit("jmouse")
 
-    results = self.runDosemu("testit.bat", config="""\
-$_hdimage = "dXXXXs/c:hdtype1 +1"
-$_floppy_a = ""
-$_ems = (8192)
-$_jemm = (on)
-""")
+    results = self.runDosemu("testit.bat", config=JEMM_CONF)
 
     self.assertIn("MOUSE=ffff/0003", results)
     # the shell asks the same question while DOS is still booting, which is
