@@ -914,6 +914,18 @@ void int15_set_extmem(int on)
     int15_extmem = on;
 }
 
+/* int 15h AH=87h moves data between physical addresses.  Extended memory is
+ * the obvious target; the VCPI page pool is physical memory too, and a client
+ * that got an address from int 67h AX=DE06h may well move data there. */
+static int blk_move_addr_ok(unsigned addr, int len)
+{
+  if (addr + len <= LOWMEM_SIZE + EXTMEM_SIZE)
+    return 1;
+  if (addr >= vcpi_pool_base && addr + len <= vcpi_pool_base + VCPI_POOL_SIZE)
+    return 1;
+  return 0;
+}
+
 static int int15(void)
 {
     int num;
@@ -1041,8 +1053,8 @@ static int int15(void)
 		     src_addr, dst_addr, length);
 
 	    if (src_limit < length - 1 || dst_limit < length - 1 ||
-		src_addr + length > LOWMEM_SIZE + EXTMEM_SIZE ||
-		dst_addr + length > LOWMEM_SIZE + EXTMEM_SIZE) {
+		!blk_move_addr_ok(src_addr, length) ||
+		!blk_move_addr_ok(dst_addr, length)) {
 		x_printf("block move failed\n");
 		LWORD(eax) = 0x0200;
 		CARRY;
