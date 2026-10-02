@@ -181,21 +181,11 @@ static int posix_dir_fstatat(vfs_dir_t *dir, const char *pathname, struct stat *
   return fstatat(dir->fd, pathname, statbuf, flags);
 }
 
-static int posix_dir_dirfd(vfs_dir_t *dir)
-{
-  if (!dir)
-    return -1;
-  if (dir->d)
-    return dirfd(dir->d);
-  return dir->fd;
-}
-
 static const struct vfs_dir_ops posix_dir_ops = {
   .closedir = posix_dir_closedir,
   .readdir = posix_dir_readdir,
   .fstatdir = posix_dir_fstatdir,
   .fstatat = posix_dir_fstatat,
-  .dirfd = posix_dir_dirfd,
 };
 
 static vfs_dir_t *vfs_dir_wrap_posix(DIR *d, int fd)
@@ -528,13 +518,6 @@ int vfs_fstatat(vfs_dir_t *dir, const char *pathname, struct stat *statbuf, int 
   if (!dir || !dir->ops || !dir->ops->fstatat)
     return -1;
   return dir->ops->fstatat(dir, pathname, statbuf, flags);
-}
-
-int vfs_dirfd(vfs_dir_t *dir)
-{
-  if (!dir || !dir->ops || !dir->ops->dirfd)
-    return -1;
-  return dir->ops->dirfd(dir);
 }
 
 static int cmp_names(const void *a, const void *b)
