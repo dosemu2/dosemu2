@@ -355,15 +355,34 @@ static void low_mem_init_config_scrub(void)
 
   if (EXTMEM_SIZE < HMASIZE)
     config.ext_mem = 64;
-  if (config.xms_size) {
+  if (config.xms_size)
     /* reserve 1Mb for XMS mappings */
     min_phys_rsv += mem_1M;
-    if (min_phys_rsv > mem_16M) {
+  /* Only what has to stay in reach of the DMA controller is subject to the
+   * limit: the VCPI pool, and the megabyte XMS maps through.  With neither of
+   * them there is nothing below 16M to run out of, and $_ext_mem alone is
+   * free to be as large as it likes. */
+  if ((VCPI_POOL_SIZE || config.xms_size) && min_phys_rsv > mem_16M) {
+    uint32_t over = min_phys_rsv - mem_16M;
+    uint32_t budget = mem_16M - (config.xms_size ? mem_1M : 0);
+    uint32_t room = budget > LOWMEM_SIZE + EXTMEM_SIZE ?
+	budget - LOWMEM_SIZE - EXTMEM_SIZE : 0;
+
+    /* the VCPI pool is as large as EMS, so it can be the one that does not
+     * fit, and then no $_ext_mem small enough exists: the subtraction below
+     * would wrap and name a size of gigabytes */
+    if (over + HMASIZE > EXTMEM_SIZE)
+      error("no room below 16M: the VCPI page pool is as large as $_ems and "
+	    "takes %u kb of it. Please set $_ems to (%u) or lower, or set "
+	    "$_jemm=(off)\n", VCPI_POOL_SIZE / 1024, room / 1024);
+    else if (config.xms_size)
       error("$_ext_mem too large, please set to (%d) or lower, or set $_xms=(0)\n",
-	    (EXTMEM_SIZE - (min_phys_rsv - mem_16M)) / 1024);
-      config.exitearly = 1;
-      return;
-    }
+	    (EXTMEM_SIZE - over) / 1024);
+    else
+      error("$_ext_mem too large, please set to (%d) or lower\n",
+	    (EXTMEM_SIZE - over) / 1024);
+    config.exitearly = 1;
+    return;
   }
 
   min_phys_rsv = roundUpToNextPowerOfTwo(LOWMEM_SIZE + EXTMEM_SIZE +
