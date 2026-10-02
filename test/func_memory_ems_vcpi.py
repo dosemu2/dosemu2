@@ -351,9 +351,6 @@ $_hdimage = "dXXXXs/c:hdtype1 +1"
 $_floppy_a = ""
 $_ems = (8192)
 $_jemm = (on)
-# the VCPI page pool is as large as $_ems and has to fit under 16M
-# together with $_ext_mem and the megabyte XMS maps through
-$_ext_mem = (6144)
 """)
 
     self.assertNotIn("NOEMS", results)

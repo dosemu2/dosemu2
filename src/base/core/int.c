@@ -915,13 +915,14 @@ void int15_set_extmem(int on)
 }
 
 /* int 15h AH=87h moves data between physical addresses.  Extended memory is
- * the obvious target; the VCPI page pool is physical memory too, and a client
+ * the obvious target; the EMS window is physical memory too, and a client
  * that got an address from int 67h AX=DE06h may well move data there. */
 static int blk_move_addr_ok(unsigned addr, int len)
 {
   if (addr + len <= LOWMEM_SIZE + EXTMEM_SIZE)
     return 1;
-  if (addr >= vcpi_pool_base && addr + len <= vcpi_pool_base + VCPI_POOL_SIZE)
+  if (config.ems_size && addr >= ems_mem_base &&
+      addr + len <= ems_mem_base + EMS_MEM_SIZE)
     return 1;
   return 0;
 }
