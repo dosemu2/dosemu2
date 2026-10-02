@@ -208,7 +208,10 @@ class JemmApertureTestCase(unittest.TestCase):
             raise unittest.SkipTest("nasm failed: %s" % e)
 
         cls.conf = cls.workdir / "dosemu.conf"
-        cls.conf.write_text('$_jemm = (on)\n$_ems = (8192)\n')
+        # $_jemm brings the VCPI page pool up too, and that has to fit
+        # below 16M together with the first megabyte and $_ext_mem
+        cls.conf.write_text('$_jemm = (on)\n$_ems = (8192)\n'
+                            '$_ext_mem = (6144)\n')
         cls.report = None
 
     @classmethod
