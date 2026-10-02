@@ -813,9 +813,8 @@ static int sys_file_idx(const char *name, fatfs_t *f)
     return idx;
 }
 
-static int d_filter(const struct dirent *d)
+static int d_filter(const char *name)
 {
-    const char *name = d->d_name;
     int idx;
 
     if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0)
@@ -1169,7 +1168,7 @@ static void scan_dir(fatfs_t *f, unsigned oi)
   char *name;
   unsigned u;
   int i;
-  struct dirent **dlist;
+  char **dlist;
   int num;
   vfs_dir_t *vdfd;
 
@@ -1193,7 +1192,7 @@ static void scan_dir(fatfs_t *f, unsigned oi)
     fatfs_msg("%s open failed\n", name);
     return;
   }
-  num = fdscandir(vfs_dirfd(vdfd), &dlist, d_filter, alphasort);
+  num = vfs_scandir(vdfd, &dlist, d_filter);
   vfs_closedir(vdfd);
   if (num < 0) {
     fatfs_msg("fatfs: scandir failed for %s\n", name);
@@ -1219,9 +1218,8 @@ static void scan_dir(fatfs_t *f, unsigned oi)
   }
 
   for (i = 0; i < num; i++) {
-    struct dirent *dent = dlist[i];
-    add_object(f, oi, dent->d_name);
-    free(dent);
+    add_object(f, oi, dlist[i]);
+    free(dlist[i]);
   }
   free(dlist);
 
