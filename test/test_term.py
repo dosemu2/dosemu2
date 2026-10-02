@@ -19,6 +19,7 @@ screen and the backend before the same terminal reads it back.
 import re
 import unittest
 from shutil import which
+from subprocess import check_output, CalledProcessError, DEVNULL
 
 from common_framework import (BaseTestCase, DOSEMU_CONF_DEFAULT,
                               main, main_setup, mark)
@@ -158,8 +159,10 @@ class Screen:
         self.ch = [[" "] * cols for _ in range(rows)]
         self.fg = [[37] * cols for _ in range(rows)]
         self.bg = [[40] * cols for _ in range(rows)]
+        self.bl = [[False] * cols for _ in range(rows)]
         self.y = self.x = 0
         self.cfg, self.cbg = 37, 40
+        self.cbl = False
         self.top, self.bot = 0, rows - 1
 
     def text(self, row):
@@ -186,7 +189,15 @@ class Screen:
                     if m.group(1) == b"2":
                         self.title = m.group(2).decode("utf-8", "replace")
                     continue
-                i += 2                  # ESC ( B and the like: no cell moves
+                if i + 1 < n and 0x20 <= data[i + 1] <= 0x2f:
+                    # an intermediate, so the sequence runs to its final
+                    # byte: ESC ( B and the like, which move no cell
+                    i += 2
+                    while i < n and not 0x30 <= data[i] <= 0x7e:
+                        i += 1
+                    i += 1
+                    continue
+                i += 2                  # ESC M and the like: no cell moves
                 continue
             i += 1
             if b == 0x0d:
@@ -208,6 +219,7 @@ class Screen:
         self.ch[self.y][self.x] = c
         self.fg[self.y][self.x] = self.cfg
         self.bg[self.y][self.x] = self.cbg
+        self.bl[self.y][self.x] = self.cbl
         self.x += 1
 
     def newline(self):
@@ -220,7 +232,8 @@ class Screen:
         """Take n lines away at row `at`, the rest of the region moving up."""
         if not self.top <= at <= self.bot:
             return
-        for a, blank in ((self.ch, " "), (self.fg, 37), (self.bg, 40)):
+        for a, blank in ((self.ch, " "), (self.fg, 37), (self.bg, 40),
+                         (self.bl, False)):
             del a[at:at + n]
             for _ in range(min(n, self.bot - at + 1)):
                 a.insert(self.bot, [blank] * self.cols)
@@ -229,7 +242,8 @@ class Screen:
         """Open n blank lines at row `at`, the rest of the region moving down."""
         if not self.top <= at <= self.bot:
             return
-        for a, blank in ((self.ch, " "), (self.fg, 37), (self.bg, 40)):
+        for a, blank in ((self.ch, " "), (self.fg, 37), (self.bg, 40),
+                         (self.bl, False)):
             for _ in range(min(n, self.bot - at + 1)):
                 a.insert(at, [blank] * self.cols)
             del a[self.bot + 1:self.bot + 1 + n]
@@ -239,6 +253,7 @@ class Screen:
             self.ch[y][x] = " "
             self.fg[y][x] = self.cfg
             self.bg[y][x] = self.cbg
+            self.bl[y][x] = self.cbl
 
     def csi(self, raw, final):
         if raw.startswith(b"?"):
@@ -302,6 +317,11 @@ class Screen:
             for v in (params or [0]):
                 if v == 0:
                     self.cfg, self.cbg = 37, 40
+                    self.cbl = False
+                elif v == 5:
+                    self.cbl = True
+                elif v == 25:
+                    self.cbl = False
                 elif 30 <= v <= 37 or 90 <= v <= 97:
                     self.cfg = v
                 elif 40 <= v <= 47 or 100 <= v <= 107:
@@ -535,9 +555,188 @@ class TerminalHostProgramTestCase(SharedRun, BaseTestCase,
         return screen
 
 
+# The third case is about the other meaning of the attribute byte's top bit:
+# int 10h ax=1003h lets the program choose between blinking text and a bright
+# background (issue #1077).  The probe paints the same two rows under each
+# setting, so this case runs twice and compares the two screens.
+ROW_BRIGHT = 4          # attribute f0: black on bright white, or blinking
+ROW_PLAIN = 6           # attribute 1f, the top bit clear
+RUN = 8                 # cells per row, long enough not to occur by chance
+
+BLINK_PROBE = r"""
+; Paint two rows the test on the other side of the pty knows by heart,
+; under the blink setting this build of the probe asks for, then sit still.
+	org	0x100
+	bits	16
+	cpu	386
+
+COLS	equ	80
+
+start:
+	mov	ax, 0x0003		; 80x25 colour text
+	int	0x10
+
+	mov	ax, 0x1003		; 0 = bright background, 1 = blinking
+	mov	bx, %(BL)d
+	int	0x10
+
+	mov	ax, 0xb800
+	mov	es, ax
+
+	mov	di, (%(ROW_BRIGHT)d * COLS) * 2
+	mov	cx, %(RUN)d
+	mov	ax, 0xf000 + '@'
+	rep	stosw
+
+	mov	di, (%(ROW_PLAIN)d * COLS) * 2
+	mov	cx, %(RUN)d
+	mov	ax, 0x1f00 + '#'
+	rep	stosw
+
+	mov	di, (%(ROW_READY)d * COLS) * 2
+	mov	si, ready
+	mov	ah, 0x07
+.puts:
+	lodsb
+	or	al, al
+	jz	.spin
+	stosw
+	jmp	.puts
+
+.spin:
+	mov	ah, 0x00		; DOS is unhappy if we ever return
+	int	0x16
+	jmp	.spin
+
+ready	db	'READY', 0
+"""
+
+# A bright background only reaches the wire where the terminal has sixteen of
+# them; blinking needs no such thing.
+BG_BRIGHT_WHITE = 107
+
+
+def terminal_colours(term):
+    """How many colours the terminfo entry offers, 0 if there is none.
+
+    tput is asked in a process of its own: curses.setupterm() keeps the
+    first entry it was given for the life of the process and would answer
+    for that one instead.
+    """
+    try:
+        return int(check_output(["tput", f"-T{term}", "colors"], stderr=DEVNULL))
+    except (CalledProcessError, FileNotFoundError, ValueError):
+        return 0
+
+
+class TerminalBlinkTestCase(SharedRun, BaseTestCase, unittest.TestCase):
+
+    attrs = {'terminal'}
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.prettyname = "TermBlink"
+        # There is no DOS distribution to unpack
+        cls.tarfile = ""
+        cls.screens = {}
+        cls.raws = {}
+        cls.bootlogs = {}
+        cls.colors = terminal_colours(TERM)
+
+    test_0_basic_boot = None
+
+    @mark('terminal')
+    def test_blinking_is_asked_for_when_the_program_wants_it(self):
+        """with blinking chosen the top bit becomes blink, not a colour"""
+        s = self.render(1)
+        text = s.dump()
+        self.assertTrue(s.bl[ROW_BRIGHT][0], text)
+        self.assertEqual(s.bg[ROW_BRIGHT][0], BG[7], text)
+        self.assertEqual(s.fg[ROW_BRIGHT][0], FG[0], text)
+
+    @mark('terminal')
+    def test_a_bright_background_is_used_when_the_program_wants_it(self):
+        """with a bright background chosen the top bit becomes a colour"""
+        if self.colors < 16:
+            self.skipTest(f"{TERM} here has {self.colors} colours, too few for a bright background")
+        s = self.render(0)
+        text = s.dump()
+        self.assertEqual(s.bg[ROW_BRIGHT][0], BG_BRIGHT_WHITE, text)
+        self.assertEqual(s.fg[ROW_BRIGHT][0], FG[0], text)
+
+    @mark('terminal')
+    def test_a_bright_background_never_blinks(self):
+        """choosing a bright background turns blinking off"""
+        s = self.render(0)
+        self.assertFalse(s.bl[ROW_BRIGHT][0], s.dump())
+
+    @mark('terminal')
+    def test_the_setting_changes_what_is_rendered(self):
+        """the 1003h setting changes what is rendered: BL=0 colours, BL=1 blinks"""
+        def cell(s):
+            return (s.fg[ROW_BRIGHT][0], s.bg[ROW_BRIGHT][0],
+                    s.bl[ROW_BRIGHT][0])
+        self.assertNotEqual(cell(self.render(0)), cell(self.render(1)))
+
+    @mark('terminal')
+    def test_an_attribute_below_the_top_bit_is_left_alone(self):
+        """an attribute below the top bit is left alone by both BL=0 and BL=1"""
+        for bl in (0, 1):
+            s = self.render(bl)
+            text = s.dump()
+            self.assertEqual(s.fg[ROW_PLAIN][0], FG[15], (bl, text))
+            self.assertEqual(s.bg[ROW_PLAIN][0], BG[1], (bl, text))
+            self.assertFalse(s.bl[ROW_PLAIN][0], (bl, text))
+
+    def render(self, bl):
+        """Run the probe once under one setting and read the screen back."""
+        if bl in self.__class__.screens:
+            self.recall(bl)
+            return self.__class__.screens[bl]
+
+        home = self.imagedir / f"home{bl}"
+        home.mkdir()
+
+        self.mkcom_with_nasm("command", BLINK_PROBE % dict(
+            BL=bl, ROW_BRIGHT=ROW_BRIGHT, ROW_PLAIN=ROW_PLAIN,
+            ROW_READY=ROW_READY, RUN=RUN))
+
+        out = self.runDosemuRaw(
+            ("-t", "-ks"), config=CONF, rows=ROWS, cols=COLS,
+            until=b"READY", timeout=RUN_TIMEOUT,
+            env={
+                "HOME": str(home),
+                "DOSEMU2_COMCOM_DIR": str(self.workdir),
+                "TERM": TERM,
+                "LC_ALL": "C.UTF-8",
+            })
+
+        log = self.boot_log()
+        if "VID: Video set to Video_term" not in log and b"\x1b[" not in out:
+            self.skipTest("this build has no terminal plugin")
+
+        screen = Screen()
+        screen.feed(out)
+        if screen.text(ROW_READY) != "READY":
+            self.fail("the probe never finished painting; the bytes are in the output log")
+
+        self.__class__.raws[bl] = out
+        self.__class__.bootlogs[bl] = log
+        self.__class__.screens[bl] = screen
+        return screen
+
+    def recall(self, bl):
+        """Put the logs of the cached run back for this test to fail with."""
+        self.__class__.raw = self.__class__.raws[bl]
+        self.__class__.bootlog = self.__class__.bootlogs[bl]
+        self.relog()
+
+
 if __name__ == "__main__":
     cases = [
         TerminalRenderTestCase,
         TerminalHostProgramTestCase,
+        TerminalBlinkTestCase,
     ]
     main(main_setup(cases))
