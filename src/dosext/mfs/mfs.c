@@ -146,11 +146,7 @@ TODO:
 #include <stdio.h>
 #ifdef __linux__
 #include <sys/vfs.h>
-#else
-#ifdef __FreeBSD__
-#include <sys/param.h>
-#include <sys/mount.h>
-#endif
+#include <linux/msdos_fs.h>
 #endif
 #include <sys/ioctl.h>
 #include <fcntl.h>
@@ -181,17 +177,9 @@ TODO:
 #include "fslib/fslib.h"
 #include "mfs.h"
 
-#ifdef __linux__
-#include <linux/msdos_fs.h>
-#endif
-
 static void *fpath_dict;
 
 #define Addr(s,x,y)     Addr_8086(((s)->x), ((s)->y))
-/* vfat_ioctl to use is short for int2f/ax=11xx, both for int21/ax=71xx */
-#ifdef __linux__
-static long vfat_ioctl = VFAT_IOCTL_READDIR_BOTH;
-#endif
 /* these universal globals defined here (externed in mfs.h) */
 int mfs_enabled = FALSE;
 
@@ -693,7 +681,75 @@ static int fat_set_attr(const char *fpath, int attr, int *opened)
   errno = err;
   return res;
 }
+
+/*
+ * The FAT readdir ioctl hands out the 8.3 and the long name in one go,
+ * which is what the redirector wants, so prefer it when we have it.
+ * Which of the two it is depends on the DOS call being served.
+ *
+ * Like the attribute ioctls above it wants a descriptor of a real host
+ * FAT directory, so it opens the path itself rather than borrow one out
+ * of a vfs dir, which a backend need not have at all.
+ */
+static long vfat_ioctl = VFAT_IOCTL_READDIR_BOTH;
+
+struct fat_dir {
+  int fd;
+  struct __fat_dirent de[2];
+};
+
+static struct fat_dir *fat_opendir(int mfs_idx, const char *name)
+{
+  struct fat_dir *fdir;
+  int dfd;
+
+  if (!file_on_fat(name))
+    return NULL;
+  dfd = mfs_open_file(mfs_idx, name, O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+  if (dfd == -1)
+    return NULL;
+  fdir = malloc(sizeof *fdir);
+  if (!fdir) {
+    close(dfd);
+    return NULL;
+  }
+  fdir->fd = dfd;
+  /* asking is the test: it reads the first entry, hence the rewind */
+  if (ioctl(dfd, vfat_ioctl, fdir->de) == -1) {
+    free(fdir);
+    close(dfd);
+    return NULL;
+  }
+  lseek(dfd, 0, SEEK_SET);
+  return fdir;
+}
+
+static int fat_readdir(struct fat_dir *fdir, const char **name,
+    const char **long_name)
+{
+  if (RPT_SYSCALL(ioctl(fdir->fd, vfat_ioctl, fdir->de)) == -1 ||
+      fdir->de[0].d_reclen == 0)
+    return -1;
+  *name = fdir->de[0].d_name;
+  *long_name = fdir->de[1].d_name;
+  if ((*long_name)[0] == '\0' || vfat_ioctl == VFAT_IOCTL_READDIR_SHORT)
+    *long_name = *name;
+  return 0;
+}
+
+static void fat_closedir(struct fat_dir *fdir)
+{
+  close(fdir->fd);
+  free(fdir);
+}
 #endif
+
+static void fat_set_short_names(int on)
+{
+#ifdef __linux__
+  vfat_ioctl = on ? VFAT_IOCTL_READDIR_SHORT : VFAT_IOCTL_READDIR_BOTH;
+#endif
+}
 
 static int get_attr_simple(int mode)
 {
@@ -971,13 +1027,10 @@ int mfs_redirector(struct vm86_regs *regs, char *stk, int revect)
 {
   int ret;
 
-#ifdef __linux__
-  vfat_ioctl = VFAT_IOCTL_READDIR_SHORT;
-#endif
+  /* int2f/ax=11xx has no long names, int21/ax=71xx has */
+  fat_set_short_names(1);
   ret = dos_fs_redirect(regs, stk);
-#ifdef __linux__
-  vfat_ioctl = VFAT_IOCTL_READDIR_BOTH;
-#endif
+  fat_set_short_names(0);
 
   switch (ret) {
   case FALSE:
@@ -1589,36 +1642,31 @@ static int init_dos_offsets(int ver)
 
 struct mfs_dir *dos_opendir(const char *name, int drive)
 {
+  int mfs_idx = REDIR_DEVICE_IDX(drives[drive].options);
   struct mfs_dir *dir;
-  vfs_fs_t *fs = vfs_get_fs(REDIR_DEVICE_IDX(drives[drive].options));
-  vfs_file_t *vfile = NULL;
-  vfs_dir_t *vdir = NULL;
-#ifdef __linux__
-  struct __fat_dirent de[2];
+  vfs_dir_t *vdir;
 
-  if (file_on_fat(name)) {
-    vfile = vfs_open(fs, name, O_RDONLY | O_DIRECTORY | O_CLOEXEC);
-    if (!vfile)
-      return NULL;
-    if (ioctl(vfile->fd, vfat_ioctl, de) != -1) {
-      vfs_lseek(vfile, 0, SEEK_SET);
-    } else {
-      vfs_close(vfile);
-      vfile = NULL;
-    }
+  dir = malloc(sizeof *dir);
+  if (!dir)
+    return NULL;
+  dir->nr = 0;
+  dir->fdir = NULL;
+  dir->has_sfn = 0;
+#ifdef __linux__
+  dir->fdir = fat_opendir(mfs_idx, name);
+  if (dir->fdir) {
+    dir->vdir = NULL;
+    dir->has_sfn = 1;
+    return (dir);
   }
 #endif
-  if (!vfile) {
-    vdir = vfs_opendir(fs, name);
-    if (!vdir) {
-      error("opendir failed: %s\n", strerror(errno));
-      return NULL;
-    }
+  vdir = vfs_opendir(vfs_get_fs(mfs_idx), name);
+  if (!vdir) {
+    error("opendir failed: %s\n", strerror(errno));
+    free(dir);
+    return NULL;
   }
-  dir = malloc(sizeof *dir);
-  dir->vfile = vfile;
   dir->vdir = vdir;
-  dir->nr = 0;
   return (dir);
 }
 
@@ -1627,29 +1675,19 @@ struct mfs_dirent *dos_readdir(struct mfs_dir *dir)
   if (dir->nr <= 1) {
     dir->de.d_name = dir->de.d_long_name = dir->nr ? ".." : ".";
   } else do {
-    if (dir->vdir) {
-      struct dirent *de = vfs_readdir(dir->vdir);
-      if (de == NULL)
-	return NULL;
-      dir->de.d_name = dir->de.d_long_name = de->d_name;
-    } else {
 #ifdef __linux__
-      static struct __fat_dirent de[2];
-      int ret;
-
-      ret = (int)RPT_SYSCALL(ioctl(dir->vfile->fd, vfat_ioctl, de));
-      if (ret == -1 || de[0].d_reclen == 0)
+    if (dir->fdir) {
+      if (fat_readdir(dir->fdir, &dir->de.d_name,
+                      &dir->de.d_long_name) == -1)
         return NULL;
-
-      dir->de.d_name = de[0].d_name;
-      dir->de.d_long_name = de[1].d_name;
-      if (dir->de.d_long_name[0] == '\0' ||
-	  vfat_ioctl == VFAT_IOCTL_READDIR_SHORT) {
-        dir->de.d_long_name = dir->de.d_name;
-      }
-#else
-      return NULL;
+    } else
 #endif
+    {
+      struct dirent *de = vfs_readdir(dir->vdir);
+
+      if (de == NULL)
+        return NULL;
+      dir->de.d_name = dir->de.d_long_name = de->d_name;
     }
   } while (strcmp(dir->de.d_name, ".") == 0 ||
 	   strcmp(dir->de.d_name, "..") == 0);
@@ -1659,12 +1697,14 @@ struct mfs_dirent *dos_readdir(struct mfs_dir *dir)
 
 int dos_closedir(struct mfs_dir *dir)
 {
-  int ret;
+  int ret = 0;
 
-  if (dir->vdir)
-    ret = vfs_closedir(dir->vdir);
+#ifdef __linux__
+  if (dir->fdir)
+    fat_closedir(dir->fdir);
   else
-    ret = vfs_close(dir->vfile);
+#endif
+    ret = vfs_closedir(dir->vdir);
   free(dir);
   return (ret);
 }

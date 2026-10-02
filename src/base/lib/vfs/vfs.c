@@ -23,6 +23,9 @@
 #include <fcntl.h>
 #include <sys/file.h>
 #include <errno.h>
+#include <assert.h>
+#include "emu.h"
+#include "dosemu_debug.h"
 #include "fslib/fslib.h"
 #include "vfs.h"
 
@@ -195,7 +198,7 @@ static const struct vfs_dir_ops posix_dir_ops = {
   .dirfd = posix_dir_dirfd,
 };
 
-vfs_dir_t *vfs_dir_wrap_posix(DIR *d, int fd)
+static vfs_dir_t *vfs_dir_wrap_posix(DIR *d, int fd)
 {
   vfs_dir_t *dir;
   if (!d && fd == -1)
@@ -285,9 +288,9 @@ static vfs_dir_t *posix_fs_opendir(vfs_fs_t *fs, const char *path)
 {
   int dfd = mfs_open_file(fs->mfs_idx, path, O_RDONLY | O_DIRECTORY | O_CLOEXEC);
   DIR *d;
-  if (dfd == -1) {
+
+  if (dfd == -1)
     return NULL;
-  }
   d = fdopendir(dfd);
   if (!d) {
     close(dfd);

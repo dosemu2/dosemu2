@@ -265,9 +265,12 @@ struct mfs_dirent
 struct mfs_dir
 {
   vfs_dir_t *vdir;
-  vfs_file_t *vfile;
   struct mfs_dirent de;
   unsigned int nr;
+  /* the entries carry the real 8.3 name, so no mangling is needed */
+  int has_sfn;
+  /* a host FAT directory, read on a descriptor of its own */
+  struct fat_dir *fdir;
 };
 
 #define _sdb_drive_letter(sdb)	(*(u_char  *)&sdb[sdb_drive_letter_off])

@@ -91,7 +91,6 @@ void *vfs_open_async(vfs_fs_t *fs, const char *path, int flags);
 vfs_dir_t *vfs_opendir(vfs_fs_t *fs, const char *path);
 
 vfs_file_t *vfs_file_wrap_posix(int fd);
-vfs_dir_t *vfs_dir_wrap_posix(DIR *d, int fd);
 
 int vfs_close(vfs_file_t *file);
 ssize_t vfs_read(vfs_file_t *file, void *buf, size_t count);
