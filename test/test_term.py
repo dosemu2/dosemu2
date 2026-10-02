@@ -601,6 +601,12 @@ HOST_DONE = "HOSTDONE"
 # comes with ncurses-term, and without it the program says so and quits.
 DOS_TERM = "djgpp"
 
+# aalib picks its X11 driver whenever DISPLAY is set, and then it draws in
+# a window of its own, which says nothing about the DOS screen.  Name the
+# driver instead, so what the test measures does not depend on whether the
+# host it runs on has a display.
+AAOPTS = "-driver slang"
+
 
 class TerminalHostProgramTestCase(SharedRun, BaseTestCase,
                                   unittest.TestCase):
@@ -644,7 +650,9 @@ class TerminalHostProgramTestCase(SharedRun, BaseTestCase,
         s = self.host()
         text = s.dump()
         self.assertRegex(text, r"Current driver:Slang driver", text)
-        self.assertRegex(text, r"Current driver:Slang keyboard driver", text)
+        # whichever of the two aalib has, as long as it is not the X11 one
+        self.assertRegex(text, r"Current driver:(Slang|Curses) keyboard driver",
+                         text)
 
     @mark('terminal')
     def test_the_host_program_sees_the_dos_screen_size(self):
@@ -682,7 +690,7 @@ class TerminalHostProgramTestCase(SharedRun, BaseTestCase,
         out = self.runDosemuRaw(
             ("-t", "-ks"), config=config, rows=ROWS, cols=COLS,
             until=HOST_DONE.encode(), timeout=RUN_TIMEOUT,
-            env={"TERM": TERM, "LC_ALL": "C.UTF-8"})
+            env={"TERM": TERM, "LC_ALL": "C.UTF-8", "AAOPTS": AAOPTS})
 
         log = self.boot_log()
         self.__class__.bootlog = log
