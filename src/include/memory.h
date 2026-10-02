@@ -144,15 +144,15 @@
 /* ext mem is counted from 1M and the HMA is its first 64K, so it ends at
  * LOWMEM_SIZE + EXTMEM_SIZE and the XMS window starts there */
 #define xms_base (LOWMEM_SIZE + EXTMEM_SIZE)
-/* EMS memory lives above the XMS window, at the top of the reserved area,
- * and that is where an EMS page has its physical address.  Unlike XMS, whose
- * blocks get one from map_EMB() when a client locks them, EMS has no lock
- * function, so every page carries its home for as long as its handle lives;
- * VCPI AX=DE06h reports it.  The window is $_ems large, which is all the
- * handles can hold: the pages in conventional memory are the OS handle's and
- * have an address there already. */
+/* EMS memory has a window of its own above everything else, the DPMI area
+ * included, and that is where an EMS page has its physical address.  Unlike
+ * XMS, whose blocks get one from map_EMB() when a client locks them, EMS has
+ * no lock function, so every page carries its home for as long as its handle
+ * lives; VCPI AX=DE06h reports it.  The window is $_ems large, which is all
+ * the handles can hold: the pages in conventional memory are the OS handle's
+ * and have an address there already.  ems_mem_base is set by
+ * map_memory_space(), which is where the layout is decided. */
 #define EMS_MEM_SIZE ((unsigned)(config.ems_size << 10))
-#define ems_mem_base (xms_base + XMS_SIZE)
 
 #ifndef __ASSEMBLER__
 
@@ -240,6 +240,9 @@ static inline dosaddr_t EMUADDR_REL(const unsigned char *a)
    once, at startup
 */
 extern uint8_t *lowmem_base;
+
+/* where EMS memory lives, see EMS_MEM_SIZE above */
+extern dosaddr_t ems_mem_base;
 
 #define UNIX_READ_BYTE(addr)		(*(const Bit8u *) (addr))
 #define UNIX_WRITE_BYTE(addr, val)	(*(Bit8u *) (addr) = (val) )

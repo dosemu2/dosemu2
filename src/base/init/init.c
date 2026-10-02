@@ -366,8 +366,7 @@ static void low_mem_init_config_scrub(void)
     }
   }
 
-  min_phys_rsv = roundUpToNextPowerOfTwo(LOWMEM_SIZE + EXTMEM_SIZE +
-      XMS_SIZE + EMS_MEM_SIZE);
+  min_phys_rsv = roundUpToNextPowerOfTwo(LOWMEM_SIZE + EXTMEM_SIZE + XMS_SIZE);
   if (config.dpmi && min_phys_rsv > config.dpmi_base) {
     error("$_dpmi_base is too small, please set to at least (0x%x)\n", min_phys_rsv);
     config.exitearly = 1;
@@ -391,6 +390,8 @@ static void do_sm_error(int prio, const char *fmt, ...)
         dbug_printf("%s", buf);
 }
 
+dosaddr_t ems_mem_base;
+
 void map_memory_space(void)
 {
   unsigned char *lowmem;
@@ -403,14 +404,18 @@ void map_memory_space(void)
   smregister_default_error_notifier(do_sm_error);
   open_mapping(MAPPING_INIT_LOWRAM);
 
-  /* the EMS window sits above the XMS one, so it has to be inside the
-   * reserved area too, or the hwram region it lives in would not cover it */
-  phys_low = roundUpToNextPowerOfTwo(LOWMEM_SIZE + EXTMEM_SIZE +
-      XMS_SIZE + EMS_MEM_SIZE);
+  phys_low = roundUpToNextPowerOfTwo(LOWMEM_SIZE + EXTMEM_SIZE + XMS_SIZE);
   memsize = phys_low;
   if (config.dpmi)
     /* LOWMEM_SIZE accounted twice for alignment */
     memsize += config.dpmi_base + HUGE_PAGE_ALIGN(dpmi_mem_size());
+  /* EMS memory goes above all of it, the DPMI area included: nothing down
+   * there has to reach it, and the window it is aliased into is in the
+   * first megabyte anyway */
+  if (config.ems_size) {
+    ems_mem_base = memsize;
+    memsize += EMS_MEM_SIZE;
+  }
   g_printf ("DOS+HMA memory area being mapped in\n");
   lowmem = alloc_mapping_huge_page_aligned(MAPPING_LOWMEM, memsize);
   if (lowmem == MAP_FAILED) {
@@ -441,14 +446,18 @@ void map_memory_space(void)
     memcheck_reserve('x', xms_base, XMS_SIZE);
   }
 
-  if (config.ems_size) {
-    memcheck_addtype('m', "EMS");
-    memcheck_reserve('m', ems_mem_base, EMS_MEM_SIZE);
-  }
-
   sminit_f(&main_pool, 0, memsize, SMFLG_NOMEMSET);
   ptr = smalloc(&main_pool, LOWMEM_SIZE + HMASIZE);
   assert(ptr == 0);
+  if (config.ems_size) {
+    /* before the top-down allocation below, which would take it otherwise */
+    dosaddr_t eptr = smalloc_fixed(&main_pool, ems_mem_base, EMS_MEM_SIZE);
+    assert(eptr != (dosaddr_t)-1);
+    memcheck_addtype('m', "EMS");
+    /* identity: the physical addresses EMS hands out are its own window */
+    register_hardware_ram_virtual('m', ems_mem_base, EMS_MEM_SIZE,
+	ems_mem_base);
+  }
   /* we have an uncommitted hole up to phys_low */
   ptr += phys_low;
   phys_rsv = phys_low - (LOWMEM_SIZE + HMASIZE);
