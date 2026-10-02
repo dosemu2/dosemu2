@@ -351,7 +351,7 @@ static void low_mem_init_config_scrub(void)
   const uint32_t mem_1M = 1024 * 1024;
   /* 16Mb limit is for being in reach of DMAc */
   const uint32_t mem_16M = mem_1M * 16;
-  uint32_t min_phys_rsv = LOWMEM_SIZE + EXTMEM_SIZE;
+  uint32_t min_phys_rsv = LOWMEM_SIZE + EXTMEM_SIZE + VCPI_POOL_SIZE;
 
   if (EXTMEM_SIZE < HMASIZE)
     config.ext_mem = 64;
@@ -366,7 +366,8 @@ static void low_mem_init_config_scrub(void)
     }
   }
 
-  min_phys_rsv = roundUpToNextPowerOfTwo(LOWMEM_SIZE + EXTMEM_SIZE + XMS_SIZE);
+  min_phys_rsv = roundUpToNextPowerOfTwo(LOWMEM_SIZE + EXTMEM_SIZE +
+      VCPI_POOL_SIZE + XMS_SIZE);
   if (config.dpmi && min_phys_rsv > config.dpmi_base) {
     error("$_dpmi_base is too small, please set to at least (0x%x)\n", min_phys_rsv);
     config.exitearly = 1;
@@ -402,7 +403,10 @@ void map_memory_space(void)
   smregister_default_error_notifier(do_sm_error);
   open_mapping(MAPPING_INIT_LOWRAM);
 
-  phys_low = roundUpToNextPowerOfTwo(LOWMEM_SIZE + EXTMEM_SIZE + XMS_SIZE);
+  /* the pool sits above ext mem, so it has to be inside the reserved
+   * area too, or the hwram window it lives in would not cover it */
+  phys_low = roundUpToNextPowerOfTwo(LOWMEM_SIZE + EXTMEM_SIZE +
+      VCPI_POOL_SIZE + XMS_SIZE);
   memsize = phys_low;
   if (config.dpmi)
     /* LOWMEM_SIZE accounted twice for alignment */
@@ -432,9 +436,14 @@ void map_memory_space(void)
   if (!EMU_FULLSIM())
     c_printf("Conventional memory mapped from %p to %p\n", lowmem, mem_base);
 
+  if (VCPI_POOL_SIZE) {
+    memcheck_addtype('P', "VCPI pages");
+    memcheck_reserve('P', vcpi_pool_base, VCPI_POOL_SIZE);
+  }
+
   if (config.xms_size) {
     memcheck_addtype('x', "XMS");
-    memcheck_reserve('x', LOWMEM_SIZE + EXTMEM_SIZE, XMS_SIZE);
+    memcheck_reserve('x', xms_base, XMS_SIZE);
   }
 
   sminit_f(&main_pool, 0, memsize, SMFLG_NOMEMSET);
