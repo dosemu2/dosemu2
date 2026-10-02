@@ -76,7 +76,7 @@ static uint16 SetDebugString(char *debugStr)
 
 static void ShowDebugString(void)
 {
-  char s[1024];
+  char s[4096];
 
   com_printf("Current debug message class settings:\n");
 

@@ -255,12 +255,11 @@ class OurTestCase(BaseTestCase):
 
         # The debugger fifos live in the XDG runtime directory, named after
         # the pid, and dosdebug refuses to start when it finds more than one
-        # live pair there.  A directory of our own per test is what keeps the
-        # dosemu a previous test has not finished dying from failing this
-        # one: sharing the caller's directory makes that a race.
+        # live pair there. Avoid a race by creating a run directory per test.
+        run = self.imagedir / "run"
+        run.mkdir()
         self.dbgenv = environ.copy()
-        tmprundir = mkdtemp(prefix="dosemu2-dbg-")
-        self.dbgenv["XDG_RUNTIME_DIR"] = tmprundir
+        self.dbgenv["XDG_RUNTIME_DIR"] = str(run)
 
         child = pexpect.spawn(str(self.dosemu), args, env=self.dbgenv)
 
@@ -283,7 +282,7 @@ class OurTestCase(BaseTestCase):
                     self.dbgStart()
                     try:
                         self.dbgCmd("stop")
-                        child.send(cmd + '\r\n')
+                        child.send(cmd + '\n')
                         ret = body(body_args)
                     finally:
                         self.dbgCmd("g")
@@ -301,16 +300,49 @@ class OurTestCase(BaseTestCase):
         except PtyProcessError:
             pass
 
-        rmtree(tmprundir, ignore_errors=True)
-
         return ret
 
     # the tests
 
+    def test_dosdebug_devs(self):
+        """Dosdebug devs"""
+
+        self.mkbat_testit("simple")
+        self.mkcom_with_nasm("simple", SIMPLE_ASM)
+
+        def body(args):
+            return self.dbgCmd("devs")
+
+        results = self.runWithDosdebug("testit.bat", body)
+
+        # These three drivers will always be there in some form.
+        # f997:0048 Char 'NUL     '
+        #   Attributes: 0x8004 (Char, NULDEV)
+        #   Routines: Strategy(f997:0eb2), Interrupt(f997:0eb7)
+
+        # f910:07e6 Char 'CLOCK$  '
+        #   Attributes: 0x8008 (Char, CLOCK)
+        #   Routines: Strategy(f910:0402), Interrupt(f910:04f9)
+
+        # f910:07f8 Block (6 Units)
+        #   Attributes: 0x08c2 (Block, Removable media calls, UNDEF7, Get/Set logical device calls, UNDEF1)
+        #   Routines: Strategy(f910:0402), Interrupt(f910:0500)
+
+        template = (
+            r"(?s)[0-9A-Fa-f]{{4}}:[0-9A-Fa-f]{{4}} {variant}\n"
+            r"\s*Attributes:.*?\n"
+            r"\s*Routines:\s*Strategy\([0-9A-Fa-f]{{4}}:[0-9A-Fa-f]{{4}}\),\s*"
+            r"Interrupt\([0-9A-Fa-f]{{4}}:[0-9A-Fa-f]{{4}}\)\n"
+        )
+
+        self.assertRegex(results, template.format(variant="Char 'NUL     '"))
+        self.assertRegex(results, template.format(variant=r"Char 'CLOCK\$  '"))
+        self.assertRegex(results, template.format(variant=r"Block \(\d+ Units\)"))
+
     def test_dosdebug_ivec(self):
         """Dosdebug ivec"""
 
-        self.mkfile("testit.bat", "c:\\simple\nrem end\n", newline="\r\n")
+        self.mkbat_testit("simple")
         self.mkcom_with_nasm("simple", SIMPLE_ASM)
 
         def body(args):
@@ -321,10 +353,65 @@ class OurTestCase(BaseTestCase):
         self.assertRegex(results, r"  33  [0-9A-F]{4}:[0-9A-F]{4}\(MOUSE_INT33_OFF\)")
         self.assertRegex(results, r"  61  [0-9A-F]{4}:[0-9A-F]{4}\(TCPDRV_OFF\)")
 
+    def test_dosdebug_log(self):
+        """Dosdebug log exercise"""
+
+        self.mkbat_testit("simple")
+        self.mkcom_with_nasm("simple", SIMPLE_ASM)
+
+        config = DOSEMU_CONF_DEFAULT + '$_debug = "-D-d"\n'
+
+        # dosdebug> log
+        # current Debug-log flags:
+        # -#-A-B-C-D-E-F-I-J-L-M+N-P-Q-R-S-T-W-X-Z-a+c-d-e-f-g-h-i-j-k-m-n-p-q-r-s-u-v+w-x
+        #
+        # dosdebug> log info
+        #
+        # -#: default int           -A: ASPI                  -B: dosdebug trace
+        # -C: CDROM                 -D: dos int 21h           -E: EMS
+        # -F: MMIO trace            -I: IPC                   -J: dj64
+        # -L: TCP                   -M: DPMI                  +N: NE2000 emulation
+        # -P: Packet driver         -Q: Mapping driver        -R: disk READ
+        # -S: SOUND                 -T: I/O trace             -W: disk WRITE
+        # -X: X support             -Z: PCI                   -a: Set all levels
+        # +c: configuration         -d: disk msgs             -e: cpu-emu
+        # -f: fdpp                  -g: general messages      -h: hardware
+        # -i: I/O instructions      -j: joystick              -k: keyboard
+        # -m: mouse                 -n: IPX network           -p: printer
+        # -q: DMA                   -r: PIC request           -s: serial
+        # -u: Unicode translation   -v: video                 +w: warnings
+        # -x: XMS
+
+        def body(args):
+            steps = []
+            steps += (self.dbgCmd("log"),)
+            steps += (self.dbgCmd("log info"),)
+            steps += (self.dbgCmd("log +d"),)
+            steps += (self.dbgCmd("log"),)
+            steps += (self.dbgCmd("log info"),)
+            steps += (self.dbgCmd("log +6d"),)
+            steps += (self.dbgCmd("log"),)
+            steps += (self.dbgCmd("log info"),)
+            return '|'.join(steps)
+
+        results = self.runWithDosdebug("testit.bat", body, config=config)
+
+        self.assertNotIn('Timeout', results)
+
+        steps = results.split('|')
+        self.assertRegex(steps[0], r"(?m)^.*-d", steps[0])
+        self.assertRegex(steps[1], r"(?m)^.*-d: disk msgs", steps[1])
+        self.assertRegex(steps[2], r"(?m)^flags updated", steps[2])
+        self.assertRegex(steps[3], r"(?m)^.*\+d", steps[3])
+        self.assertRegex(steps[4], r"(?m)^.*\+d: disk msgs", steps[4])
+        self.assertRegex(steps[5], r"(?m)^flags updated", steps[5])
+        self.assertRegex(steps[6], r"(?m)^.*6d", steps[6])
+        self.assertRegex(steps[7], r"(?m)^.*6d: disk msgs", steps[7])
+
     def test_dosdebug_step_rm(self):
         """Dosdebug single step in real mode"""
 
-        self.mkfile("testit.bat", "c:\\simple\nrem end\n", newline="\r\n")
+        self.mkbat_testit("simple")
         self.mkcom_with_nasm("simple", SIMPLE_ASM)
 
         def body(args):
@@ -363,7 +450,7 @@ class OurTestCase(BaseTestCase):
     def test_dosdebug_step_over_int_pm(self):
         """Dosdebug step over an int in protected mode"""
 
-        self.mkfile("testit.bat", "c:\\pmint\nrem end\n", newline="\r\n")
+        self.mkbat_testit("pmint")
         self.mkcom_with_nasm("pmint", PMINT_ASM)
 
         def body(args):
