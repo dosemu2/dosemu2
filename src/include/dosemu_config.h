@@ -21,6 +21,7 @@ extern struct config_info config;
 
 extern void config_init(int argc, char **argv);
 extern void config_close(void);
+const char *config_get_kernel_cmdline(void);
 extern int set_floppy_type(struct disk *dptr, const char *name);
 extern void dp_init(struct disk *dptr);
 extern void secure_option_preparse(int *argc, char **argv);

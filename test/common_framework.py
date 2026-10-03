@@ -668,7 +668,7 @@ class BaseTestCase(object):
             return r"c:\share"
 
     def runDosemu(self, cmd, opts=None, outfile=None, config=DOSEMU_CONF_DEFAULT, timeout=None,
-                    eofisok=False, interactions=[]):
+                    eofisok=False, interactions=[], xargs=None):
         default_timeout = int(environ.get("DEFAULT_TIMEOUT", '15'))
         if timeout is None:
             timeout = default_timeout
@@ -689,6 +689,9 @@ class BaseTestCase(object):
 
         if opts is not None:
             args.extend(["-I", opts])
+
+        if xargs is not None:
+            args.extend(xargs)
 
         self.mkfile("dosemu.conf", config, dname=self.imagedir)
 
