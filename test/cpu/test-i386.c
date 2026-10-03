@@ -60,6 +60,10 @@ typedef unsigned long long uint64_t;
 #endif
 //#define LINUX_VM86_IOPL_FIX
 //#define TEST_P4_FLAGS
+/* The integer CMOVcc is emulated by the cpuemu, so it is always tested.
+ * FCMOVcc and F(U)COMIcc share its CPUID bit but are not emulated, so
+ * TEST_CMOV, which gates the FCMOVcc test, stays as it was. */
+#define TEST_CMOVCC 1
 #ifdef __SSE__
 #define TEST_SSE
 #define TEST_CMOV  1
@@ -397,7 +401,7 @@ void test_lea(void)
         : "=&q" (res)\
         : "r" (v1), "r" (v2));\
     printf("%-10s %d\n", "set" JCC, res);\
- if (TEST_CMOV) {\
+ if (TEST_CMOVCC) {\
     long val = i2l(1);\
     long res = i2l(0x12345678);\
 X86_64_ONLY(\
@@ -411,10 +415,13 @@ X86_64_ONLY(\
         : "=r" (res)\
         : "r" (v1), "r" (v2), "m" (val), "0" (res));\
         printf("%-10s R=" FMTLX "\n", "cmov" JCC "l", res);\
+    /* a seed of its own, and a source whose halves differ, so that a\
+       16 bit CMOVcc writing the whole register would show up */\
+    res = i2l(0x12345678);\
     asm("cmpl %2, %1\n\t"\
         "cmov" JCC "w %w3, %w0\n\t"\
         : "=r" (res)\
-        : "r" (v1), "r" (v2), "r" (1), "0" (res));\
+        : "r" (v1), "r" (v2), "r" (i2l(0x9abcdef0)), "0" (res));\
         printf("%-10s R=" FMTLX "\n", "cmov" JCC "w", res);\
  } \
 }
