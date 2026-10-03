@@ -44,6 +44,7 @@ BuildRequires: bdftopcf
 BuildRequires: mkfontscale
 BuildRequires: readline-devel
 BuildRequires: json-c-devel
+BuildRequires: libzip-devel
 BuildRequires: libb64-devel
 BuildRequires: libseccomp-devel
 BuildRequires: libsearpc-devel
