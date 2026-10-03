@@ -1,9 +1,9 @@
 def mfs_file_read(self, nametype):
     if nametype == "LFN":
-        testname = "verylongname.txt"
+        testfile = "verylongname.txt"
         disablelfn = ""
     elif nametype == "SFN":
-        testname = "shrtname.txt"
+        testfile = "shrtname.txt"
         disablelfn = "set LFN=n"
     else:
         raise ValueError("Incorrect argument")
@@ -11,14 +11,14 @@ def mfs_file_read(self, nametype):
     testdata = self.mkstring(128)
     testdir = self.mkworkdir('d')
 
-    self.mkfile("testit.bat", """\
-%s
+    self.mkfile("testit.bat", f"""\
+{disablelfn}
 d:
-c:\\mfsread %s %s
+c:\\mfsread {testfile}
 rem end
-""" % (disablelfn, testname, testdata), newline="\r\n")
+""", newline="\r\n")
 
-    self.mkfile(testname, testdata, dname=testdir)
+    self.mkfile(testfile, testdata, dname=testdir)
 
     # compile sources
     self.mkexe_with_djgpp("mfsread", r"""
@@ -66,11 +66,11 @@ $_floppy_a = ""
 def mfs_file_write(self, nametype, operation):
     if nametype == "LFN":
         ename = "mfslfn"
-        testname = "verylongname.txt"
+        testfile = "verylongname.txt"
         disablelfn = ""
     elif nametype == "SFN":
         ename = "mfssfn"
-        testname = "shrtname.txt"
+        testfile = "shrtname.txt"
         disablelfn = "set LFN=n"
     else:
         raise ValueError("Incorrect argument")
@@ -101,15 +101,15 @@ def mfs_file_write(self, nametype, operation):
     testdata = self.mkstring(64)   # need to be fairly short to pass as arg
     testdir = self.mkworkdir('d')
 
-    self.mkfile("testit.bat", """\
-%s
+    self.mkfile("testit.bat", f"""\
+{disablelfn}
 d:
-c:\\%s %s %s
+c:\\{ename} {testfile} {testdata}
 rem end
-""" % (disablelfn, ename, testname, testdata), newline="\r\n")
+""", newline="\r\n")
 
     if operation != "create" and operation != "createreadonly":
-        self.mkfile(testname, testprfx, dname=testdir)
+        self.mkfile(testfile, testprfx, dname=testdir)
 
     # compile sources
     self.mkexe_with_djgpp(ename, r"""
@@ -158,7 +158,7 @@ $_floppy_a = ""
     self.assertNotIn("open failed", results)
 
     try:
-        filedata = (testdir / testname).read_text()
+        filedata = (testdir / testfile).read_text()
     except Exception as e:   # Ensure we 'FAIL' not 'ERROR'
         raise self.failureException(e) from None
 
