@@ -48,6 +48,7 @@ from func_memory_dpmi_callgate import memory_dpmi_callgate
 from func_memory_dpmi_dpmi10_ldt import memory_dpmi_dpmi10_ldt
 from func_memory_dpmi_int_stack import (memory_dpmi_int_stack,
                                         memory_dpmi_iret_stack)
+from func_memory_dpmi_ldt_movs import memory_dpmi_ldt_movs
 from func_memory_dpmi_linmem_oom import memory_dpmi_linmem_oom
 from func_memory_dpmi_nullseg import memory_dpmi_nullseg
 from func_memory_dpmi_pm_stack import memory_dpmi_pm_stack
@@ -1047,6 +1048,11 @@ class OurTestCase(BaseTestCase):
     def test_memory_dpmi10_ldt(self):
         """Memory DPMI-1.0 LDT"""
         memory_dpmi_dpmi10_ldt(self)
+
+    @mark(['memtest', 'dpmitest'])
+    def test_memory_dpmi_ldt_movs(self):
+        """Memory DPMI LDT write by a string op"""
+        memory_dpmi_ldt_movs(self)
 
     @mark(['memtest', 'dpmitest'])
     def test_memory_dpmi_linmem_oom(self):
