@@ -136,7 +136,9 @@ extern char _binary_kvmmon_o_bin_start[] asm("_binary_kvmmon_o_bin_start");
  */
 
 #define TSS_IOPB_SIZE (65536 / 8)
-enum { GDT_NULL, GDT_CS, GDT_SS, GDT_TSS, GDT_LDT, GDT_ENTRIES };
+enum { GDT_NULL, GDT_CS, GDT_SS, GDT_TSS, GDT_LDT,
+       /* 0x28: 0-based DS and 0x30: based SS, both for VCPI */
+       GDT_VCPI_DS, GDT_VCPI_SS, GDT_ENTRIES };
 #undef IDT_ENTRIES
 #define IDT_ENTRIES 0x100
 
@@ -144,6 +146,13 @@ enum { GDT_NULL, GDT_CS, GDT_SS, GDT_TSS, GDT_LDT, GDT_ENTRIES };
 #define PG_RW 2
 #define PG_USER 4
 #define PG_DC 0x10
+
+/* The VCPI client has to map the monitor into the first 4M of its own
+   linear space.  These are the pages we hand it in the DE01 call: code
+   from the monitor's third code page, data (saved GDTR/IDTR/CR3 and a
+   scratch stack) from monitor->vcpi_data. */
+#define VCPI_CODE_PAGE 0x110
+#define VCPI_DATA_PAGE 0x111
 
 static struct monitor {
     Task tss;                                /* 0000 */
@@ -178,12 +187,15 @@ static struct monitor {
     Descriptor ldt[LDT_ENTRIES];             /* 404000 */
     unsigned char code[256 * 32 + PAGE_SIZE];         /* 414000 */
     /* 414000 IDT exception 0 code start
-       414010 IDT exception 1 code start
+       414020 IDT exception 1 code start
        .... ....
-       414ff0 IDT exception 0xff code start
-       415000 IDT common code start
-       415024 IDT common code end
+       415fe0 IDT exception 0xff code start
+       416000 IDT common code start
+       416013 IDT common code hlt
+       41602e VCPI mode switch stub start
+       416112 code end
     */
+    unsigned char vcpi_data[PAGE_SIZE];
     unsigned char kvm_tss[3*PAGE_SIZE];
     unsigned char kvm_identity_map[20*PAGE_SIZE];
 } *monitor;
@@ -368,7 +380,7 @@ static void kvm_set_desc(Descriptor *desc, struct kvm_segment *seg)
 /* initialize KVM virtual machine monitor */
 static void init_kvm_monitor(void)
 {
-  int ret, i;
+  int ret;
 
   if (!cpuid)
     return;
@@ -390,6 +402,18 @@ static void init_kvm_monitor(void)
     leavedos(99);
     return;
   }
+
+  kvm_reset_to_vm86();
+}
+
+/* Set the monitor up for v86 mode, taking the CPU back from a VCPI client
+   if one has it.  Called once at startup and again from leavedos(). */
+void kvm_reset_to_vm86(void)
+{
+  int i;
+
+  if (monitor->regs.eflags & X86_EFLAGS_VM)
+    return;
 
   sregs.tr.base = MONITOR_DOSADDR;
   sregs.tr.limit = offsetof(struct monitor, io_bitmap) + TSS_IOPB_SIZE - 1;
@@ -442,6 +466,12 @@ static void init_kvm_monitor(void)
    * Note: don't forget to clear TSS-busy bit before using that. */
   kvm_set_desc(&monitor->gdt[GDT_TSS], &sregs.tr);
   kvm_set_desc(&monitor->gdt[GDT_LDT], &sregs.ldt);
+  /* 0-based data selector (0x28) for the VCPI monitor code */
+  monitor->gdt[GDT_VCPI_DS].type = 2;
+  /* based data selector (0x30), so a client that leaves junk in the high
+     half of ESP still gets a usable stack */
+  monitor->gdt[GDT_VCPI_SS].type = 2;
+  MKBASE(&monitor->gdt[GDT_VCPI_SS], VCPI_DATA_PAGE << PAGE_SHIFT);
 
   sregs.idt.base = sregs.tr.base + offsetof(struct monitor, idt);
   sregs.idt.limit = IDT_ENTRIES * sizeof(Gatedesc)-1;
@@ -499,8 +529,31 @@ static void init_kvm_monitor(void)
   sregs.ss.db = 1;
   sregs.ss.g = 1;
 
+  monitor->regs.eflags = X86_EFLAGS_FIXED | X86_EFLAGS_VM | X86_EFLAGS_IF;
+
   if (config.cpu_vm == CPUVM_KVM)
     dbug_printf("Using V86 mode inside KVM\n");
+}
+
+/* VCPI_ACTIVE in kvmmon.S: nonzero while a VCPI client owns the CPU.
+   kvm_vcpi_pm_switch() raises it, pm_to_v86 clears it on the way back. */
+#define VCPI_ACTIVE 0x90
+
+/* A VCPI client owns the CPU.  This cannot be read off monitor->regs: a
+   client returns to v86 through pm_to_v86, which never touches them, and a
+   fault taken at ring 0 inside the monitor does not update them either. */
+static inline int kvm_in_vcpi(void)
+{
+  return monitor->vcpi_data[VCPI_ACTIVE];
+}
+
+/* True while a VCPI client owns the CPU.  dosemu2's own scheduling has to
+   stand still for as long as that lasts: the registers in the monitor are
+   not the client's, so there is nothing to fix up and nothing to switch
+   away to. */
+int kvm_vcpi_active(void)
+{
+  return config.cpu_vm == CPUVM_KVM && monitor && kvm_in_vcpi();
 }
 
 /* Initialize KVM and memory mappings */
