@@ -220,8 +220,11 @@ static inline dosaddr_t EMUADDR_REL(const unsigned char *a)
     return (a - jit_base);
 }
 
-/* lowmem_base points to a shared memory image of the area 0--1MB+64K.
-   It does not have any holes or mapping for video RAM etc.
+/* lowmem_base points to a shared memory image of all the memory dosemu maps
+   for DOS: init.c allocates it for the whole of memsize, not just the first
+   megabyte and the HMA.  It does not have any holes or mapping for video RAM
+   etc.  The client's own views of the same memory, mem_base and jit_base,
+   are aliases of this allocation and span it too.
    The difference is that the mirror image is not read or write protected so
    DOSEMU writes will not be trapped. This allows easy interference with
    simx86, NULL page protection, and removal of the VGA protected memory
