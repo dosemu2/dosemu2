@@ -863,6 +863,83 @@ void vga_mark_dirty(dosaddr_t vga_addr, int len)
     vgaemu_dirty_page(vga_page, 1);
 }
 
+/* The mode vgaemu really has up, for the host side of the BIOS: the BDA
+ * cannot name a VESA mode in its seven bits. */
+int vgaemu_vesa_mode(void)
+{
+  return vga.VESA_mode;
+}
+
+/*
+ * The host side of the BIOS also draws in modes whose framebuffer is larger
+ * than the window at 0xa0000, so it names video memory by offset rather than
+ * by a DOS address, and it reports a run of pixels as dirty in one go rather
+ * than one at a time. These keep that addressing, and the vga struct, here.
+ */
+unsigned vgaemu_scan_len(void)
+{
+  return vga.scan_len;
+}
+
+/* Up to four bytes of a pixel, without saying the screen changed: the caller
+ * marks the run it wrote. 0 if the offset is past the end. */
+int vgaemu_poke(unsigned off, unsigned val, int bytes)
+{
+  int i;
+
+  if (off + bytes > vga.mem.size)
+    return 0;
+  for (i = 0; i < bytes; i++)
+    vga.mem.base[off + i] = val >> (i * 8);
+  return 1;
+}
+
+unsigned vgaemu_peek(unsigned off, int bytes)
+{
+  unsigned v = 0;
+  int i;
+
+  if (off + bytes > vga.mem.size)
+    return 0;
+  for (i = 0; i < bytes; i++)
+    v |= (unsigned)vga.mem.base[off + i] << (i * 8);
+  return v;
+}
+
+int vgaemu_move(unsigned dst, unsigned src, unsigned len)
+{
+  if (src + len > vga.mem.size || dst + len > vga.mem.size)
+    return 0;
+  memmove(vga.mem.base + dst, vga.mem.base + src, len);
+  vga_mark_dirty(dst, len);
+  return 1;
+}
+
+/* A palette entry as the eight bits per component a direct colour mode
+ * keeps, the DAC itself having six on VGA hardware. */
+void vgaemu_dac_rgb8(Bit8u index, Bit8u *r, Bit8u *g, Bit8u *b)
+{
+  DAC_entry de;
+  unsigned sh, v[3];
+  int i;
+
+  DAC_get_entry(&de, index);
+  sh = vga.dac.bits < 8 ? 8 - vga.dac.bits : 0;
+  v[0] = de.r << sh;
+  v[1] = de.g << sh;
+  v[2] = de.b << sh;
+  for (i = 0; i < 3; i++) {
+    /* replicate the top bits into the ones the DAC does not have, or the
+     * brightest entry comes out as 0xfc rather than white */
+    if (sh)
+      v[i] |= v[i] >> vga.dac.bits;
+    v[i] &= 0xff;
+  }
+  *r = v[0];
+  *g = v[1];
+  *b = v[2];
+}
+
 void vga_write(dosaddr_t addr, unsigned char val)
 {
   if (!vga.inst_emu || !vga_bank_access(addr)) {
