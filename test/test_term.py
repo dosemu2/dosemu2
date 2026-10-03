@@ -294,6 +294,34 @@ KEYS = [
     ("after stray", [(b"b", 0)],                            [0x3062]),
 ]
 
+
+class Capture:
+    """An `interact` that keeps the page as the program left it.
+
+    What runDosemuRaw() returns is no good for the screen model: it
+    includes dosemu2's teardown, which ends with a newline on the last
+    row, and the model scrolls by one when it is fed that. READY moves
+    from row 20 to 19, the painted rows move with it, and the case fails
+    with "the probe never finished painting". How much of the teardown
+    is in there depends on what the pty hands over before it closes,
+    which is why the cases used to fail only now and then.
+
+    `interact` runs once the marker has been seen and before the run is
+    ended, so what is taken here is the page and nothing after it.
+    `wait` is for a page whose last write is not the marker itself, such
+    as the prompt DOS puts up after the marker was echoed.
+    """
+
+    def __init__(self, wait=None):
+        self.out = b""
+        self.wait = wait
+
+    def __call__(self, conv):
+        if self.wait is not None and self.wait not in conv.captured:
+            conv.expect(self.wait)
+        self.out = conv.captured
+
+
 class Screen:
     """Just enough of a terminal to tell what ended up in which cell."""
 
@@ -563,9 +591,10 @@ class TerminalRenderTestCase(SharedRun, BaseTestCase, unittest.TestCase):
         # dosemu2 takes its command interpreter from DOSEMU2_COMCOM_DIR
         self.mkcom_with_nasm("command", PROBE)
 
+        page = Capture()
         out = self.runDosemuRaw(
             ("-t", "-ks"), config=CONF, rows=ROWS, cols=COLS,
-            until=b"READY", timeout=RUN_TIMEOUT,
+            until=b"READY", timeout=RUN_TIMEOUT, interact=page,
             env={
                 "HOME": str(home),
                 "DOSEMU2_COMCOM_DIR": str(self.workdir),
@@ -580,7 +609,7 @@ class TerminalRenderTestCase(SharedRun, BaseTestCase, unittest.TestCase):
             self.skipTest("this build has no terminal plugin")
 
         screen = Screen()
-        screen.feed(out)
+        screen.feed(page.out)
         if screen.text(ROW_READY) != "READY":
             self.fail("the probe never finished painting; the bytes are in "
                       "the output log")
@@ -687,9 +716,11 @@ class TerminalHostProgramTestCase(SharedRun, BaseTestCase,
 
         config = CONF + f'$_unix_exec = "{self.prog}"\n$_sound = (0)\n'
 
+        # the prompt DOS puts up after the echo is part of the page
+        page = Capture(wait=b"C:\\>")
         out = self.runDosemuRaw(
             ("-t", "-ks"), config=config, rows=ROWS, cols=COLS,
-            until=HOST_DONE.encode(), timeout=RUN_TIMEOUT,
+            until=HOST_DONE.encode(), timeout=RUN_TIMEOUT, interact=page,
             env={"TERM": TERM, "LC_ALL": "C.UTF-8", "AAOPTS": AAOPTS})
 
         log = self.boot_log()
@@ -701,7 +732,7 @@ class TerminalHostProgramTestCase(SharedRun, BaseTestCase,
                           % DOS_TERM)
 
         screen = Screen()
-        screen.feed(out)
+        screen.feed(page.out)
         self.__class__.raw = out
         self.__class__.screen = screen
         return screen
@@ -854,9 +885,10 @@ class TerminalBlinkTestCase(SharedRun, BaseTestCase, unittest.TestCase):
             BL=bl, ROW_BRIGHT=ROW_BRIGHT, ROW_PLAIN=ROW_PLAIN,
             ROW_READY=ROW_READY, RUN=RUN))
 
+        page = Capture()
         out = self.runDosemuRaw(
             ("-t", "-ks"), config=CONF, rows=ROWS, cols=COLS,
-            until=b"READY", timeout=RUN_TIMEOUT,
+            until=b"READY", timeout=RUN_TIMEOUT, interact=page,
             env={
                 "HOME": str(home),
                 "DOSEMU2_COMCOM_DIR": str(self.workdir),
@@ -869,7 +901,7 @@ class TerminalBlinkTestCase(SharedRun, BaseTestCase, unittest.TestCase):
             self.skipTest("this build has no terminal plugin")
 
         screen = Screen()
-        screen.feed(out)
+        screen.feed(page.out)
         if screen.text(ROW_READY) != "READY":
             self.fail("the probe never finished painting; the bytes are in the output log")
 

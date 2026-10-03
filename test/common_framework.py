@@ -204,13 +204,26 @@ class PtyConversation(object):
     Everything read here also reaches what runDosemuRaw() hands back, so a
     test can type, wait for the answer, and still be given the whole
     stream afterwards.  `ready` is False when the run never printed the
-    marker that was waited for.
+    marker that was waited for.  `captured` is the stream as it stands
+    while the program is still running, for a test that wants the page
+    without dosemu2's teardown on the end of it.
     """
 
-    def __init__(self, fd, sink, ready=True):
+    def __init__(self, fd, sink, ready=True, so_far=None):
         self.fd = fd
         self.ready = ready
         self._sink = sink
+        self._so_far = so_far if so_far is not None else (lambda: b"")
+
+    @property
+    def captured(self):
+        """Everything the run has written so far.
+
+        Taken while the program is still up, so what dosemu2 writes on
+        the way out is not part of it; a test that reads the screen by
+        row wants the page as the program left it.
+        """
+        return self._so_far()
 
     def write(self, data):
         write(self.fd, data)
@@ -889,7 +902,7 @@ class BaseTestCase(object):
                 def sink(d):
                     nonlocal out
                     out += d
-                interact(PtyConversation(fd, sink, ready))
+                interact(PtyConversation(fd, sink, ready, lambda: out))
             kill(pid, signal.SIGTERM)
             drain(monotonic() + 10)
         finally:
