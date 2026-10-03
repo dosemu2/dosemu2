@@ -1,6 +1,7 @@
-#include "vfs/vfs.h"
 #ifndef RLOCKS_H
 #define RLOCKS_H
+
+#include "vfs/vfs.h"
 
 #if HAVE_DECL_F_OFD_SETLK
 
