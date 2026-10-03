@@ -478,7 +478,13 @@ the current active breakpoints.
 <listitem>
 <para>
    dump ldt starting at selector 'sel' for 'lines'
-'sel' may be a symbolic register name.
+entries, one line each, a page of them when 'lines'
+is left out and a page from where the last one ended
+when both are.  'sel' may be a symbolic register name.
+Every entry is compared against the copy dosemu keeps
+for itself: 'A' is the accessed bit as the kernel has
+it and 'a' as dosemu does, and an entry that differs
+in any other way is marked '(cache mismatch)'.
 </para>
 </listitem></varlistentry>
 <varlistentry>
