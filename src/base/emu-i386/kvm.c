@@ -1652,6 +1652,57 @@ static unsigned int kvm_run(void)
 #if KVM_PROFILE
       exit_hlt++;
 #endif
+      if (kvm_in_vcpi()) {
+        /* protected-mode VCPI interface, AX=DE03/DE04/DE05 */
+        struct vm86_regs state = {0};
+        ret = ioctl(vcpufd, KVM_GET_REGS, &kregs);
+        if (ret == -1) {
+          perror("KVM: KVM_GET_REGS");
+          leavedos_main(99);
+        }
+        if (kregs.rip - 1 == (VCPI_CODE_PAGE << PAGE_SHIFT) +
+            (kvm_mon_vcpi_hlt - (kvm_mon_start + 2 * PAGE_SIZE))) {
+          state.eax = kregs.rax;
+          state.edx = kregs.rdx;
+          E_printf("VCPI: PM interface, AX=%x\n",
+                   (unsigned)state.eax & 0xffff);
+          ems_fn(&state);
+          kregs.rax = state.eax;
+          kregs.rdx = state.edx;
+          ret = ioctl(vcpufd, KVM_SET_REGS, &kregs);
+          if (ret == -1) {
+            perror("KVM: KVM_SET_REGS");
+            leavedos_main(99);
+          }
+          break;
+        }
+        /* The client owning the CPU does not mean the CPU is in the
+           client's own code.  A VCPI client runs DOS in v86 under its own
+           page tables, and the gate we plant in its IDT brings a trap
+           taken there back to us.  That one came from a lower privilege
+           level, so it switched stacks and its frame is in monitor->regs
+           like any other: it is an ordinary v86 fault and is handled as
+           one.  Reading the faulting instruction is safe because the first
+           megabyte is identity mapped under the client's CR3. */
+        if (monitor->regs.eflags & X86_EFLAGS_VM)
+          goto vcpi_v86_fault;
+        /* Otherwise the monitor reached this hlt by faulting inside the
+           mode-switch stub, at ring 0.  Such a fault does not switch
+           stacks, so its frame went wherever the stub's esp pointed and
+           not into monitor->regs, and there is nothing here to hand to
+           vm86_fault().  Resuming just stops at the same hlt again until a
+           pending interrupt is injected into a CPU that is half way
+           between the two worlds, and the guest triple faults; say what
+           happened instead. */
+        ioctl(vcpufd, KVM_GET_SREGS, &sregs);
+        error("KVM: VCPI: monitor faulted at ring 0, rip=%04x:%08llx "
+              "cr2=%08llx cr3=%08llx\n", sregs.cs.selector,
+              (unsigned long long)kregs.rip, (unsigned long long)sregs.cr2,
+              (unsigned long long)sregs.cr3);
+        leavedos_main(99);
+        break;
+      }
+vcpi_v86_fault:
       if (fixup_hlt_exit(regs))
         break;
       exit_reason = KVM_EXIT_HLT;
@@ -1981,6 +2032,71 @@ int true_kvm_dpmi(cpuctx_t *scp)
   }
 #endif
   return ret;
+}
+
+/* VCPI DE01: hand the client the page table entries and the two GDT
+   descriptors it has to install, and the offset of the PM entry point. */
+dosaddr_t kvm_vcpi_get_pmi(dosaddr_t pagetable, dosaddr_t gdt, unsigned *pages)
+{
+  monitor->pte[VCPI_CODE_PAGE] = (MONITOR_DOSADDR +
+    offsetof(struct monitor, code) + 2 * PAGE_SIZE) | PG_PRESENT;
+  monitor->pte[VCPI_DATA_PAGE] = (MONITOR_DOSADDR +
+    offsetof(struct monitor, vcpi_data)) | PG_PRESENT | PG_RW;
+  *pages = VCPI_DATA_PAGE + 1;
+  MEMCPY_2DOS(pagetable, monitor->pte, *pages * 4);
+  /* VCPI hands over three descriptors.  The monitor code uses the first
+     two, a flat CS and the 0-based DS that follows it; the third is the
+     server's to use and ours does not, so it gets the same data
+     descriptor rather than whatever the client left there. */
+  MEMCPY_2DOS(gdt, &monitor->gdt[GDT_CS], sizeof(Descriptor));
+  MEMCPY_2DOS(gdt + 8, &monitor->gdt[GDT_VCPI_DS], sizeof(Descriptor));
+  MEMCPY_2DOS(gdt + 16, &monitor->gdt[GDT_VCPI_DS], sizeof(Descriptor));
+  return (VCPI_CODE_PAGE << PAGE_SHIFT) +
+    (kvm_mon_vcpi_pmi - (kvm_mon_start + 2 * PAGE_SIZE));
+}
+
+/* VCPI DE0C: jump into the client's protected mode. */
+void kvm_vcpi_pm_switch(dosaddr_t addr)
+{
+  /* clear VIF while the client runs so that nothing rewrites cs:eip;
+     interrupts are injected instead, see true_kvm_vm86() */
+  clear_IF();
+  /* The monitor code reads the client's structure through a 0-based DS,
+     so ESI has to carry the linear address rather than the offset the
+     client passed in DS:SI. */
+  monitor->regs.esi = addr;
+  monitor->regs.cs = GDT_CS << 3;
+  monitor->regs.eip = (VCPI_CODE_PAGE << PAGE_SHIFT) +
+    (kvm_mon_vcpi_pm_jmp - (kvm_mon_start + 2 * PAGE_SIZE));
+  monitor->regs.eflags &= ~(X86_EFLAGS_VM | X86_EFLAGS_IF);
+  monitor->vcpi_data[VCPI_ACTIVE] = 1;
+
+  /* The client owns the page tables from here on, so the PROT_NONE entries
+     we use to trap VGA accesses are gone: the aperture has to be real MMIO
+     while it runs. */
+  if (vga.inst_emu)
+    kvm_set_mmio(vga.mem.graph_base, vga.mem.graph_size, 1);
+}
+
+/* VCPI DE08/DE09 */
+void kvm_getset_debugregs(uint32_t debugregs[8], int set)
+{
+  struct kvm_debugregs dregs = {};
+  int i;
+
+  if (set) {
+    for (i = 0; i < 4; i++)
+      dregs.db[i] = debugregs[i];
+    dregs.dr6 = debugregs[6];
+    dregs.dr7 = debugregs[7];
+    ioctl(vcpufd, KVM_SET_DEBUGREGS, &dregs);
+  } else {
+    ioctl(vcpufd, KVM_GET_DEBUGREGS, &dregs);
+    for (i = 0; i < 4; i++)
+      debugregs[i] = dregs.db[i];
+    debugregs[6] = dregs.dr6;
+    debugregs[7] = dregs.dr7;
+  }
 }
 
 void kvm_done(void)
