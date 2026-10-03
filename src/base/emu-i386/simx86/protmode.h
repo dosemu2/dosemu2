@@ -104,6 +104,7 @@ typedef struct {
 #define	DF_CODE		0x08
 #define	DF_DATA		0x00
 #define	DF_EXPANDDOWN	0x04
+#define	DF_CONFORMING	0x04	/* the same bit, in a code segment */
 #define	DF_CREADABLE	0x02
 #define	DF_DWRITEABLE	0x02
 #define DF_ACCESSED	0x01
@@ -232,6 +233,7 @@ typedef struct {
 //
 extern unsigned char e_ofsseg(int ofs);
 //
+int call_gate(unsigned int *selp, unsigned int *eipp, int *modep);
 int SetSegProt_check(int ofs, unsigned long sel);
 void SetSegProt_set(int ofs, unsigned long sel);
 void SetSegProt(int ofs, unsigned long sel);
