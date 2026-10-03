@@ -20,15 +20,40 @@ into PC scancodes: a third case types at the pty and asks DOS through
 int 16h what it got.
 """
 
-import re
 import unittest
 from shutil import which
 from subprocess import check_output, CalledProcessError, DEVNULL
-
 from time import monotonic, sleep
+
+try:
+    import pyte
+except ImportError:
+    pyte = None
 
 from common_framework import (BaseTestCase, DOSEMU_CONF_DEFAULT,
                               main, main_setup, mark)
+
+# 0.8.2 is where pyte learned blink and gave the bright colours names of
+# their own, and the rendering cases read both off its cells.  Ubuntu 24.04
+# packages 0.8.0, so say what is missing rather than fail obscurely.  The
+# blink field is the test, not the version string: a distribution package
+# can be importable with no metadata to ask.
+PYTE_NEEDED = "0.8.2"
+HAVE_PYTE = pyte is not None and "blink" in pyte.screens.Char._fields
+PYTE_WHY = ("needs pyte %s or newer for blink and the bright colours "
+            "(installed: %%s), pip install pyte==%s" % (PYTE_NEEDED,
+                                                        PYTE_NEEDED))
+
+
+def pyte_version():
+    """The version pip knows about, for the skip message."""
+    try:
+        from importlib.metadata import version
+
+        return version("pyte")
+    except Exception:
+        return "unknown" if pyte else "none installed"
+
 
 ROWS, COLS = 25, 80
 RUN_TIMEOUT = 60
@@ -145,16 +170,18 @@ ready	db	'READY', 0
            ROW_SCROLL=ROW_SCROLL, ROW_READY=ROW_READY,
            CURSOR_Y=CURSOR_Y, CURSOR_X=CURSOR_X)
 
-# The SGR colour the terminal backend is expected to pick for each of the
-# sixteen DOS attribute values.  The low three bits are in the other order
-# than ANSI wants them, which is what the rotation in terminal.c is for.
-FG = {0: 30, 1: 34, 2: 32, 3: 36, 4: 31, 5: 35, 6: 33, 7: 37,
-      8: 90, 9: 94, 10: 92, 11: 96, 12: 91, 13: 95, 14: 93, 15: 97}
-BG = {0: 40, 1: 44, 2: 42, 3: 46, 4: 41, 5: 45, 6: 43, 7: 47}
-
-CSI = re.compile(rb"\[([0-9;?]*)([ -/]*)([@-~])")
-OSC = re.compile(rb"\](\d+);([^\x07\x1b]*)(?:\x07|\x1b\\)")
-
+# The colour the terminal backend is expected to pick for each of the
+# sixteen DOS attribute values, named as pyte names it.  The low three bits
+# are in the other order than ANSI wants them, which is what the rotation
+# in terminal.c is for; the top bit is the bright half, SGR 90-97, which
+# pyte reports with a "bright" prefix.
+FG = {0: "black", 1: "blue", 2: "green", 3: "cyan",
+      4: "red", 5: "magenta", 6: "brown", 7: "white",
+      8: "brightblack", 9: "brightblue", 10: "brightgreen", 11: "brightcyan",
+      12: "brightred", 13: "brightmagenta", 14: "brightbrown",
+      15: "brightwhite"}
+BG = {0: "black", 1: "blue", 2: "green", 3: "cyan",
+      4: "red", 5: "magenta", 6: "brown", 7: "white"}
 
 KEYS_PROBE = r"""
 ; Write down every keystroke int 16h hands over, and nothing else.
@@ -323,185 +350,65 @@ class Capture:
 
 
 class Screen:
-    """Just enough of a terminal to tell what ended up in which cell."""
+    """What ended up in which cell, read back off a terminal.
+
+    The terminal is pyte's, so every sequence a real one knows is
+    handled - tabs, insert and delete of characters, margins, the
+    wrapping - rather than the subset a test would think to write down.
+    Its cells carry the colour by name, the blink flag among them, which
+    is what the rendering cases compare against.
+    """
 
     def __init__(self, rows=ROWS, cols=COLS):
         self.rows, self.cols = rows, cols
-        self.title = None
-        self.ch = [[" "] * cols for _ in range(rows)]
-        self.fg = [[37] * cols for _ in range(rows)]
-        self.bg = [[40] * cols for _ in range(rows)]
-        self.bl = [[False] * cols for _ in range(rows)]
-        self.y = self.x = 0
-        self.cfg, self.cbg = 37, 40
-        self.cbl = False
-        self.top, self.bot = 0, rows - 1
+        self.term = pyte.Screen(cols, rows)
+        self.stream = pyte.ByteStream(self.term)
+
+    def feed(self, data):
+        self.stream.feed(data)
+
+    @property
+    def title(self):
+        return self.term.title or None
+
+    @property
+    def y(self):
+        return self.term.cursor.y
+
+    @property
+    def x(self):
+        return self.term.cursor.x
+
+    def cell(self, row, col):
+        return self.term.buffer[row][col]
+
+    def cells(self, pick):
+        return [[pick(self.cell(y, x)) for x in range(self.cols)]
+                for y in range(self.rows)]
+
+    @property
+    def ch(self):
+        return self.cells(lambda c: c.data)
+
+    @property
+    def fg(self):
+        return self.cells(lambda c: c.fg)
+
+    @property
+    def bg(self):
+        return self.cells(lambda c: c.bg)
+
+    @property
+    def bl(self):
+        return self.cells(lambda c: c.blink)
 
     def text(self, row):
-        return "".join(self.ch[row]).rstrip()
+        return self.term.display[row].rstrip()
 
     def dump(self):
         """The whole screen, for when an assertion wants to explain itself."""
         return "\n" + "\n".join("%2d |%s|" % (i, self.text(i))
                                  for i in range(self.rows))
-
-    def feed(self, data):
-        i, n = 0, len(data)
-        while i < n:
-            b = data[i]
-            if b == 0x1b:
-                m = CSI.match(data, i + 1)
-                if m:
-                    i = m.end()
-                    self.csi(m.group(1), m.group(3))
-                    continue
-                m = OSC.match(data, i + 1)
-                if m:
-                    i = m.end()
-                    if m.group(1) == b"2":
-                        self.title = m.group(2).decode("utf-8", "replace")
-                    continue
-                if i + 1 < n and 0x20 <= data[i + 1] <= 0x2f:
-                    # an intermediate, so the sequence runs to its final
-                    # byte: ESC ( B and the like, which move no cell
-                    i += 2
-                    while i < n and not 0x30 <= data[i] <= 0x7e:
-                        i += 1
-                    i += 1
-                    continue
-                i += 2                  # ESC M and the like: no cell moves
-                continue
-            i += 1
-            if b == 0x0d:
-                self.x = 0
-            elif b == 0x0a:
-                self.newline()
-            elif b == 0x08:
-                self.x = max(0, self.x - 1)
-            elif b >= 0x20:
-                ln = 4 if b >= 0xf0 else 3 if b >= 0xe0 else 2 if b >= 0xc0 \
-                    else 1
-                self.put(data[i - 1:i - 1 + ln].decode("utf-8", "replace"))
-                i += ln - 1
-
-    def put(self, c):
-        if self.x >= self.cols:
-            self.x = 0
-            self.newline()
-        self.ch[self.y][self.x] = c
-        self.fg[self.y][self.x] = self.cfg
-        self.bg[self.y][self.x] = self.cbg
-        self.bl[self.y][self.x] = self.cbl
-        self.x += 1
-
-    def newline(self):
-        if self.y == self.bot:
-            self.delete_lines(1, self.top)
-        elif self.y + 1 < self.rows:
-            self.y += 1
-
-    def delete_lines(self, n, at):
-        """Take n lines away at row `at`, the rest of the region moving up."""
-        if not self.top <= at <= self.bot:
-            return
-        for a, blank in ((self.ch, " "), (self.fg, 37), (self.bg, 40),
-                         (self.bl, False)):
-            del a[at:at + n]
-            for _ in range(min(n, self.bot - at + 1)):
-                a.insert(self.bot, [blank] * self.cols)
-
-    def insert_lines(self, n, at):
-        """Open n blank lines at row `at`, the rest of the region moving down."""
-        if not self.top <= at <= self.bot:
-            return
-        for a, blank in ((self.ch, " "), (self.fg, 37), (self.bg, 40),
-                         (self.bl, False)):
-            for _ in range(min(n, self.bot - at + 1)):
-                a.insert(at, [blank] * self.cols)
-            del a[self.bot + 1:self.bot + 1 + n]
-
-    def erase(self, cells):
-        for y, x in cells:
-            self.ch[y][x] = " "
-            self.fg[y][x] = self.cfg
-            self.bg[y][x] = self.cbg
-            self.bl[y][x] = self.cbl
-
-    def csi(self, raw, final):
-        if raw.startswith(b"?"):
-            return                      # private modes move nothing
-        params = [int(p) for p in raw.split(b";") if p.isdigit()]
-
-        def p(k, d=1):
-            return params[k] if len(params) > k and params[k] else d
-
-        f = final.decode()
-        if f in "Hf":
-            self.y = min(self.rows - 1, p(0) - 1)
-            self.x = min(self.cols - 1, p(1) - 1)
-        elif f == "A":
-            self.y = max(0, self.y - p(0))
-        elif f == "B":
-            self.y = min(self.rows - 1, self.y + p(0))
-        elif f == "C":
-            self.x = min(self.cols - 1, self.x + p(0))
-        elif f == "D":
-            self.x = max(0, self.x - p(0))
-        elif f == "G":
-            self.x = min(self.cols - 1, p(0) - 1)
-        elif f == "d":
-            self.y = min(self.rows - 1, p(0) - 1)
-        elif f == "J":
-            k = p(0, 0)
-            if k == 0:
-                self.erase([(self.y, x) for x in range(self.x, self.cols)] +
-                           [(y, x) for y in range(self.y + 1, self.rows)
-                            for x in range(self.cols)])
-            elif k == 1:
-                self.erase([(y, x) for y in range(self.y)
-                            for x in range(self.cols)] +
-                           [(self.y, x) for x in range(self.x + 1)])
-            else:
-                self.erase([(y, x) for y in range(self.rows)
-                            for x in range(self.cols)])
-        elif f == "K":
-            k = p(0, 0)
-            if k == 0:
-                self.erase([(self.y, x) for x in range(self.x, self.cols)])
-            elif k == 1:
-                self.erase([(self.y, x) for x in range(self.x + 1)])
-            else:
-                self.erase([(self.y, x) for x in range(self.cols)])
-        elif f == "r":
-            top, bot = p(0), p(1, self.rows)
-            if 1 <= top < bot <= self.rows:
-                self.top, self.bot = top - 1, bot - 1
-                self.y = self.x = 0
-        elif f == "M":
-            self.delete_lines(p(0), self.y)
-        elif f == "L":
-            self.insert_lines(p(0), self.y)
-        elif f == "S":
-            self.delete_lines(p(0), self.top)
-        elif f == "T":
-            self.insert_lines(p(0), self.top)
-        elif f == "m":
-            for v in (params or [0]):
-                if v == 0:
-                    self.cfg, self.cbg = 37, 40
-                    self.cbl = False
-                elif v == 5:
-                    self.cbl = True
-                elif v == 25:
-                    self.cbl = False
-                elif 30 <= v <= 37 or 90 <= v <= 97:
-                    self.cfg = v
-                elif 40 <= v <= 47 or 100 <= v <= 107:
-                    self.cbg = v
-                elif v == 39:
-                    self.cfg = 37
-                elif v == 49:
-                    self.cbg = 40
 
 
 class SharedRun(object):
@@ -526,6 +433,8 @@ class TerminalRenderTestCase(SharedRun, BaseTestCase, unittest.TestCase):
     def setUpClass(cls):
         super().setUpClass()
         cls.prettyname = "Terminal"
+        if not HAVE_PYTE:
+            raise unittest.SkipTest(PYTE_WHY % pyte_version())
         # There is no DOS distribution to unpack
         cls.tarfile = ""
         cls.screen = None
@@ -653,6 +562,8 @@ class TerminalHostProgramTestCase(SharedRun, BaseTestCase,
     def setUpClass(cls):
         super().setUpClass()
         cls.prettyname = "TermHost"
+        if not HAVE_PYTE:
+            raise unittest.SkipTest(PYTE_WHY % pyte_version())
         # There is no DOS distribution to unpack
         cls.tarfile = ""
         cls.autoexec = "fdppauto.bat"
@@ -796,7 +707,7 @@ ready	db	'READY', 0
 
 # A bright background only reaches the wire where the terminal has sixteen of
 # them; blinking needs no such thing.
-BG_BRIGHT_WHITE = 107
+BG_BRIGHT_WHITE = "brightwhite"
 
 
 def terminal_colours(term):
@@ -820,6 +731,8 @@ class TerminalBlinkTestCase(SharedRun, BaseTestCase, unittest.TestCase):
     def setUpClass(cls):
         super().setUpClass()
         cls.prettyname = "TermBlink"
+        if not HAVE_PYTE:
+            raise unittest.SkipTest(PYTE_WHY % pyte_version())
         # There is no DOS distribution to unpack
         cls.tarfile = ""
         cls.screens = {}
