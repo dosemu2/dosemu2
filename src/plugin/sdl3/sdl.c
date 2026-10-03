@@ -141,7 +141,11 @@ static SDL_Texture *texture_ttf;
 struct rect_desc {
   SDL_Rect rect;
   SDL_Surface *tex;
+  unsigned gen;			/* the surface generation it was cut from */
 };
+/* Bumped whenever the surface the queued rectangles point into is replaced,
+ * so the render thread can tell a rectangle cut from the previous one. */
+static unsigned surf_gen;
 static int font_width, font_height;
 static int surf_width, surf_height;
 static int real_win_width, real_win_height;
@@ -862,6 +866,15 @@ static void do_rend_rects(struct rng_s *rng, SDL_Texture *tex)
   struct rect_desc d;
 
   while (rng_get(rng, &d)) {
+    /* The mode changed after this one was queued, so the surface it points
+     * into has been freed.  Destroying the view is safe -- it does not own
+     * the pixels -- but reading them is not.  Only this ring holds views:
+     * the glyphs in ttf_char_rng own their pixels and outlive any mode
+     * change. */
+    if (rng == &rects_rng && d.gen != surf_gen) {
+      SDL_DestroySurface(d.tex);
+      continue;
+    }
     SDL_LockSurface(d.tex);
     SDL_UpdateTexture(tex, &d.rect, d.tex->pixels, d.tex->pitch);
     SDL_UnlockSurface(d.tex);
@@ -968,8 +981,16 @@ static void SDL_change_mode(int x_res, int y_res, int w_x_res, int w_y_res)
     assert(pthread_equal(pthread_self(), dosemu_pthread_self));
   v_printf("SDL: using mode %dx%d %dx%d %d\n", x_res, y_res, w_x_res,
 	   w_y_res, SDL_csd.bits);
-  if (surface)
+  if (surface) {
+    /* Rectangles already queued are views into these pixels, and the render
+     * thread may be waiting on the mode lock with some in hand.  It cannot
+     * be made to drop them from here -- it holds rects_mtx while it waits
+     * for the mode lock, so taking rects_mtx under the mode write lock
+     * would deadlock -- so mark them instead and let it drop them itself. */
+    surf_gen++;
     SDL_DestroySurface(surface);
+    surface = NULL;
+  }
 
   /* all textures are protected with rend_mtx */
   pthread_mutex_lock(&rend_mtx);
@@ -1092,8 +1113,18 @@ static int SDL_update_screen(void)
 
 static void SDL_put_image(int x, int y, unsigned width, unsigned height)
 {
-  int offs = x * SDL_csd.bits / 8 + y * surface->pitch;
+  int offs;
   struct rect_desc d;
+
+  /* Unlike lock(), which render_lock() calls before it looks at the flags
+   * and which therefore has to tolerate a NULL surface, refresh_rect() is
+   * reached only through render_rect_add(), i.e. only for a render that
+   * render_lock() found enabled.  SDL_change_mode() clears the surface and
+   * disables this render together under the mode write lock, and the
+   * drawing paths hold the mode read lock, so an enabled Render_SDL always
+   * has a surface here. */
+  assert(surface);
+  offs = x * SDL_csd.bits / 8 + y * surface->pitch;
 
   d.rect.x = x;
   d.rect.y = y;
@@ -1103,6 +1134,7 @@ static void SDL_put_image(int x, int y, unsigned width, unsigned height)
   d.tex = SDL_CreateSurfaceFrom(width, height, pixel_format,
         surface->pixels + offs, surface->pitch);
   assert(d.tex);
+  d.gen = surf_gen;
   pthread_mutex_lock(&rects_mtx);
   if (!rng_put(&rects_rng, &d)) {
     error("SDL: rects queue overflow\n");
@@ -1721,6 +1753,7 @@ static void SDL_draw_string(void *opaque, int x, int y, const char *text,
   d.tex = SDL_ConvertSurface(srf, pixel_format);
   assert(d.tex);
   SDL_DestroySurface(srf);
+  d.gen = surf_gen;
   pthread_mutex_lock(&rects_mtx);
   if (!rng_put(&ttf_char_rng, &d)) {
     error("TTF queue overflowed\n");
@@ -1760,6 +1793,7 @@ static void SDL_draw_line(void *opaque, int x, int y, float ul, int len,
   d.rect.w = font_width * len,
   d.rect.h = 1;
 
+  d.gen = surf_gen;
   pthread_mutex_lock(&rects_mtx);
   if (!rng_put(&ttf_char_rng, &d)) {
     error("TTF queue overflowed\n");
@@ -1828,6 +1862,7 @@ static void SDL_draw_text_cursor(void *opaque, int x, int y, Bit8u attr,
     SDL_RenderFillRect(rend, &rect);
   SDL_DestroyRenderer(rend);
 
+  d.gen = surf_gen;
   pthread_mutex_lock(&rects_mtx);
   if (!rng_put(&ttf_char_rng, &d)) {
     error("TTF queue overflowed\n");
