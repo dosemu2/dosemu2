@@ -1269,6 +1269,22 @@ static void config_scrub(void)
 	config_scrub_passed++;
 }
 
+/* :NAME=value on the command line: kernel command line, not a DOS var */
+static char *kernel_cmdline;
+
+static void store_kernel_cmdline(const char *var)
+{
+    free(kernel_cmdline);
+    kernel_cmdline = strdup(var);
+}
+
+const char *config_get_kernel_cmdline(void)
+{
+    if (!kernel_cmdline || strncmp(kernel_cmdline, "FDCMDLINE=", 10) != 0)
+	return NULL;
+    return strchr(kernel_cmdline, '=') + 1;
+}
+
 /*
  * DANG_BEGIN_FUNCTION config_init
  *
@@ -1730,7 +1746,10 @@ config_init(int argc, char **argv)
 	    continue;
 	}
 	g_printf("ENV given on command line: %s\n", argv[optind]);
-	misc_e6_store_options(argv[optind]);
+	if (argv[optind][0] == ':')
+	    store_kernel_cmdline(argv[optind] + 1);
+	else
+	    misc_e6_store_options(argv[optind]);
 	optind++;
     }
     if (argc > optind) {

@@ -70,6 +70,7 @@ from func_misc import (create_new_psp, passing_dos_errorlevel_back, passing_envi
 from func_mfs_directory import mfs_directory_common, mfs_get_current_directory
 from func_mfs_read_write import mfs_file_read, mfs_file_write
 from func_mscdex_stub import mscdex_stub
+from func_kernel_cmdline import kernel_cmdline
 from func_findfile import (mfs_findfile_ufs_lfn, mfs_findfile_ufs_sfn,
                            mfs_findfile_vfat_linux_mounted_lfn, mfs_findfile_vfat_linux_mounted_sfn,
                            sfn_findfirst)
@@ -103,6 +104,10 @@ class OurTestCase(BaseTestCase):
     def test_mscdex_stub(self):
         """MSCDEX stub answers with no CD-ROM drive"""
         mscdex_stub(self)
+
+    def test_kernel_cmdline(self):
+        """Kernel command line selects config file"""
+        kernel_cmdline(self)
 
     @mark(['mfstest', 'sfntest'])
     def test_mfs_sfn_directory_create(self):
