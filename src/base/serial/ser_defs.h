@@ -426,6 +426,7 @@ int ser_open(int num);
 int ser_close(int num);
 int uart_fill(int num);
 int serial_get_msr(int num);
+void ser_tick(int num);
 
 int serial_rx_push(com_t *c, const char *buf, int len);
 
@@ -442,6 +443,9 @@ struct serial_drv {
   int (*ser_close)(com_t *c);
   int (*uart_fill)(com_t *c);
   int (*serial_get_msr)(com_t *c);
+  /* optional: called from the serial engine tick, for drivers that
+   * need a timeout serviced as well as their fds */
+  void (*ser_tick)(com_t *c);
   const char *name;
 };
 
