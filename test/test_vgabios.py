@@ -9,6 +9,11 @@ to reach planar, CGA and 8 bit memory.  Nothing but a graphics video
 backend can exercise them: under -td there are no direct colour modes to
 set, so this test asks SDL for its dummy driver, which needs no display.
 
+Mode 0x0f did the same (issue #389): vgaemu calls it a two plane mode and
+the BIOS only knew the four plane and one plane names for the same layout.
+Mode 0x06 drew fine but read every pixel back as zero, because the address
+int 10h ah=0d computes only matched the two bits per pixel layout.
+
 Nothing here needs a DOS distribution either: the program that does the
 drawing is assembled on the spot and handed to dosemu2 as its command
 interpreter.  It writes down what it saw in video memory after each call,
@@ -94,6 +99,16 @@ do_one:
 	xor	ah, ah
 	mov	al, [value]
 	mov	[mode], ax
+	; the CGA modes live at b800 and their buffer is only 16k
+	mov	word [win], 0xa000
+	mov	word [wsz], NCHK
+	mov	al, [value]
+	cmp	al, 4
+	jb	.ready
+	cmp	al, 6
+	ja	.ready
+	mov	word [win], 0xb800
+	mov	word [wsz], 0x4000
 	jmp	.ready
 
 .vbe:
@@ -103,6 +118,8 @@ do_one:
 	jmp	report
 .have:
 	mov	[mode], cx
+	mov	word [win], 0xa000
+	mov	word [wsz], NCHK
 	mov	bx, cx
 	mov	ax, 0x4f02
 	int	0x10
@@ -235,10 +252,10 @@ pixel_bytes:
 	jc	.out
 	mov	ax, bx
 	add	ax, [pxsz]
-	cmp	ax, NCHK
+	cmp	ax, [wsz]
 	ja	.out
 	push	es
-	mov	ax, WIN
+	mov	ax, [win]
 	mov	es, ax
 	mov	di, bx
 	mov	cx, [pxsz]
@@ -276,10 +293,11 @@ home:
 
 clear_win:
 	push	es
-	mov	ax, WIN
+	mov	ax, [win]
 	mov	es, ax
 	xor	di, di
-	mov	cx, NCHK / 2
+	mov	cx, [wsz]
+	shr	cx, 1
 	xor	ax, ax
 	rep	stosw
 	pop	es
@@ -287,10 +305,11 @@ clear_win:
 
 fill_win:
 	push	es
-	mov	ax, WIN
+	mov	ax, [win]
 	mov	es, ax
 	xor	di, di
-	mov	cx, NCHK / 2
+	mov	cx, [wsz]
+	shr	cx, 1
 	mov	ax, 0x5a5a
 	rep	stosw
 	pop	es
@@ -299,10 +318,10 @@ fill_win:
 ; out: ax = number of non-zero bytes in the first NCHK of the window
 count_nz:
 	push	es
-	mov	ax, WIN
+	mov	ax, [win]
 	mov	es, ax
 	xor	di, di
-	mov	cx, NCHK
+	mov	cx, [wsz]
 	xor	dx, dx
 .l:
 	mov	al, [es:di]
@@ -440,8 +459,17 @@ puthex:
 ; ------------------------------------------------------------------ data
 ; kind 0: an int 10h mode number.  kind 1: the first VBE direct colour mode
 ; with that many bits per pixel.
+win	dw	0xa000
+wsz	dw	NCHK
+
 modelist:
+	db	0, 0x04			; 320x200, CGA 4 colours
+	db	0, 0x06			; 640x200, CGA 2 colours
 	db	0, 0x0d			; 320x200, 4 planes
+	db	0, 0x0e			; 640x200, 4 planes
+	db	0, 0x0f			; 640x350, 2 planes
+	db	0, 0x10			; 640x350, 4 planes
+	db	0, 0x11			; 640x480, 1 plane
 	db	0, 0x12			; 640x480, 4 planes
 	db	0, 0x13			; 320x200, 256 colours
 	db	1, 15
@@ -491,8 +519,13 @@ mib		times 256 db 0
 # What the probe walks, in the order it walks it.  The three plain VGA
 # modes are here because the fix touches how the BIOS decides which mode is
 # up, and those are the modes that already worked.
-VGA_MODES = (0x0d, 0x12, 0x13)
+VGA_MODES = (0x04, 0x06, 0x0d, 0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13)
 DIRECT_MODES = (15, 16, 24, 32)
+
+# What int 10h ah=0d gives back after ah=0c wrote COLOUR.  A CGA mode keeps
+# only as many bits per pixel as it has; a planar mode stores the attribute
+# in four planes whatever its colour count, so it gives all four bits back.
+READBACK = {0x04: 0x03, 0x06: 0x01}
 
 RUN_TIMEOUT = 120
 FIELDS = re.compile(r"(\w+)=([0-9a-fx]+)")
@@ -531,7 +564,8 @@ class VgaBiosTestCase(BaseTestCase, unittest.TestCase):
         """characters, pixels and scrolling all reach video memory"""
         lines, log = self.probe()
         for want in VGA_MODES:
-            self.checkMode(lines["%04x" % want], "mode 0x%02x" % want)
+            self.checkMode(lines["%04x" % want], "mode 0x%02x" % want,
+                           READBACK.get(want, COLOUR))
         for bits in DIRECT_MODES:
             m = self.directMode(lines, bits)
             self.checkMode(m, "the %d bpp mode 0x%s" % (bits, m["mode"]))
@@ -558,7 +592,7 @@ class VgaBiosTestCase(BaseTestCase, unittest.TestCase):
                     int(m["bef"]), 0,
                     "the %d bpp pixel landed short of where it belongs" % bits)
 
-    def checkMode(self, m, what):
+    def checkMode(self, m, what, readback=COLOUR):
         with self.subTest(mode=what):
             self.assertGreater(int(m["attr"]), 0,
                                "int 10h ah=09 drew nothing in %s" % what)
@@ -568,7 +602,7 @@ class VgaBiosTestCase(BaseTestCase, unittest.TestCase):
                                "int 10h ah=0e drew nothing in %s" % what)
             self.assertGreater(int(m["pix"]), 0,
                                "int 10h ah=0c drew nothing in %s" % what)
-            self.assertEqual(int(m["rd"], 16), COLOUR,
+            self.assertEqual(int(m["rd"], 16), readback,
                              "int 10h ah=0d did not read back what ah=0c "
                              "wrote in %s" % what)
             self.assertNotEqual(int(m["scroll"]), int(m["fill"]),

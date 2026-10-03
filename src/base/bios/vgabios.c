@@ -583,6 +583,7 @@ Bit8u dir)
      switch(vmi->type)
       {
        case PLANAR4:
+       case PLANAR2:
        case PLANAR1:
          port_outw(VGAREG_GRDC_ADDRESS, 0x0205);
          memsetb(vmi->buffer_start,address,attr,nbrows*nbcols*cheight);
@@ -599,6 +600,7 @@ Bit8u dir)
      switch(vmi->type)
       {
        case PLANAR4:
+       case PLANAR2:
        case PLANAR1:
          if(dir==SCROLL_UP)
           {for(i=rul;i<=rlr;i++)
@@ -941,6 +943,7 @@ static void biosfn_write_char_attr (Bit8u car,Bit8u page,Bit8u attr,
      switch(vmi->type)
       {
        case PLANAR4:
+       case PLANAR2:
        case PLANAR1:
          write_gfx_char_pl4(address,car,attr,xcurs,ycurs,nbcols,cheight);
          break;
@@ -1008,6 +1011,7 @@ static void biosfn_write_char_only (Bit8u car,Bit8u page,Bit8u attr,
      switch(vmi->type)
       {
        case PLANAR4:
+       case PLANAR2:
        case PLANAR1:
          write_gfx_char_pl4(address,car,attr,xcurs,ycurs,nbcols,cheight);
          break;
@@ -1069,6 +1073,7 @@ static void biosfn_write_pixel(Bit8u BH,Bit8u AL,Bit16u CX,Bit16u DX)
  switch(vmi->type)
   {
    case PLANAR4:
+   case PLANAR2:
    case PLANAR1:
      addr = CX/8+DX*read_bda_word(BIOSMEM_NB_COLS)+
        READ_WORD(BIOS_VIDEO_MEMORY_USED)*BH;
@@ -1178,6 +1183,7 @@ static unsigned char biosfn_read_pixel(Bit8u BH,Bit16u CX,Bit16u DX)
  switch(vmi->type)
   {
    case PLANAR4:
+   case PLANAR2:
    case PLANAR1:
      addr = CX/8+DX*read_bda_word(BIOSMEM_NB_COLS)+
        READ_WORD(BIOS_VIDEO_MEMORY_USED)*BH;
@@ -1191,7 +1197,16 @@ static unsigned char biosfn_read_pixel(Bit8u BH,Bit16u CX,Bit16u DX)
       }
      break;
    case CGA:
-     addr=(CX>>2)+(DX>>1)*80;
+     /* as in biosfn_write_pixel: at one bit per pixel a byte holds eight
+      * of them, not four */
+     if(vmi->color_bits==2)
+      {
+       addr=(CX>>2)+(DX>>1)*80;
+      }
+     else
+      {
+       addr=(CX>>3)+(DX>>1)*80;
+      }
      if (DX & 1) addr += 0x2000;
      data = read_byte_far(0xb800,addr);
      if(vmi->color_bits==2)
@@ -1330,6 +1345,7 @@ static void biosfn_write_teletype(Bit8u car,Bit8u page,Bit8u attr,Bit8u flag)
       switch(vmi->type)
        {
         case PLANAR4:
+        case PLANAR2:
         case PLANAR1:
           write_gfx_char_pl4(address,car,attr,xcurs,ycurs,nbcols,cheight);
           break;
