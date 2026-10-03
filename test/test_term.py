@@ -20,12 +20,12 @@ into PC scancodes: a third case types at the pty and asks DOS through
 int 16h what it got.
 """
 
-import re
 import unittest
 from shutil import which
 from subprocess import check_output, CalledProcessError, DEVNULL
-
 from time import monotonic, sleep
+
+import pyte
 
 from common_framework import (BaseTestCase, DOSEMU_CONF_DEFAULT,
                               main, main_setup, mark)
@@ -151,10 +151,6 @@ ready	db	'READY', 0
 FG = {0: 30, 1: 34, 2: 32, 3: 36, 4: 31, 5: 35, 6: 33, 7: 37,
       8: 90, 9: 94, 10: 92, 11: 96, 12: 91, 13: 95, 14: 93, 15: 97}
 BG = {0: 40, 1: 44, 2: 42, 3: 46, 4: 41, 5: 45, 6: 43, 7: 47}
-
-CSI = re.compile(rb"\[([0-9;?]*)([ -/]*)([@-~])")
-OSC = re.compile(rb"\](\d+);([^\x07\x1b]*)(?:\x07|\x1b\\)")
-
 
 KEYS_PROBE = r"""
 ; Write down every keystroke int 16h hands over, and nothing else.
@@ -322,186 +318,112 @@ class Capture:
         self.out = conv.captured
 
 
+# What a cell reads as when nothing has been said about its colour.
+DEFAULT_FG, DEFAULT_BG = 37, 40
+
+
+class _Pyte(pyte.Screen):
+    """pyte's screen, carrying the two things these tests read and it drops.
+
+    pyte has no blink at all, and it folds the aixterm bright colours
+    (90-97, 100-107) onto its bold flag, so neither "the backend asked
+    for blinking" nor "it picked bright white" can be read back off its
+    cells.  Both are kept here instead, in the fields pyte itself only
+    ever copies from cell to cell as the screen scrolls: fg and bg hold
+    the SGR number the backend wrote, and italics stands for blink.
+    """
+
+    @property
+    def default_char(self):
+        return pyte.screens.Char(data=" ", fg=DEFAULT_FG, bg=DEFAULT_BG)
+
+    def reset(self):
+        super().reset()
+        self.cursor.attrs = self.default_char
+
+    def select_graphic_rendition(self, *attrs):
+        rest = []
+
+        for v in attrs or (0,):
+            if v == 0:
+                self.cursor.attrs = self.default_char
+            elif v in (5, 25):
+                self.set_attrs(italics=(v == 5))
+            elif 30 <= v <= 37 or 90 <= v <= 97:
+                self.set_attrs(fg=v)
+            elif v == 39:
+                self.set_attrs(fg=DEFAULT_FG)
+            elif 40 <= v <= 47 or 100 <= v <= 107:
+                self.set_attrs(bg=v)
+            elif v == 49:
+                self.set_attrs(bg=DEFAULT_BG)
+            else:
+                rest.append(v)      # bold, underline and the like
+        if rest:
+            super().select_graphic_rendition(*rest)
+
+    def set_attrs(self, **kw):
+        self.cursor.attrs = self.cursor.attrs._replace(**kw)
+
+
 class Screen:
-    """Just enough of a terminal to tell what ended up in which cell."""
+    """What ended up in which cell, read back off a terminal.
+
+    The terminal is pyte's, so every sequence a real one knows is
+    handled - tabs, insert and delete of characters, margins, the
+    wrapping - rather than the subset a test would think to write down.
+    """
 
     def __init__(self, rows=ROWS, cols=COLS):
         self.rows, self.cols = rows, cols
-        self.title = None
-        self.ch = [[" "] * cols for _ in range(rows)]
-        self.fg = [[37] * cols for _ in range(rows)]
-        self.bg = [[40] * cols for _ in range(rows)]
-        self.bl = [[False] * cols for _ in range(rows)]
-        self.y = self.x = 0
-        self.cfg, self.cbg = 37, 40
-        self.cbl = False
-        self.top, self.bot = 0, rows - 1
+        self.term = _Pyte(cols, rows)
+        self.stream = pyte.ByteStream(self.term)
+
+    def feed(self, data):
+        self.stream.feed(data)
+
+    @property
+    def title(self):
+        return self.term.title or None
+
+    @property
+    def y(self):
+        return self.term.cursor.y
+
+    @property
+    def x(self):
+        return self.term.cursor.x
+
+    def cell(self, row, col):
+        return self.term.buffer[row][col]
+
+    def cells(self, pick):
+        return [[pick(self.cell(y, x)) for x in range(self.cols)]
+                for y in range(self.rows)]
+
+    @property
+    def ch(self):
+        return self.cells(lambda c: c.data)
+
+    @property
+    def fg(self):
+        return self.cells(lambda c: c.fg)
+
+    @property
+    def bg(self):
+        return self.cells(lambda c: c.bg)
+
+    @property
+    def bl(self):
+        return self.cells(lambda c: c.italics)
 
     def text(self, row):
-        return "".join(self.ch[row]).rstrip()
+        return self.term.display[row].rstrip()
 
     def dump(self):
         """The whole screen, for when an assertion wants to explain itself."""
         return "\n" + "\n".join("%2d |%s|" % (i, self.text(i))
                                  for i in range(self.rows))
-
-    def feed(self, data):
-        i, n = 0, len(data)
-        while i < n:
-            b = data[i]
-            if b == 0x1b:
-                m = CSI.match(data, i + 1)
-                if m:
-                    i = m.end()
-                    self.csi(m.group(1), m.group(3))
-                    continue
-                m = OSC.match(data, i + 1)
-                if m:
-                    i = m.end()
-                    if m.group(1) == b"2":
-                        self.title = m.group(2).decode("utf-8", "replace")
-                    continue
-                if i + 1 < n and 0x20 <= data[i + 1] <= 0x2f:
-                    # an intermediate, so the sequence runs to its final
-                    # byte: ESC ( B and the like, which move no cell
-                    i += 2
-                    while i < n and not 0x30 <= data[i] <= 0x7e:
-                        i += 1
-                    i += 1
-                    continue
-                i += 2                  # ESC M and the like: no cell moves
-                continue
-            i += 1
-            if b == 0x0d:
-                self.x = 0
-            elif b == 0x0a:
-                self.newline()
-            elif b == 0x08:
-                self.x = max(0, self.x - 1)
-            elif b >= 0x20:
-                ln = 4 if b >= 0xf0 else 3 if b >= 0xe0 else 2 if b >= 0xc0 \
-                    else 1
-                self.put(data[i - 1:i - 1 + ln].decode("utf-8", "replace"))
-                i += ln - 1
-
-    def put(self, c):
-        if self.x >= self.cols:
-            self.x = 0
-            self.newline()
-        self.ch[self.y][self.x] = c
-        self.fg[self.y][self.x] = self.cfg
-        self.bg[self.y][self.x] = self.cbg
-        self.bl[self.y][self.x] = self.cbl
-        self.x += 1
-
-    def newline(self):
-        if self.y == self.bot:
-            self.delete_lines(1, self.top)
-        elif self.y + 1 < self.rows:
-            self.y += 1
-
-    def delete_lines(self, n, at):
-        """Take n lines away at row `at`, the rest of the region moving up."""
-        if not self.top <= at <= self.bot:
-            return
-        for a, blank in ((self.ch, " "), (self.fg, 37), (self.bg, 40),
-                         (self.bl, False)):
-            del a[at:at + n]
-            for _ in range(min(n, self.bot - at + 1)):
-                a.insert(self.bot, [blank] * self.cols)
-
-    def insert_lines(self, n, at):
-        """Open n blank lines at row `at`, the rest of the region moving down."""
-        if not self.top <= at <= self.bot:
-            return
-        for a, blank in ((self.ch, " "), (self.fg, 37), (self.bg, 40),
-                         (self.bl, False)):
-            for _ in range(min(n, self.bot - at + 1)):
-                a.insert(at, [blank] * self.cols)
-            del a[self.bot + 1:self.bot + 1 + n]
-
-    def erase(self, cells):
-        for y, x in cells:
-            self.ch[y][x] = " "
-            self.fg[y][x] = self.cfg
-            self.bg[y][x] = self.cbg
-            self.bl[y][x] = self.cbl
-
-    def csi(self, raw, final):
-        if raw.startswith(b"?"):
-            return                      # private modes move nothing
-        params = [int(p) for p in raw.split(b";") if p.isdigit()]
-
-        def p(k, d=1):
-            return params[k] if len(params) > k and params[k] else d
-
-        f = final.decode()
-        if f in "Hf":
-            self.y = min(self.rows - 1, p(0) - 1)
-            self.x = min(self.cols - 1, p(1) - 1)
-        elif f == "A":
-            self.y = max(0, self.y - p(0))
-        elif f == "B":
-            self.y = min(self.rows - 1, self.y + p(0))
-        elif f == "C":
-            self.x = min(self.cols - 1, self.x + p(0))
-        elif f == "D":
-            self.x = max(0, self.x - p(0))
-        elif f == "G":
-            self.x = min(self.cols - 1, p(0) - 1)
-        elif f == "d":
-            self.y = min(self.rows - 1, p(0) - 1)
-        elif f == "J":
-            k = p(0, 0)
-            if k == 0:
-                self.erase([(self.y, x) for x in range(self.x, self.cols)] +
-                           [(y, x) for y in range(self.y + 1, self.rows)
-                            for x in range(self.cols)])
-            elif k == 1:
-                self.erase([(y, x) for y in range(self.y)
-                            for x in range(self.cols)] +
-                           [(self.y, x) for x in range(self.x + 1)])
-            else:
-                self.erase([(y, x) for y in range(self.rows)
-                            for x in range(self.cols)])
-        elif f == "K":
-            k = p(0, 0)
-            if k == 0:
-                self.erase([(self.y, x) for x in range(self.x, self.cols)])
-            elif k == 1:
-                self.erase([(self.y, x) for x in range(self.x + 1)])
-            else:
-                self.erase([(self.y, x) for x in range(self.cols)])
-        elif f == "r":
-            top, bot = p(0), p(1, self.rows)
-            if 1 <= top < bot <= self.rows:
-                self.top, self.bot = top - 1, bot - 1
-                self.y = self.x = 0
-        elif f == "M":
-            self.delete_lines(p(0), self.y)
-        elif f == "L":
-            self.insert_lines(p(0), self.y)
-        elif f == "S":
-            self.delete_lines(p(0), self.top)
-        elif f == "T":
-            self.insert_lines(p(0), self.top)
-        elif f == "m":
-            for v in (params or [0]):
-                if v == 0:
-                    self.cfg, self.cbg = 37, 40
-                    self.cbl = False
-                elif v == 5:
-                    self.cbl = True
-                elif v == 25:
-                    self.cbl = False
-                elif 30 <= v <= 37 or 90 <= v <= 97:
-                    self.cfg = v
-                elif 40 <= v <= 47 or 100 <= v <= 107:
-                    self.cbg = v
-                elif v == 39:
-                    self.cfg = 37
-                elif v == 49:
-                    self.cbg = 40
 
 
 class SharedRun(object):
