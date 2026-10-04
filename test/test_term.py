@@ -14,15 +14,46 @@ assembled on the spot and handed to dosemu2 as its command interpreter.
 A second case takes the other direction: it runs a host terminal program
 from DOS through unix.com, so what the program draws crosses a pty, the DOS
 screen and the backend before the same terminal reads it back.
+
+The way in is the same backend turning the terminal's escape sequences back
+into PC scancodes: a third case types at the pty and asks DOS through
+int 16h what it got.
 """
 
-import re
 import unittest
 from shutil import which
 from subprocess import check_output, CalledProcessError, DEVNULL
+from time import monotonic, sleep
+
+try:
+    import pyte
+except ImportError:
+    pyte = None
 
 from common_framework import (BaseTestCase, DOSEMU_CONF_DEFAULT,
                               main, main_setup, mark)
+
+# 0.8.2 is where pyte learned blink and gave the bright colours names of
+# their own, and the rendering cases read both off its cells.  Ubuntu 24.04
+# packages 0.8.0, so say what is missing rather than fail obscurely.  The
+# blink field is the test, not the version string: a distribution package
+# can be importable with no metadata to ask.
+PYTE_NEEDED = "0.8.2"
+HAVE_PYTE = pyte is not None and "blink" in pyte.screens.Char._fields
+PYTE_WHY = ("needs pyte %s or newer for blink and the bright colours "
+            "(installed: %%s), pip install pyte==%s" % (PYTE_NEEDED,
+                                                        PYTE_NEEDED))
+
+
+def pyte_version():
+    """The version pip knows about, for the skip message."""
+    try:
+        from importlib.metadata import version
+
+        return version("pyte")
+    except Exception:
+        return "unknown" if pyte else "none installed"
+
 
 ROWS, COLS = 25, 80
 RUN_TIMEOUT = 60
@@ -139,197 +170,245 @@ ready	db	'READY', 0
            ROW_SCROLL=ROW_SCROLL, ROW_READY=ROW_READY,
            CURSOR_Y=CURSOR_Y, CURSOR_X=CURSOR_X)
 
-# The SGR colour the terminal backend is expected to pick for each of the
-# sixteen DOS attribute values.  The low three bits are in the other order
-# than ANSI wants them, which is what the rotation in terminal.c is for.
-FG = {0: 30, 1: 34, 2: 32, 3: 36, 4: 31, 5: 35, 6: 33, 7: 37,
-      8: 90, 9: 94, 10: 92, 11: 96, 12: 91, 13: 95, 14: 93, 15: 97}
-BG = {0: 40, 1: 44, 2: 42, 3: 46, 4: 41, 5: 45, 6: 43, 7: 47}
+# The colour the terminal backend is expected to pick for each of the
+# sixteen DOS attribute values, named as pyte names it.  The low three bits
+# are in the other order than ANSI wants them, which is what the rotation
+# in terminal.c is for; the top bit is the bright half, SGR 90-97, which
+# pyte reports with a "bright" prefix.
+FG = {0: "black", 1: "blue", 2: "green", 3: "cyan",
+      4: "red", 5: "magenta", 6: "brown", 7: "white",
+      8: "brightblack", 9: "brightblue", 10: "brightgreen", 11: "brightcyan",
+      12: "brightred", 13: "brightmagenta", 14: "brightbrown",
+      15: "brightwhite"}
+BG = {0: "black", 1: "blue", 2: "green", 3: "cyan",
+      4: "red", 5: "magenta", 6: "brown", 7: "white"}
 
-CSI = re.compile(rb"\[([0-9;?]*)([ -/]*)([@-~])")
-OSC = re.compile(rb"\](\d+);([^\x07\x1b]*)(?:\x07|\x1b\\)")
+KEYS_PROBE = r"""
+; Write down every keystroke int 16h hands over, and nothing else.
+	org	0x100
+	bits	16
+	cpu	386
+
+start:
+	mov	ah, 0x3c		; create the report
+	xor	cx, cx
+	mov	dx, fname
+	int	0x21
+	jc	hang
+	mov	[fh], ax
+
+	mov	si, s_go
+	call	log
+	mov	ah, 0x09		; and on the screen, as the marker
+	mov	dx, s_go_scr
+	int	0x21
+.loop:
+	mov	ah, 0x11		; anything waiting?
+	int	0x16
+	jz	.loop
+	mov	ah, 0x10		; extended read
+	int	0x16
+	push	ax
+	mov	si, s_key
+	call	log
+	pop	ax
+	call	loghex
+	mov	si, s_nl
+	call	log
+	jmp	.loop
+hang:
+	jmp	hang
+
+; si -> an asciiz string to append to the report
+log:
+	push	ax
+	push	bx
+	push	cx
+	push	dx
+	mov	dx, si
+	xor	cx, cx
+.len:
+	cmp	byte [si], 0
+	je	.write
+	inc	si
+	inc	cx
+	jmp	.len
+.write:
+	mov	bx, [fh]
+	mov	ah, 0x40
+	int	0x21
+	pop	dx
+	pop	cx
+	pop	bx
+	pop	ax
+	ret
+
+; ax -> four hex digits in the report
+loghex:
+	push	ax
+	mov	di, hexbuf
+	mov	cx, 4
+	mov	bx, ax
+.digit:
+	rol	bx, 4
+	mov	al, bl
+	and	al, 0x0f
+	add	al, '0'
+	cmp	al, '9'
+	jbe	.store
+	add	al, 7
+.store:
+	mov	[di], al
+	inc	di
+	loop	.digit
+	mov	byte [di], 0
+	mov	si, hexbuf
+	call	log
+	pop	ax
+	ret
+
+fh	dw	0
+fname	db	'C:\KEYS.TXT', 0
+s_go	db	'GO', 13, 10, 0
+s_go_scr db	'GO', 13, 10, '$'
+s_key	db	'key ', 0
+s_nl	db	13, 10, 0
+hexbuf	times 8 db 0
+"""
+
+# How long to leave between the halves of a sequence that is sent in two
+# pieces, comfortably inside the 250ms the backend waits, and how long to
+# leave to make it give up on one.
+SPLIT_GAP = 0.1
+GIVE_UP = 1.2
+# How long a key is given to come out of int 16h, and how long one that
+# must not arrive is watched for.  The first is a ceiling only: the answer
+# is waited for, not slept through.
+ANSWER_WAIT = 1.5
+SILENCE = 0.5
+POLL = 0.02
+
+# name, the pieces to type with the pause after each, what int 16h owes us
+KEYS = [
+    ("F1",          [(b"\x1bOP", 0)],                       [0x3b00]),
+    ("F5",          [(b"\x1b[15~", 0)],                     [0x3f00]),
+    ("F12",         [(b"\x1b[24~", 0)],                     [0x8600]),
+    ("shift-F1",    [(b"\x1b[1;2P", 0)],                    [0x5400]),
+    ("alt-F1",      [(b"\x1b[1;3P", 0)],                    [0x6800]),
+    ("up",          [(b"\x1b[A", 0)],                       [0x48e0]),
+    ("left",        [(b"\x1b[D", 0)],                       [0x4be0]),
+    ("ctrl-left",   [(b"\x1b[1;5D", 0)],                    [0x73e0]),
+    ("home",        [(b"\x1bOH", 0)],                       [0x47e0]),
+    ("delete",      [(b"\x1b[3~", 0)],                      [0x53e0]),
+    ("shift-tab",   [(b"\x1b[Z", 0)],                       [0x0f00]),
+    ("ctrl-a",      [(b"\x01", 0)],                         [0x1e01]),
+    ("escape",      [(b"\x1b", 0)],                         [0x011b]),
+    # arriving in two reads, as over a slow line
+    ("split arrow", [(b"\x1b[", SPLIT_GAP), (b"A", 0)],     [0x48e0]),
+    ("split ctrl",  [(b"\x1b[1", SPLIT_GAP), (b";5D", 0)],  [0x73e0]),
+    # a character the terminal sends as more than one byte
+    ("umlaut",      [(b"\xc3\xa4", 0)],                     [0x0084]),
+    ("line",        [(b"\xe2\x94\x80", 0)],                 [0x00c4]),
+    # a mouse report is the backend's own business, not a keystroke
+    ("mouse",       [(b"\x1b[<35;10;5M", 0)],               []),
+    ("split mouse", [(b"\x1b[<35;11", SPLIT_GAP), (b";6M", 0)], []),
+    # a high byte that never becomes a character gets through as the meta
+    # key a dumb ascii terminal would have meant by it, and the character
+    # typed after it still has to arrive: mbrtowc() keeps what it could not
+    # finish, and the next call must not read it as a continuation
+    ("stray byte",  [(b"\xc3", GIVE_UP)],                   [0x2e00]),
+    ("umlaut after", [(b"\xc3\xa4", 0)],                    [0x0084]),
+    ("after stray", [(b"b", 0)],                            [0x3062]),
+]
+
+
+class Capture:
+    """An `interact` that keeps the page as the program left it.
+
+    What runDosemuRaw() returns is no good for the screen model: it
+    includes dosemu2's teardown, which ends with a newline on the last
+    row, and the model scrolls by one when it is fed that. READY moves
+    from row 20 to 19, the painted rows move with it, and the case fails
+    with "the probe never finished painting". How much of the teardown
+    is in there depends on what the pty hands over before it closes,
+    which is why the cases used to fail only now and then.
+
+    `interact` runs once the marker has been seen and before the run is
+    ended, so what is taken here is the page and nothing after it.
+    `wait` is for a page whose last write is not the marker itself, such
+    as the prompt DOS puts up after the marker was echoed.
+    """
+
+    def __init__(self, wait=None):
+        self.out = b""
+        self.wait = wait
+
+    def __call__(self, conv):
+        if self.wait is not None and self.wait not in conv.captured:
+            conv.expect(self.wait)
+        self.out = conv.captured
 
 
 class Screen:
-    """Just enough of a terminal to tell what ended up in which cell."""
+    """What ended up in which cell, read back off a terminal.
+
+    The terminal is pyte's, so every sequence a real one knows is
+    handled - tabs, insert and delete of characters, margins, the
+    wrapping - rather than the subset a test would think to write down.
+    Its cells carry the colour by name, the blink flag among them, which
+    is what the rendering cases compare against.
+    """
 
     def __init__(self, rows=ROWS, cols=COLS):
         self.rows, self.cols = rows, cols
-        self.title = None
-        self.ch = [[" "] * cols for _ in range(rows)]
-        self.fg = [[37] * cols for _ in range(rows)]
-        self.bg = [[40] * cols for _ in range(rows)]
-        self.bl = [[False] * cols for _ in range(rows)]
-        self.y = self.x = 0
-        self.cfg, self.cbg = 37, 40
-        self.cbl = False
-        self.top, self.bot = 0, rows - 1
+        self.term = pyte.Screen(cols, rows)
+        self.stream = pyte.ByteStream(self.term)
+
+    def feed(self, data):
+        self.stream.feed(data)
+
+    @property
+    def title(self):
+        return self.term.title or None
+
+    @property
+    def y(self):
+        return self.term.cursor.y
+
+    @property
+    def x(self):
+        return self.term.cursor.x
+
+    def cell(self, row, col):
+        return self.term.buffer[row][col]
+
+    def cells(self, pick):
+        return [[pick(self.cell(y, x)) for x in range(self.cols)]
+                for y in range(self.rows)]
+
+    @property
+    def ch(self):
+        return self.cells(lambda c: c.data)
+
+    @property
+    def fg(self):
+        return self.cells(lambda c: c.fg)
+
+    @property
+    def bg(self):
+        return self.cells(lambda c: c.bg)
+
+    @property
+    def bl(self):
+        return self.cells(lambda c: c.blink)
 
     def text(self, row):
-        return "".join(self.ch[row]).rstrip()
+        return self.term.display[row].rstrip()
 
     def dump(self):
         """The whole screen, for when an assertion wants to explain itself."""
         return "\n" + "\n".join("%2d |%s|" % (i, self.text(i))
                                  for i in range(self.rows))
-
-    def feed(self, data):
-        i, n = 0, len(data)
-        while i < n:
-            b = data[i]
-            if b == 0x1b:
-                m = CSI.match(data, i + 1)
-                if m:
-                    i = m.end()
-                    self.csi(m.group(1), m.group(3))
-                    continue
-                m = OSC.match(data, i + 1)
-                if m:
-                    i = m.end()
-                    if m.group(1) == b"2":
-                        self.title = m.group(2).decode("utf-8", "replace")
-                    continue
-                if i + 1 < n and 0x20 <= data[i + 1] <= 0x2f:
-                    # an intermediate, so the sequence runs to its final
-                    # byte: ESC ( B and the like, which move no cell
-                    i += 2
-                    while i < n and not 0x30 <= data[i] <= 0x7e:
-                        i += 1
-                    i += 1
-                    continue
-                i += 2                  # ESC M and the like: no cell moves
-                continue
-            i += 1
-            if b == 0x0d:
-                self.x = 0
-            elif b == 0x0a:
-                self.newline()
-            elif b == 0x08:
-                self.x = max(0, self.x - 1)
-            elif b >= 0x20:
-                ln = 4 if b >= 0xf0 else 3 if b >= 0xe0 else 2 if b >= 0xc0 \
-                    else 1
-                self.put(data[i - 1:i - 1 + ln].decode("utf-8", "replace"))
-                i += ln - 1
-
-    def put(self, c):
-        if self.x >= self.cols:
-            self.x = 0
-            self.newline()
-        self.ch[self.y][self.x] = c
-        self.fg[self.y][self.x] = self.cfg
-        self.bg[self.y][self.x] = self.cbg
-        self.bl[self.y][self.x] = self.cbl
-        self.x += 1
-
-    def newline(self):
-        if self.y == self.bot:
-            self.delete_lines(1, self.top)
-        elif self.y + 1 < self.rows:
-            self.y += 1
-
-    def delete_lines(self, n, at):
-        """Take n lines away at row `at`, the rest of the region moving up."""
-        if not self.top <= at <= self.bot:
-            return
-        for a, blank in ((self.ch, " "), (self.fg, 37), (self.bg, 40),
-                         (self.bl, False)):
-            del a[at:at + n]
-            for _ in range(min(n, self.bot - at + 1)):
-                a.insert(self.bot, [blank] * self.cols)
-
-    def insert_lines(self, n, at):
-        """Open n blank lines at row `at`, the rest of the region moving down."""
-        if not self.top <= at <= self.bot:
-            return
-        for a, blank in ((self.ch, " "), (self.fg, 37), (self.bg, 40),
-                         (self.bl, False)):
-            for _ in range(min(n, self.bot - at + 1)):
-                a.insert(at, [blank] * self.cols)
-            del a[self.bot + 1:self.bot + 1 + n]
-
-    def erase(self, cells):
-        for y, x in cells:
-            self.ch[y][x] = " "
-            self.fg[y][x] = self.cfg
-            self.bg[y][x] = self.cbg
-            self.bl[y][x] = self.cbl
-
-    def csi(self, raw, final):
-        if raw.startswith(b"?"):
-            return                      # private modes move nothing
-        params = [int(p) for p in raw.split(b";") if p.isdigit()]
-
-        def p(k, d=1):
-            return params[k] if len(params) > k and params[k] else d
-
-        f = final.decode()
-        if f in "Hf":
-            self.y = min(self.rows - 1, p(0) - 1)
-            self.x = min(self.cols - 1, p(1) - 1)
-        elif f == "A":
-            self.y = max(0, self.y - p(0))
-        elif f == "B":
-            self.y = min(self.rows - 1, self.y + p(0))
-        elif f == "C":
-            self.x = min(self.cols - 1, self.x + p(0))
-        elif f == "D":
-            self.x = max(0, self.x - p(0))
-        elif f == "G":
-            self.x = min(self.cols - 1, p(0) - 1)
-        elif f == "d":
-            self.y = min(self.rows - 1, p(0) - 1)
-        elif f == "J":
-            k = p(0, 0)
-            if k == 0:
-                self.erase([(self.y, x) for x in range(self.x, self.cols)] +
-                           [(y, x) for y in range(self.y + 1, self.rows)
-                            for x in range(self.cols)])
-            elif k == 1:
-                self.erase([(y, x) for y in range(self.y)
-                            for x in range(self.cols)] +
-                           [(self.y, x) for x in range(self.x + 1)])
-            else:
-                self.erase([(y, x) for y in range(self.rows)
-                            for x in range(self.cols)])
-        elif f == "K":
-            k = p(0, 0)
-            if k == 0:
-                self.erase([(self.y, x) for x in range(self.x, self.cols)])
-            elif k == 1:
-                self.erase([(self.y, x) for x in range(self.x + 1)])
-            else:
-                self.erase([(self.y, x) for x in range(self.cols)])
-        elif f == "r":
-            top, bot = p(0), p(1, self.rows)
-            if 1 <= top < bot <= self.rows:
-                self.top, self.bot = top - 1, bot - 1
-                self.y = self.x = 0
-        elif f == "M":
-            self.delete_lines(p(0), self.y)
-        elif f == "L":
-            self.insert_lines(p(0), self.y)
-        elif f == "S":
-            self.delete_lines(p(0), self.top)
-        elif f == "T":
-            self.insert_lines(p(0), self.top)
-        elif f == "m":
-            for v in (params or [0]):
-                if v == 0:
-                    self.cfg, self.cbg = 37, 40
-                    self.cbl = False
-                elif v == 5:
-                    self.cbl = True
-                elif v == 25:
-                    self.cbl = False
-                elif 30 <= v <= 37 or 90 <= v <= 97:
-                    self.cfg = v
-                elif 40 <= v <= 47 or 100 <= v <= 107:
-                    self.cbg = v
-                elif v == 39:
-                    self.cfg = 37
-                elif v == 49:
-                    self.cbg = 40
 
 
 class SharedRun(object):
@@ -354,6 +433,8 @@ class TerminalRenderTestCase(SharedRun, BaseTestCase, unittest.TestCase):
     def setUpClass(cls):
         super().setUpClass()
         cls.prettyname = "Terminal"
+        if not HAVE_PYTE:
+            raise unittest.SkipTest(PYTE_WHY % pyte_version())
         # There is no DOS distribution to unpack
         cls.tarfile = ""
         cls.screen = None
@@ -419,9 +500,10 @@ class TerminalRenderTestCase(SharedRun, BaseTestCase, unittest.TestCase):
         # dosemu2 takes its command interpreter from DOSEMU2_COMCOM_DIR
         self.mkcom_with_nasm("command", PROBE)
 
+        page = Capture()
         out = self.runDosemuRaw(
             ("-t", "-ks"), config=CONF, rows=ROWS, cols=COLS,
-            until=b"READY", timeout=RUN_TIMEOUT,
+            until=b"READY", timeout=RUN_TIMEOUT, interact=page,
             env={
                 "HOME": str(home),
                 "DOSEMU2_COMCOM_DIR": str(self.workdir),
@@ -436,7 +518,7 @@ class TerminalRenderTestCase(SharedRun, BaseTestCase, unittest.TestCase):
             self.skipTest("this build has no terminal plugin")
 
         screen = Screen()
-        screen.feed(out)
+        screen.feed(page.out)
         if screen.text(ROW_READY) != "READY":
             self.fail("the probe never finished painting; the bytes are in "
                       "the output log")
@@ -457,6 +539,12 @@ HOST_DONE = "HOSTDONE"
 # comes with ncurses-term, and without it the program says so and quits.
 DOS_TERM = "djgpp"
 
+# aalib picks its X11 driver whenever DISPLAY is set, and then it draws in
+# a window of its own, which says nothing about the DOS screen.  Name the
+# driver instead, so what the test measures does not depend on whether the
+# host it runs on has a display.
+AAOPTS = "-driver slang"
+
 
 class TerminalHostProgramTestCase(SharedRun, BaseTestCase,
                                   unittest.TestCase):
@@ -474,6 +562,8 @@ class TerminalHostProgramTestCase(SharedRun, BaseTestCase,
     def setUpClass(cls):
         super().setUpClass()
         cls.prettyname = "TermHost"
+        if not HAVE_PYTE:
+            raise unittest.SkipTest(PYTE_WHY % pyte_version())
         # There is no DOS distribution to unpack
         cls.tarfile = ""
         cls.autoexec = "fdppauto.bat"
@@ -500,7 +590,9 @@ class TerminalHostProgramTestCase(SharedRun, BaseTestCase,
         s = self.host()
         text = s.dump()
         self.assertRegex(text, r"Current driver:Slang driver", text)
-        self.assertRegex(text, r"Current driver:Slang keyboard driver", text)
+        # whichever of the two aalib has, as long as it is not the X11 one
+        self.assertRegex(text, r"Current driver:(Slang|Curses) keyboard driver",
+                         text)
 
     @mark('terminal')
     def test_the_host_program_sees_the_dos_screen_size(self):
@@ -535,10 +627,12 @@ class TerminalHostProgramTestCase(SharedRun, BaseTestCase,
 
         config = CONF + f'$_unix_exec = "{self.prog}"\n$_sound = (0)\n'
 
+        # the prompt DOS puts up after the echo is part of the page
+        page = Capture(wait=b"C:\\>")
         out = self.runDosemuRaw(
             ("-t", "-ks"), config=config, rows=ROWS, cols=COLS,
-            until=HOST_DONE.encode(), timeout=RUN_TIMEOUT,
-            env={"TERM": TERM, "LC_ALL": "C.UTF-8"})
+            until=HOST_DONE.encode(), timeout=RUN_TIMEOUT, interact=page,
+            env={"TERM": TERM, "LC_ALL": "C.UTF-8", "AAOPTS": AAOPTS})
 
         log = self.boot_log()
         self.__class__.bootlog = log
@@ -549,7 +643,7 @@ class TerminalHostProgramTestCase(SharedRun, BaseTestCase,
                           % DOS_TERM)
 
         screen = Screen()
-        screen.feed(out)
+        screen.feed(page.out)
         self.__class__.raw = out
         self.__class__.screen = screen
         return screen
@@ -613,7 +707,7 @@ ready	db	'READY', 0
 
 # A bright background only reaches the wire where the terminal has sixteen of
 # them; blinking needs no such thing.
-BG_BRIGHT_WHITE = 107
+BG_BRIGHT_WHITE = "brightwhite"
 
 
 def terminal_colours(term):
@@ -637,6 +731,8 @@ class TerminalBlinkTestCase(SharedRun, BaseTestCase, unittest.TestCase):
     def setUpClass(cls):
         super().setUpClass()
         cls.prettyname = "TermBlink"
+        if not HAVE_PYTE:
+            raise unittest.SkipTest(PYTE_WHY % pyte_version())
         # There is no DOS distribution to unpack
         cls.tarfile = ""
         cls.screens = {}
@@ -702,9 +798,10 @@ class TerminalBlinkTestCase(SharedRun, BaseTestCase, unittest.TestCase):
             BL=bl, ROW_BRIGHT=ROW_BRIGHT, ROW_PLAIN=ROW_PLAIN,
             ROW_READY=ROW_READY, RUN=RUN))
 
+        page = Capture()
         out = self.runDosemuRaw(
             ("-t", "-ks"), config=CONF, rows=ROWS, cols=COLS,
-            until=b"READY", timeout=RUN_TIMEOUT,
+            until=b"READY", timeout=RUN_TIMEOUT, interact=page,
             env={
                 "HOME": str(home),
                 "DOSEMU2_COMCOM_DIR": str(self.workdir),
@@ -717,7 +814,7 @@ class TerminalBlinkTestCase(SharedRun, BaseTestCase, unittest.TestCase):
             self.skipTest("this build has no terminal plugin")
 
         screen = Screen()
-        screen.feed(out)
+        screen.feed(page.out)
         if screen.text(ROW_READY) != "READY":
             self.fail("the probe never finished painting; the bytes are in the output log")
 
@@ -733,10 +830,132 @@ class TerminalBlinkTestCase(SharedRun, BaseTestCase, unittest.TestCase):
         self.relog()
 
 
+class TerminalKeysTestCase(BaseTestCase, unittest.TestCase):
+    """What int 16h gives DOS for what was typed at the terminal."""
+
+    attrs = {'terminal'}
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.prettyname = "TermKeys"
+        # There is no DOS distribution to unpack
+        cls.tarfile = ""
+        cls.report = None
+        cls.keys = []
+        cls.raw = b""
+        cls.bootlog = ""
+
+    test_0_basic_boot = None
+
+    @mark('terminal')
+    def test_every_sequence_becomes_the_right_key(self):
+        """the terminal's escape sequences turn back into PC scancodes"""
+        got, report = self.type()
+        want = [k for name, pieces, keys in KEYS for k in keys]
+        if got == want:
+            return
+        # The keys arrive in the order they were typed, so the stream is what
+        # the run is judged on: a key the backend hands over a moment late
+        # belongs to the case that typed it, not to the one being typed when
+        # it lands. The per case split is only to say where it went wrong.
+        lines = ["wanted %s" % self.hex(want), "got    %s" % self.hex(got)]
+        lines += ["%s: wanted %s, saw %s"
+                  % (name, self.hex(keys), self.hex(report[name]))
+                  for name, pieces, keys in KEYS if report[name] != keys]
+        self.fail("\n".join(lines))
+
+    def hex(self, keys):
+        return " ".join("%04x" % k for k in keys) or "nothing"
+
+    def relog(self):
+        """Hand this test the logs of the shared run."""
+        self.logfiles['xpt'][1] = "output.log"
+        self.logfiles['xpt'][0].write_bytes(self.__class__.raw)
+        self.logfiles['log'][0].write_text(self.__class__.bootlog)
+
+    def type(self):
+        """Type everything in KEYS once and note what came back.
+
+        Both the whole stream of keys, in the order they arrived, and the
+        split of it per case.
+        """
+        if self.__class__.report is not None:
+            self.relog()
+            return self.__class__.keys, self.__class__.report
+
+        # dosemu2 takes its command interpreter from DOSEMU2_COMCOM_DIR
+        self.mkcom_with_nasm("command", KEYS_PROBE)
+
+        result = self.workdir / "keys.txt"
+        marks = []
+
+        def answered(before):
+            """A whole line has been added to the report since `before`."""
+            data = result.read_bytes()
+            return len(data) > before and data.endswith(b"\r\n")
+
+        def settle(t, before, expect):
+            """Wait for the key to be written down, or for nothing to be.
+
+            A key that is owed is waited for rather than slept over, which
+            is most of what this test used to spend its time on; one that
+            must not arrive has to be watched for the whole window, since
+            there is nothing to wait for.
+            """
+            deadline = monotonic() + (ANSWER_WAIT if expect else SILENCE)
+            while monotonic() < deadline:
+                t.read(POLL)
+                if expect and answered(before):
+                    return
+
+        def typeall(t):
+            if not t.ready:
+                return
+            for name, pieces, want in KEYS:
+                before = len(result.read_bytes())
+                for data, gap in pieces:
+                    t.write(data)
+                    if gap:
+                        sleep(gap)
+                settle(t, before, bool(want))
+                marks.append((name, before))
+            t.read()
+            self.__class__.raw = result.read_bytes()
+
+        # -kt is the slang keyboard, the one that knows escape sequences;
+        # -ks would just pass bytes through
+        self.runDosemuRaw(
+            ("-t", "-kt"), config=CONF, rows=ROWS, cols=COLS,
+            until=b"GO", timeout=RUN_TIMEOUT, interact=typeall,
+            env={"DOSEMU2_COMCOM_DIR": str(self.workdir),
+                 "TERM": TERM, "LC_ALL": "C.UTF-8"})
+
+        self.__class__.bootlog = self.boot_log()
+        if not marks:
+            self.skipTest("the probe never ran; this build may have no "
+                          "terminal plugin")
+
+        data = self.__class__.raw
+
+        def keys_in(text):
+            return [int(l[4:8], 16) for l in text.split("\r\n")
+                    if l.startswith("key ")]
+
+        report = {}
+        for i, (name, before) in enumerate(marks):
+            end = marks[i + 1][1] if i + 1 < len(marks) else len(data)
+            report[name] = keys_in(data[before:end].decode("ascii", "replace"))
+        self.__class__.report = report
+        self.__class__.keys = keys_in(data.decode("ascii", "replace"))
+        return self.__class__.keys, report
+
+
 if __name__ == "__main__":
     cases = [
         TerminalRenderTestCase,
         TerminalHostProgramTestCase,
         TerminalBlinkTestCase,
+        TerminalKeysTestCase,
     ]
     main(main_setup(cases))

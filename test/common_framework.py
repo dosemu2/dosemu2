@@ -14,8 +14,8 @@ import unittest
 from datetime import datetime, timezone
 from functools import wraps
 from hashlib import sha1
-from os import (environ, rename, close, execve, kill, read, waitpid,
-                _exit)
+from os import (environ, rename, close, execve, kill, read, write,
+                waitpid, _exit)
 from os.path import exists, join
 from pathlib import Path
 from platform import system, machine, release
@@ -196,6 +196,63 @@ def acceptFailure(func):
                 raise
             self.skipTest("ACCEPTEDFAIL\n")
     return wrapper
+
+
+class PtyConversation(object):
+    """The master side of a pty, for runDosemuRaw()'s `interact`.
+
+    Everything read here also reaches what runDosemuRaw() hands back, so a
+    test can type, wait for the answer, and still be given the whole
+    stream afterwards.  `ready` is False when the run never printed the
+    marker that was waited for.  `captured` is the stream as it stands
+    while the program is still running, for a test that wants the page
+    without dosemu2's teardown on the end of it.
+    """
+
+    def __init__(self, fd, sink, ready=True, so_far=None):
+        self.fd = fd
+        self.ready = ready
+        self._sink = sink
+        self._so_far = so_far if so_far is not None else (lambda: b"")
+
+    @property
+    def captured(self):
+        """Everything the run has written so far.
+
+        Taken while the program is still up, so what dosemu2 writes on
+        the way out is not part of it; a test that reads the screen by
+        row wants the page as the program left it.
+        """
+        return self._so_far()
+
+    def write(self, data):
+        write(self.fd, data)
+
+    def read(self, quiet=0.05):
+        """Whatever has arrived, up to `quiet` seconds of silence."""
+        got = b""
+        while True:
+            if not select([self.fd], [], [], quiet)[0]:
+                return got
+            try:
+                d = read(self.fd, 65536)
+            except OSError:
+                return got
+            if not d:
+                return got
+            got += d
+            self._sink(d)
+
+    def expect(self, marker, timeout=5):
+        """Read until `marker` turns up; what was read, or None."""
+        deadline = monotonic() + timeout
+        got = b""
+        while True:
+            got += self.read(0.1)
+            if marker in got:
+                return got
+            if monotonic() >= deadline:
+                return None
 
 
 class BaseTestCase(object):
@@ -762,7 +819,8 @@ class BaseTestCase(object):
         return ret
 
     def runDosemuRaw(self, xargs, config=DOSEMU_CONF_DEFAULT, rows=25, cols=80,
-                     until=None, settle=1, timeout=None, env=None):
+                     until=None, settle=1, timeout=None, env=None,
+                     interact=None):
         """Run dosemu2 under a pty and hand back every byte it wrote.
 
         For tests that are about what reaches the terminal rather than
@@ -778,7 +836,14 @@ class BaseTestCase(object):
         `until` is a marker to wait for, usually printed by the DOS
         program; the run is then given `settle` seconds and ended with
         SIGTERM, so that whatever the backend writes on the way out is
-        captured too.
+        captured too.  It returning False means the marker never came,
+        which a test that types at the program wants to know before it
+        starts typing.
+
+        `interact` is called with a PtyConversation once the marker has
+        been seen, for a test that has to type at the running DOS
+        program.  A test must read while it types: the pty is a pipe, and
+        dosemu2 stops on a full one.
         """
         default_timeout = int(environ.get("DEFAULT_TIMEOUT", '15'))
         if timeout is None:
@@ -834,8 +899,13 @@ class BaseTestCase(object):
             return until is None
 
         try:
-            drain(deadline)
+            ready = drain(deadline)
             sleep(settle)
+            if interact is not None:
+                def sink(d):
+                    nonlocal out
+                    out += d
+                interact(PtyConversation(fd, sink, ready, lambda: out))
             kill(pid, signal.SIGTERM)
             drain(monotonic() + 10)
         finally:
