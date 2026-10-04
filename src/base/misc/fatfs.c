@@ -73,6 +73,7 @@
 #include "fslib/fslib.h"
 #include "vfs/vfs.h"
 #include "fatfs.h"
+#include "dosemu_config.h"
 #include "fatfs_priv.h"
 
 
@@ -1727,6 +1728,26 @@ unsigned next_cluster(fatfs_t *f, unsigned clu)
 }
 
 /*
+ * lDOS LSV command line extension, also used with the FreeDOS load
+ * protocol: ASCIZ buffer at ss:bp-114h, "CL" signature at ss:bp-14h,
+ * sp at or below the buffer.  Returns the new sp.
+ */
+static uint16_t put_kernel_cmdline(uint16_t ss, uint16_t bp, uint16_t sp)
+{
+  const char *cmdline = config_get_kernel_cmdline();
+  uint8_t *buf;
+
+  if (!cmdline)
+    return sp;
+  buf = LINEAR2UNIX(SEGOFF2LINEAR(ss, bp - 0x114));
+  memset(buf, 0, 0x104);	/* buffer, signature, lsvExtra flags */
+  strlcpy((char *)buf, cmdline, 0x100);
+  buf[0x100] = 'C';
+  buf[0x101] = 'L';
+  return bp - 0x114;
+}
+
+/*
  * This will be called by dos_helper (base/async/int.c)
  * when the bootsector is executed.
  * We load the systemfile directly and then jump to the entry point.
@@ -1878,13 +1899,13 @@ void mimic_boot_blk(void)
       SREG(ds)  = seg;
       SREG(es)  = seg;
       SREG(ss)  = 0x1FE0;
-      LWORD(esp) = 0x7c00;  /* temp stack */
+      LWORD(esp) = put_kernel_cmdline(0x1FE0, 0x7C00, 0x7C00);  /* temp stack */
       LWORD(ebp) = 0x7C00;
       SREG(cs)  = seg;
       LWORD(eip) = ofs;
 
-      /* load boot sector to stack */
-      read_boot(f, LINEAR2UNIX(SEGOFF2LINEAR(_SS, _SP)));
+      /* load boot sector to ss:bp, sp may be below the cmdline */
+      read_boot(f, LINEAR2UNIX(SEGOFF2LINEAR(_SS, _BP)));
       break;
 
     case RXO_D:
@@ -1955,6 +1976,7 @@ void mimic_boot_blk(void)
       lsv->FATSeg = 0;				/* (FAT12) none */
       lsv->LoadSeg = seg + ((size + 15) >> 4);	/* => behind last loaded */
       lsv->DataStart = d_o - f->hidden_secs;
+      LWORD(esp) = put_kernel_cmdline(0x1FE0, 0x7C00, 0x7C00 - sizeof(*lsv));
 
       break;
     }
