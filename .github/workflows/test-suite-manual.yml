@@ -26,7 +26,6 @@ on:
         default: "ubuntu-24.04"
         type: choice
         options:
-          - ubuntu-22.04
           - ubuntu-24.04
 
 jobs:

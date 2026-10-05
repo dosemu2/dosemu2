@@ -12,9 +12,6 @@ export TEST_DOSEMU=/usr/local/bin/dosemu
 export TEST_CMDDIR=/usr/local/share/dosemu/commands
 
 if [ "${BLDTYPE}" = "packaged" ] ; then
-  if [ "${OS}" = "ubuntu-22.04" ] ; then
-    export SKIP_NATIVE_DPMI=1
-  fi
   export TEST_DOSEMU=/usr/bin/dosemu
   export TEST_CMDDIR=/usr/share/dosemu/dosemu2-cmds-0.3
 elif [ "${BLDTYPE}" = "asan" ] ; then
