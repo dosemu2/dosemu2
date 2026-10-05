@@ -62,6 +62,7 @@
 #include "dos2linux.h"
 #include "coopth.h"
 #include "kvm.h"
+#include "mapping/mapping.h"
 #include "Asm/ldt.h"
 
 #define MHP_PRIVATE
@@ -969,6 +970,27 @@ static void mhp_tracec(int argc, char *argv[])
   loopbuf[idx++] = '\0';
 }
 
+#define MAX_INSN_LEN 15	/* as long as an x86 instruction can be */
+
+/* A host address is read through a bare pointer, so one that is not mapped
+ * faults inside dosemu and its own handler takes the whole process down.
+ * dosemu knows what it has mapped, so ask it rather than the address. */
+static int unix_is_readable(uintptr_t addr, unsigned int len)
+{
+  dosaddr_t da;
+
+  if (!len || addr + len < addr)
+    return 0;
+  if (!mapping_is_mapped((void *)addr) ||
+      !mapping_is_mapped((void *)(addr + len - 1)))
+    return 0;
+  /* inside a mapping the pages of a DPMI block can still be absent */
+  da = DOSADDR_REL((unsigned char *)addr);
+  if (da > LOWMEM_SIZE + HMASIZE && !dpmi_is_valid_range(da, len))
+    return 0;
+  return 1;
+}
+
 /* In unix32 an address with no segment is one in dosemu's own space, and on
  * a 64bit host that does not fit the 32 bits of the dosaddr_t mhp_getadr
  * hands back - every address 'ldt' prints is above 4G.  Take it again here,
@@ -1044,6 +1066,10 @@ static void mhp_dump(int argc, char *argv[])
 #endif
   if (in_dpmi && seg)
     data32 = dpmi_segment_is32(seg);
+  if (unixaddr && !unix_is_readable(ubuf, nbytes)) {
+    mhp_printf("%#lx is not mapped in dosemu\n", (unsigned long)ubuf);
+    return;
+  }
   for (i = 0; i < nbytes; i++) {
     if ((i & 0x0f) == 0x00) {
       if (seg != 0 || limit != 0xFFFFFFFF) {
@@ -1779,6 +1805,10 @@ static void mhp_disasm(int argc, char *argv[])
       ubuf = (uintptr_t)mem_base + seekval;
     def_size |= 4;
   }
+  if ((def_size & 4) && !unix_is_readable(ubuf, 1)) {
+    mhp_printf("%#lx is not mapped in dosemu\n", (unsigned long)ubuf);
+    return;
+  }
   rc = 0;
   buf = seekval;
   org = codeorg ? codeorg : seekval;
@@ -1793,6 +1823,13 @@ static void mhp_disasm(int argc, char *argv[])
     if (in_dpmi && base_addr + off + bytesdone > LOWMEM_SIZE + HMASIZE && !dpmi_is_valid_range(base_addr + off + bytesdone, 10))
       break;
     refseg = seg;
+    /* dis8086 is given no length: it reads as far as the instruction it
+     * decodes goes, which is up to 15 bytes, so that much has to be there */
+    if ((def_size & 4) && !unix_is_readable(ubuf + bytesdone, MAX_INSN_LEN)) {
+      mhp_printf("%#014lx: <too close to the end of the mapping to decode>\n",
+                 (unsigned long)(uorg + bytesdone));
+      break;
+    }
     rc = dis_8086((def_size & 4) ? ubuf + bytesdone : buf + bytesdone, frmtbuf,
                   def_size, &ref, (in_dpmi ? base_addr : refseg * 16));
     if (bytesdone + rc > 256)
