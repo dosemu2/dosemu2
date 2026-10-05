@@ -84,6 +84,15 @@ modules:
     cleanup:
       - '*'
 
+  - name: djdev64
+    buildsystem: meson
+    sources:
+      - type: git
+        url: https://github.com/dosemu2/djdev64.git
+        branch: main
+    cleanup:
+      - '/include'
+
   - name: dj64dev
     buildsystem: autotools
     build-options:

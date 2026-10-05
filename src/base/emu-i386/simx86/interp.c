@@ -1912,6 +1912,12 @@ repag0:
 					if (debug_level('e')>4)
 					    e_printf("ADDRoverride: new _mode %04x\n",repmod);
 					PC++; goto repag0;
+				case TwoByteESC:
+					/* no two-byte opcode we decode uses
+					   REP, so decode it without one */
+					_mode = (_mode & ~(DATA16|ADDR16)) |
+					    (repmod & (DATA16|ADDR16));
+					goto override;
 				default:
 					e_printf("illegal op: rep %x\n", repop);
 					goto illegal_op;
@@ -2358,6 +2364,12 @@ repag0:
 			/* case 0x0e:	FEMMS(K6-3D) */
 			/* case 0x0f:	AMD-3D */
 			/* case 0x10-0x1f:	various V20/MMX instr. */
+			case 0x1e: /* hint NOP; with F3 and fa/fb it is
+				      ENDBR64/ENDBR32, a NOP without CET */
+				if ((Fetch(PC+2) & 0xc0) != 0xc0) {
+				    PC += 3; goto illegal_op;
+				}
+				PC += 3; break;
 			case 0x20:   /* MOVcdrd */ /* Privileged */
 			case 0x22:   /* MOVrdcd */ /* Privileged */
 			case 0x21:   /* MOVddrd */ /* Privileged */

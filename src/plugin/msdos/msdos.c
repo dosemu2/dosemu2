@@ -119,6 +119,12 @@ struct msdos_struct {
 };
 static struct msdos_struct msdos_client[DPMI_MAX_CLIENTS];
 static int msdos_client_num;
+/* a reinit of a client that came before its init reached us */
+static struct {
+    unsigned short seg;		/* where its lowmem block moved to */
+    int is_32;
+    int pending;
+} msdos_reinit[DPMI_MAX_CLIENTS];
 static int msdos_client_max;
 
 static int ems_frame_mapped;
@@ -304,6 +310,15 @@ static void msdos_init(int num, int is_32, unsigned short mseg,
     int first = (msdos_client_num < 0 ||
 	msdos_client_num >= DPMI_MAX_CLIENTS ||
 	!msdos_client[msdos_client_num].used);
+
+    /* An RSP that runs before us may reinit the client from its own start
+     * call: then op 3 came first, and our call is of the bitness the client
+     * had, with mseg where the pool was. */
+    if (msdos_reinit[num].pending) {
+	is_32 = msdos_reinit[num].is_32;
+	mseg = msdos_reinit[num].seg;
+	msdos_reinit[num].pending = 0;
+    }
     msdos_client_num = num;
     memset(&MSDOS_CLIENT, 0, sizeof(struct msdos_struct));
     MSDOS_CLIENT.used = 1;
@@ -421,6 +436,23 @@ static void do_common_start(cpuctx_t *scp, int is_32)
 	break;
     case 2:
 	msdos_set_client(_LWORD(ebx));
+	break;
+    case 3:
+	/* the client was reinit: the call is of its new bitness, and our
+	 * lowmem block may have moved with the DPMI host's private pool;
+	 * bx is the client, which we may not have been started for yet */
+	if (_LWORD(ebx) >= DPMI_MAX_CLIENTS) {
+	    error("msdos: rsp 3 for client %i\n", _LWORD(ebx));
+	    break;
+	}
+	if (_LWORD(ebx) < msdos_client_max && msdos_client[_LWORD(ebx)].used) {
+	    msdos_client[_LWORD(ebx)].lowmem_seg = _LWORD(edx);
+	    msdos_client[_LWORD(ebx)].is_32 = is_32;
+	} else {
+	    msdos_reinit[_LWORD(ebx)].seg = _LWORD(edx);
+	    msdos_reinit[_LWORD(ebx)].is_32 = is_32;
+	    msdos_reinit[_LWORD(ebx)].pending = 1;
+	}
 	break;
     default:
 	error("unsupported rsp %i\n", _LWORD(eax));
@@ -1705,17 +1737,36 @@ int msdos_pre_extender(cpuctx_t *scp,
 	    return MSDOS_DONE;
 	case 0x1687: {
 	    struct pmaddr_s pma;
+	    unsigned short paras;
+	    /* extension: with our cookie in cx, bx on input is a flag word,
+	     * and DPMI_EXT_GET_POOL asks for the private data pool we are
+	     * already holding.  It then comes back as a selector in ax with
+	     * its size in paragraphs in si.  Anyone who does not know about
+	     * this passes neither, and still sees ax=0 and si=0, meaning that
+	     * no further lowmem is needed. */
+	    int want_pool = _LWORD(ecx) == DPMI_EXT_COOKIE &&
+		    (_LWORD(ebx) & DPMI_EXT_GET_POOL);
+
 	    _LWORD(eax) = 0;
+	    _LWORD(esi) = 0;
 	    /* 32bit DPMI supported (0x1),
 	     * entering from 16bit-PM supported (0x100),
 	     * entering from 32bit-PM supported (0x200),
 	     * IVT reinit supported (0x400),
+	     * private pool reported and relocatable (0x800),
 	     */
-	    _LWORD(ebx) = 1 | 0x700;
+	    _LWORD(ebx) = 1 | 0xf00;
 	    _LWORD(ecx) = 4;
 	    _HI(dx) = DPMI_VERSION;
 	    _LO(dx) = DPMI_MINOR_VERSION;
-	    _LWORD(esi) = 0;
+	    if (want_pool) {
+		_LWORD(eax) = dpmi_get_private_pool(&paras);
+		_LWORD(esi) = paras;
+		if (!_LWORD(eax)) {
+		    _eflags |= CF;	/* out of descriptors */
+		    return MSDOS_DONE;
+		}
+	    }
 	    pma = doshlp_get_entry(reinit_hlp.entry);
 	    _es = pma.selector;
 	    _LWORD(edi) = pma.offset;

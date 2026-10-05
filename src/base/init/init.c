@@ -374,7 +374,7 @@ static void low_mem_init_config_scrub(void)
     if (over + HMASIZE > EXTMEM_SIZE)
       error("no room below 16M: the VCPI page pool is as large as $_ems and "
 	    "takes %u kb of it. Please set $_ems to (%u) or lower, or set "
-	    "$_vcpi=(off)\n", VCPI_POOL_SIZE / 1024, room / 1024);
+	    "$_jemm=(off)\n", VCPI_POOL_SIZE / 1024, room / 1024);
     else if (config.xms_size)
       error("$_ext_mem too large, please set to (%d) or lower, or set $_xms=(0)\n",
 	    (EXTMEM_SIZE - over) / 1024);

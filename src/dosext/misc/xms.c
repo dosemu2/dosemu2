@@ -555,6 +555,7 @@ void xms_control(void)
     if (freeHMA) {
       x_printf("XMS: allocating HMA size 0x%04x\n", LWORD(edx));
       freeHMA = 0;
+      int15_set_extmem(0);
       XMS_RET(0);			/* no error */
       if (ext_hooked_hma)  // drop external hma hook
         xms_local_reset();
@@ -574,6 +575,7 @@ void xms_control(void)
     else {
       x_printf("XMS: freeing HMA\n");
       freeHMA = config.hma;
+      int15_set_extmem(1);
       XMS_RET(0);			/* no error */
     }
     break;

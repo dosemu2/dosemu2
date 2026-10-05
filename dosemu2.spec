@@ -52,7 +52,7 @@ BuildRequires: binutils
 #BuildRequires: binutils-x86_64-linux-gnu
 BuildRequires: pkgconf-pkg-config
 BuildRequires: fdpp-devel
-BuildRequires: dj64dev-devel
+BuildRequires: djdev64-devel
 BuildRequires: valgrind
 
 # our startup script is bash-specific

@@ -558,7 +558,8 @@ void show_ints(int, int);
 char *emu_disasm(unsigned int ip);
 void dump_state(void);
 
-int cpu_trap_0f (unsigned char *, cpuctx_t *);
+int cpu_trap_0f (unsigned char *, cpuctx_t *, int pref_seg,
+		int prefix67);
 
 #define _PAGE_MASK	(~(PAGE_SIZE-1))
 /* to align the pointer to the (next) page boundary */

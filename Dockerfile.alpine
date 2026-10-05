@@ -23,6 +23,10 @@ RUN cd smallerc && make && make install
 RUN git clone --depth 1 https://github.com/stsp/djstub.git
 RUN cd djstub && make -j $(nproc) && make install
 
+RUN git clone --depth 1 https://github.com/dosemu2/djdev64.git
+RUN cd djdev64 && ./configure && meson compile --verbose -C build && \
+    meson install -C build
+
 RUN apk add automake ctags
 RUN git clone --depth 1 https://github.com/stsp/dj64dev.git
 RUN cd dj64dev && ./autogen.sh && \

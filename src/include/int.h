@@ -16,6 +16,7 @@ extern time_t        start_time;
 extern uint32_t int_bios_area[0x500/sizeof(uint32_t)];
 
 void do_int(int);
+void int15_set_extmem(int on);
 void fake_int(int, int);
 void fake_int_to(int cs, int ip);
 void fake_call(int, int);

@@ -120,6 +120,7 @@ struct DPMIclient_struct {
   int is_32;
   dpmi_pm_block_root pm_block_root;
   unsigned short private_data_segment;
+  unsigned short private_data_paras;
   dpmi_pm_block *pm_stack;
   int in_dpmi_pm_stack;
   int in_dpmi_rm_stack;
@@ -182,6 +183,8 @@ unsigned short dpmi_sel16(void) { return _dpmi_sel16; }
 unsigned short dpmi_sel32(void) { return _dpmi_sel32; }
 
 static int RSP_num = 0;
+/* RSP calls whose return frames are still on the stack */
+static int RSP_pending;
 static struct RSP_s RSP_callbacks[DPMI_MAX_CLIENTS];
 static int ext__thunk_16_32;	// thunk extension
 #ifdef USE_DJDEV64
@@ -584,6 +587,30 @@ static uint32_t client_esp(cpuctx_t *scp)
 	return _esp;
     else
 	return (_esp)&0xffff;
+}
+
+/* Are the len bytes at the client's own SS:ESP plus off within the limit
+ * of its stack segment? ESP comes from the client, so it can be anything,
+ * and the frames we build or read there go through SEL_ADR(), which does
+ * no limit check at all: an access past the limit would land wherever
+ * base+esp points, possibly outside our memory, instead of raising #SS
+ * the way the hardware does. Use off = -len for a push, off = 0 for a
+ * pop. Expand-down segments are left alone, for them the limit is the
+ * lower bound and GetSegmentLimit() does not say so. */
+static int client_stack_ok(cpuctx_t *scp, int off, unsigned len)
+{
+    uint32_t esp = client_esp(scp);
+    uint32_t lo, hi;
+
+    if (off < 0 && esp < (uint32_t)-off)
+	return 0;
+    lo = esp + off;
+    hi = lo + len - 1;
+    if (hi < lo)
+	return 0;
+    if (GetSegmentType(_ss) == MODIFY_LDT_CONTENTS_STACK)
+	return 1;
+    return hi <= GetSegmentLimit(_ss);
 }
 
 static uint32_t client_eip(cpuctx_t *scp)
@@ -1294,8 +1321,21 @@ static void *enter_lpms(cpuctx_t *scp)
 
   if (_ss == DPMI_CLIENT.PMSTACK_SEL || DPMI_CLIENT.in_dpmi_pm_stack) {
     pmstack_esp = client_esp(scp);
-    if (pmstack_esp < 256) {
-      error("PM stack invalid, in_dpmi_pm_stack=%i\n", DPMI_CLIENT.in_dpmi_pm_stack);
+    /* ESP comes from the client, so it can be anything. Besides leaving
+     * room for the frame we are about to push, it has to be within the
+     * limit of its own stack segment: on real hardware a push past the
+     * limit raises #SS, whereas here it is written through
+     * SEL_ADR_CLNT(), which does no limit check at all, so it lands
+     * wherever base+esp happens to point - possibly outside our memory,
+     * taking down the host rather than the client.
+     * Expand-down segments are left alone: there the limit is the lower
+     * bound, not the upper one, and GetSegmentLimit() does not say so. */
+    if (pmstack_esp < 256 ||
+        (GetSegmentType(pmstack_sel) != MODIFY_LDT_CONTENTS_STACK &&
+         pmstack_esp - 1 > GetSegmentLimit(pmstack_sel))) {
+      error("PM stack invalid, in_dpmi_pm_stack=%i sel=%#x esp=%#x lim=%#x\n",
+            DPMI_CLIENT.in_dpmi_pm_stack, pmstack_sel, pmstack_esp,
+            GetSegmentLimit(pmstack_sel));
       if (_ss != DPMI_CLIENT.PMSTACK_SEL) {
         /* win31 sets ESP to 0 to re-enter lpms */
         DPMI_CLIENT.in_dpmi_pm_stack = 0;
@@ -3458,10 +3498,14 @@ static void make_xretf_frame(cpuctx_t *scp, void *sp,
   dpmi_cli();
 }
 
+/* the frame is of the bitness the client had when it was made, which is
+ * not the one it has now if it did a reinit in between: an RSP can make a
+ * 16-bit client a 32-bit one. The frame returns to our code selector of
+ * its bitness, and that is where we are. */
 static void remove_xretf_frame(cpuctx_t *scp, void *sp)
 {
   int pm;
-  if (DPMI_CLIENT.is_32) {
+  if (_cs == _dpmi_sel32) {
     unsigned int *ssp = sp;
     _eflags = dpmi_flags_from_stack_r0(*ssp++);
     pm = *ssp++;
@@ -3595,6 +3639,7 @@ static void do_RSP_call(cpuctx_t *scp, int num, int clnt,
   else
     make_xretf_frame(scp, sp, dpmi_sel(),
         DPMI_SEL_OFF(DPMI_return_from_RSPcall));
+  RSP_pending++;
 
   _es = _fs = _gs = 0;
   _ds = DPMI_CLIENT.RSP_ds[num];
@@ -4380,16 +4425,45 @@ static void setup_int_exc(int inherit_idt)
   }
 }
 
+/* extension: where the pool the client gave us at startup now is, and how
+ * big it is.  Reported by int 2fh ax=1687 in protected mode, so as a
+ * selector rather than as a segment; it comes back in ax, with si carrying
+ * the size in paragraphs and CF the status.
+ * The client needs this to move the pool: it hands it to us in es at the
+ * mode switch, which a DOS stub has to do before it can shrink its own PSP,
+ * so the pool ends up sitting on top of the memory the shrink frees. */
+unsigned short dpmi_get_private_pool(unsigned short *r_paras)
+{
+  *r_paras = DPMI_CLIENT.private_data_paras;
+  return ConvertSegmentToDescriptor(DPMI_CLIENT.private_data_segment);
+}
+
 static void dpmi_reinit(cpuctx_t *scp)
 {
   unsigned short ds, es, ss, rights;
   int i, err;
   int change = 0;
+  int reloc = 0;
 
   _eflags |= CF;
   D_printf("DPMI: reinit called, %i %i\n", _LWORD(eax), DPMI_CLIENT.is_32);
   D_printf("%s", DPMI_show_state(scp));
   do_dpmi_retf(scp, SEL_ADR(_ss, _esp));
+
+  if (_LWORD(eax) & 0x800) {	/* extension: bx has the pool's new selector */
+    dosaddr_t base = GetSegmentBase(_LWORD(ebx));
+
+    /* we address it as a segment, and DOS calls run on stacks inside it */
+    if (base + (DPMI_CLIENT.private_data_paras << 4) > LOWMEM_SIZE) {
+      error("DPMI: private pool at 0x%x, %i para, does not fit under 1M\n",
+	  base, DPMI_CLIENT.private_data_paras);
+      return;
+    }
+    DPMI_CLIENT.private_data_segment = base >> 4;
+    D_printf("DPMI: private pool moved to 0x%04x, %i para\n",
+	DPMI_CLIENT.private_data_segment, DPMI_CLIENT.private_data_paras);
+    reloc = 1;
+  }
 
   if ((_LWORD(eax) & 1) == DPMI_CLIENT.is_32)
     _eflags &= ~CF;
@@ -4444,6 +4518,11 @@ static void dpmi_reinit(cpuctx_t *scp)
 
   _eflags &= ~CF;
   D_printf("%s", DPMI_show_state(scp));
+  /* tell the RSPs, which may include the ones this client has not started
+   * yet if an RSP did the reinit from its own start call. Last, because the
+   * RSP call rewrites the context we just set up and restores it on return */
+  if (reloc || change)
+    dpmi_RSP_call(scp, current_client, 3, -1);
 }
 
 void dpmi_init(void)
@@ -4486,6 +4565,7 @@ void dpmi_init(void)
   }
 
   DPMI_CLIENT.private_data_segment = SREG(es);
+  DPMI_CLIENT.private_data_paras = DPMI_private_paragraphs + rsp_get_para();
   /* alloc stack with a guard page */
   DPMI_CLIENT.pm_stack = DPMI_malloc(&host_pm_block_root, DPMI_pm_stack_size +
       HOST_PAGE_SIZE);
@@ -5109,7 +5189,11 @@ static void return_from_hwint(cpuctx_t *scp, void * const sp)
 static void do_dpmi_hlt(cpuctx_t *scp, uint8_t *lina, void *sp)
 {
       _eip += 1;
-      if (_cs == dpmi_sel()) {
+      /* An RSP may reinit the client from its start call: the frames of
+       * the RSP calls made before that return to our code selector of the
+       * old bitness. */
+      if (_cs == dpmi_sel() || (RSP_pending &&
+	  (_cs == _dpmi_sel16 || _cs == _dpmi_sel32))) {
 	if (_eip==1+DPMI_SEL_OFF(DPMI_raw_mode_switch_pm)) {
 	  D_printf("DPMI: switching from protected to real mode\n");
 	  SREG(ds) = _LWORD(eax);
@@ -5302,6 +5386,7 @@ static void do_dpmi_hlt(cpuctx_t *scp, uint8_t *lina, void *sp)
 	  restore_pm_regs(scp);
 
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_return_from_RSPcall)) {
+	  RSP_pending--;
 	  remove_xretf_frame(scp, sp);
 	  D_printf("DPMI: Return from RSPcall, in_dpmi_pm_stack=%i, dpmi_pm=%i\n",
 	    DPMI_CLIENT.in_dpmi_pm_stack, in_dpmi_pm());
@@ -5309,6 +5394,7 @@ static void do_dpmi_hlt(cpuctx_t *scp, uint8_t *lina, void *sp)
 	  restore_pm_regs(scp);
 
         } else if (_eip==1+DPMI_SEL_OFF(DPMI_return_from_RSPcall_exit)) {
+	  RSP_pending--;
 	  remove_xretf_frame(scp, sp);
 	  D_printf("DPMI: Return from RSPcall, in_dpmi_pm_stack=%i, dpmi_pm=%i\n",
 	    DPMI_CLIENT.in_dpmi_pm_stack, in_dpmi_pm());
@@ -5521,6 +5607,23 @@ static int dpmi_gpf_simple(cpuctx_t *scp, uint8_t *lina, void *sp, int *rv)
         }
       }
 #endif
+      if (!DEFAULT_INT(inum)) {
+	int flen = DPMI_CLIENT.is_32 ? 12 : 6;
+	/* The handler is the client's own, so the iret frame has to go on
+	 * the client's stack. EIP is still on the int instruction here. */
+	if (!client_stack_ok(scp, -flen, flen)) {
+	  error("DPMI: int %#x with no room on the client stack, "
+		"sel=%#x esp=%#x lim=%#x\n",
+		inum, _ss, client_esp(scp), GetSegmentLimit(_ss));
+	  /* #SS(0) is what the hardware raises here, and it is a fault,
+	   * so EIP stays on the int instruction. */
+	  _trapno = 0x0c;
+	  _err = 0;
+	  _cr2 = 0;
+	  do_cpu_exception(scp);
+	  return 1;
+	}
+      }
       /* Bypass the int instruction */
       _eip += 2;
       _err = 0;
@@ -5614,6 +5717,18 @@ static int dpmi_gpf_simple(cpuctx_t *scp, uint8_t *lina, void *sp, int *rv)
           D_printf("DPMI: sti/iret detected\n");
         /* This may not be our HW inthandler, but some user's sw interrupt.
          * Needs to call emu_dpmi_iret() that emulates iret more precisely. */
+        int flen = Segments(_cs >> 3).is_32 ? 12 : 6;
+        if (!client_stack_ok(scp, 0, flen)) {
+          error("DPMI: iret with no frame on the client stack, "
+                "sel=%#x esp=%#x lim=%#x\n",
+                _ss, client_esp(scp), GetSegmentLimit(_ss));
+          /* EIP is on the iret by now, which is where #SS belongs. */
+          _trapno = 0x0c;
+          _err = 0;
+          _cr2 = 0;
+          do_cpu_exception(scp);
+          break;
+        }
         emu_dpmi_iret(scp, sp);
         sp = SEL_ADR(_ss, _esp);
         if (_cs == dpmi_sel() && _eip == DPMI_SEL_OFF(DPMI_return_from_pm)) {

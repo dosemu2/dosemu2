@@ -45,12 +45,17 @@ from func_lfs_file_seek_tell import lfs_file_seek_tell
 from func_libi86_testsuite import libi86_create_items
 from func_lredir import mfs_lredir_auto_hdc, mfs_lredir_command, mfs_lredir_command_no_perm
 from func_memory_dpmi_dpmi10_ldt import memory_dpmi_dpmi10_ldt
+from func_memory_dpmi_int_stack import (memory_dpmi_int_stack,
+                                        memory_dpmi_iret_stack)
+from func_memory_dpmi_linmem_oom import memory_dpmi_linmem_oom
 from func_memory_dpmi_nullseg import memory_dpmi_nullseg
+from func_memory_dpmi_pm_stack import memory_dpmi_pm_stack
 from func_memory_dpmi_ecm import (memory_dpmi_ecm_alloc, memory_dpmi_ecm_mini,
                                   memory_dpmi_ecm_modeswitch, memory_dpmi_ecm_psp)
 from func_memory_dpmi_japheth import memory_dpmi_japheth
 from func_memory_dpmi_leak_check import memory_dpmi_leak_check
 from func_memory_dpmi_leak_check_dos import memory_dpmi_leak_check_dos
+from func_memory_dpmi_reinit_pool import memory_dpmi_reinit_pool
 from func_memory_ems_borland import memory_ems_borland, memory_emm286_borland
 from func_memory_ems_vcpi import memory_ems_vcpi, memory_ems_vcpi_disabled
 from func_memory_vcpi_pm import memory_vcpi_pm_timer
@@ -58,11 +63,14 @@ from func_memory_hma import (memory_hma_freespace, memory_hma_alloc, memory_hma_
                              memory_hma_alloc3, memory_hma_chain)
 from func_memory_uma import memory_uma_strategy
 from func_memory_xms import memory_xms
+from func_memory_xms_move2 import memory_xms_move2
+from func_memory_xms_pm16 import memory_xms_pm16
 from func_memory_xms_pages import memory_xms_pages
 from func_misc import (create_new_psp, passing_dos_errorlevel_back, passing_environment_variable,
                        systype)
 from func_mfs_directory import mfs_directory_common, mfs_get_current_directory
 from func_mfs_read_write import mfs_file_read, mfs_file_write
+from func_mscdex_stub import mscdex_stub
 from func_findfile import (mfs_findfile_ufs_lfn, mfs_findfile_ufs_sfn,
                            mfs_findfile_vfat_linux_mounted_lfn, mfs_findfile_vfat_linux_mounted_sfn,
                            sfn_findfirst)
@@ -92,6 +100,10 @@ class OurTestCase(BaseTestCase):
     def test_drv_removable(self):
         """Drive is removable (IOCTL)"""
         drv_removable(self)
+
+    def test_mscdex_stub(self):
+        """MSCDEX stub answers with no CD-ROM drive"""
+        mscdex_stub(self)
 
     @mark(['mfstest', 'sfntest'])
     def test_mfs_sfn_directory_create(self):
@@ -1022,15 +1034,45 @@ class OurTestCase(BaseTestCase):
         """Memory XMS"""
         memory_xms(self)
 
+    @mark(['memtest', 'xmstest', 'dpmitest'])
+    def test_memory_xms_pm16(self):
+        """Memory XMS PM entry, 16-bit client"""
+        memory_xms_pm16(self)
+
+    @mark(['memtest', 'xmstest', 'dpmitest'])
+    def test_memory_xms_move2(self):
+        """Memory XMS move with address type"""
+        memory_xms_move2(self)
+
     @mark(['memtest', 'dpmitest'])
     def test_memory_dpmi10_ldt(self):
         """Memory DPMI-1.0 LDT"""
         memory_dpmi_dpmi10_ldt(self)
 
     @mark(['memtest', 'dpmitest'])
+    def test_memory_dpmi_linmem_oom(self):
+        """Memory DPMI linear memory out of space"""
+        memory_dpmi_linmem_oom(self)
+
+    @mark(['memtest', 'dpmitest'])
     def test_memory_dpmi_nullseg(self):
         """Memory DPMI null selector access"""
         memory_dpmi_nullseg(self)
+
+    @mark(['memtest', 'dpmitest'])
+    def test_memory_dpmi_int_stack(self):
+        """Memory DPMI software interrupt stack limit"""
+        memory_dpmi_int_stack(self)
+
+    @mark(['memtest', 'dpmitest'])
+    def test_memory_dpmi_iret_stack(self):
+        """Memory DPMI iret stack limit"""
+        memory_dpmi_iret_stack(self)
+
+    @mark(['memtest', 'dpmitest'])
+    def test_memory_dpmi_pm_stack(self):
+        """Memory DPMI PM interrupt stack limit"""
+        memory_dpmi_pm_stack(self)
 
     @mark(['memtest', 'dpmitest'])
     def test_memory_dpmi_leak_check_nofree(self):
@@ -1051,6 +1093,11 @@ class OurTestCase(BaseTestCase):
     def test_memory_dpmi_leak_check_dos_normal(self):
         """Memory DPMI Leak Check DOS Normal"""
         memory_dpmi_leak_check_dos(self, 'normal')
+
+    @mark(['memtest', 'dpmitest'])
+    def test_memory_dpmi_reinit_pool(self):
+        """Memory DPMI Reinit Pool"""
+        memory_dpmi_reinit_pool(self)
 
     @mark(['memtest', 'umatest'])
     def test_memory_uma_strategy(self):

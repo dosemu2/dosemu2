@@ -87,6 +87,13 @@ static int probe_font(int idx);
 #define MIN_X 100
 #define MIN_Y 75
 
+/* The smallest point size a TTF text screen may use.  Below it the glyph
+ * cell degenerates -- DejaVu Sans Mono measures 1x3 pixels at point size 2
+ * -- and because in TTF text mode the window size is derived from the font
+ * (see SDL_set_videomode()), a window once shrunk that far keeps the tiny
+ * font across mode changes and never grows back. */
+#define MIN_PSIZE 6
+
 static struct video_system Video_SDL = {
   NULL,
   SDL_init,
@@ -710,6 +717,29 @@ static int find_best_font(int xtarget, int ytarget, int cols, int rows)
   return idx;
 }
 
+/* Keep the window minimum in step with what the text screen needs at
+ * MIN_PSIZE, so it cannot be dragged below a size where the font would have
+ * to degenerate.  Reopening the font is not free, so only redo it when the
+ * face or the text geometry actually changed. */
+static void update_win_minsize(int idx, int cols, int rows)
+{
+  static int last_idx = -1, last_cols, last_rows;
+  TTF_Font *f;
+  int w, h;
+
+  if (idx == last_idx && cols == last_cols && rows == last_rows)
+    return;
+  f = do_open_font(idx, MIN_PSIZE, &w, &h);
+  if (!f)
+    return;
+  TTF_CloseFont(f);
+  last_idx = idx;
+  last_cols = cols;
+  last_rows = rows;
+  SDL_SetWindowMinimumSize(window, _max(MIN_X, cols * w),
+      _max(MIN_Y, rows * h));
+}
+
 static int _setup_ttf_winsize(int xtarget, int ytarget,
     int *r_xtarget, int *r_ytarget)
 {
@@ -727,6 +757,8 @@ static int _setup_ttf_winsize(int xtarget, int ytarget,
     return 0;
 
   pthread_mutex_lock(&sdl_font_mtx);
+  /* under the font mutex: it shares sdl_fdesc[]'s SDL_IOStream */
+  update_win_minsize(idx, cols, rows);
   if (idx != cur_fdesc) {
     close_font();
     cur_fdesc = idx;
@@ -758,7 +790,7 @@ static int _setup_ttf_winsize(int xtarget, int ytarget,
   }
 
   // reduce to fit if necessary
-  while ((xnow > xtarget || ynow > ytarget) && sdl_font_size > 1) {
+  while ((xnow > xtarget || ynow > ytarget) && sdl_font_size > MIN_PSIZE) {
     i = sdl_font_size - 1;
     v_printf("SDL: reducing a point size(%d)\n", i);
     v_printf("     xtarget = %d, xnow = %d, ytarget = %d, ynow = %d\n", xtarget, xnow, ytarget, ynow);
@@ -772,15 +804,18 @@ static int _setup_ttf_winsize(int xtarget, int ytarget,
     ynow = rows * font_height;
   }
 
-  if (xnow <= xtarget && ynow <= ytarget) {
+  if (xnow <= xtarget && ynow <= ytarget)
     v_printf("SDL: point size %d fits xtarget = %d, xnow = %d, ytarget = %d, ynow = %d\n",
-               i, xtarget, xnow, ytarget, ynow);
-    *r_xtarget = xnow;
-    *r_ytarget = ynow;
-    ret = 1;
-  } else
-    v_printf("SDL: reduced pointsize to zero xtarget = %d, xnow = %d, ytarget = %d, ynow = %d\n",
-           xtarget, xnow, ytarget, ynow);
+               sdl_font_size, xtarget, xnow, ytarget, ynow);
+  else
+    /* Only reachable before the new minimum has taken effect on the window.
+     * Clip rather than fail: failing here would leave the font already
+     * changed while the caller keeps the texture built for the old one. */
+    v_printf("SDL: point size %d is the smallest allowed and still needs %dx%d for %dx%d, clipping\n",
+           sdl_font_size, xnow, ynow, xtarget, ytarget);
+  *r_xtarget = _min(xnow, xtarget);
+  *r_ytarget = _min(ynow, ytarget);
+  ret = 1;
 
 done:
   pthread_mutex_unlock(&sdl_font_mtx);

@@ -268,6 +268,26 @@ static int GetDirectoryEntry(int drive, int copyFlag, Bit32u pathname,
 	return fill_buffer(copyFlag, buffer, defBuffer + index, entryLength);
 };
 
+/* With no CD-ROM drive configured dosemu2 left int 2Fh AH=15h unanswered, so
+ * a client got its own registers back and could not tell MSCDEX from a
+ * machine that never had it. A CD game whose disc check was patched out
+ * reads that as "MSCDEX is here, just no disc": the drive count it got back
+ * stayed zero, so it never allocates the buffer it asks MSCDEX to fill,
+ * then loads the null far pointer it left behind into GS, and the access
+ * through it is a #GP. Answering the install check alone is enough to keep
+ * such a client on a path that works; nothing else is claimed, so every
+ * other call stays unhandled exactly as before. */
+#define MSCDEX_STUB_DRIVE (MAX_DRIVE - 1)	/* Z: */
+
+static int mscdex_stub(void)
+{
+	if (_AL != 0x00)	/* install check */
+		return 0;
+	_BX = 1;
+	_CX = MSCDEX_STUB_DRIVE;
+	return 1;
+}
+
 int mscdex(void)
 {
 	dosaddr_t buf = SEGOFF2LINEAR(_ES, _BX);
@@ -278,7 +298,7 @@ int mscdex(void)
 	char devname[] = "MSCD0001";
 
 	if (numDrives == 0)
-		return 0;
+		return mscdex_stub();
 
 	switch (_AL) {
 	case 0x00:		/* install check */
