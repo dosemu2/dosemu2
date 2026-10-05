@@ -1352,11 +1352,35 @@ static int kvm_post_run(struct vm86_regs *regs, struct kvm_regs *kregs)
     return 0;
   }
 
-  ret = ioctl(vcpufd, KVM_GET_SREGS, &sregs);
-  if (ret == -1) {
-    perror("KVM: KVM_GET_SREGS");
-    leavedos_main(99);
+  {
+    /* Read into a local: while a VCPI client owns the CPU this describes
+       the client, and the global is what kvm_run() hands back to
+       KVM_SET_SREGS.  Writing the client's CR3, GDT, IDT and TSS back
+       under a v86 task is a triple fault, so only keep what is ours. */
+    struct kvm_sregs ns;
+
+    ret = ioctl(vcpufd, KVM_GET_SREGS, &ns);
+    if (ret == -1) {
+      perror("KVM: KVM_GET_SREGS");
+      leavedos_main(99);
+    }
+    if (ns.tr.base != MONITOR_DOSADDR) {
+      if (ns.cr3 == MONITOR_DOSADDR + offsetof(struct monitor, pde)) {
+        /* The monitor is halfway through taking the CPU back from a VCPI
+           client: its own page tables and IDT are in, its task register is
+           not.  A signal can land here although the code runs with
+           interrupts off, and there is nothing to report: let it finish. */
+        return 0;
+      }
+      g_printf("KVM: interrupt in VCPI code\n");
+      /* the client owns the registers and they stay in the VM; cs=0 says
+         that this is where we were */
+      regs->cs = 0;
+      return 1;
+    }
+    sregs = ns;
   }
+
   /* don't interrupt GDT code */
   if (!(kregs->rflags & X86_EFLAGS_VM) && !(sregs.cs.selector & 4)) {
     g_printf("KVM: interrupt in GDT code, resuming\n");
@@ -1537,7 +1561,14 @@ static unsigned int kvm_run(void)
   static struct vm86_regs saved_regs;
   struct vm86_regs *regs = &monitor->regs;
 
-  if (run->exit_reason != KVM_EXIT_HLT &&
+  /* Never push registers while a VCPI client has the CPU, or while a
+     switch to one is pending.  Both states have VM clear and a GDT
+     selector in cs, which the code below would run through set_ldt_seg()
+     and turn into a descriptor out of the LDT; the guest answers that
+     with a triple fault.  It is the monitor that restores these registers
+     anyway, with its own iret after the hlt.  The case only comes up when
+     the previous exit was not the hlt -- a signal, say. */
+  if (run->exit_reason != KVM_EXIT_HLT && !kvm_in_vcpi() &&
       memcmp(regs, &saved_regs, sizeof(*regs))) {
     /* Only set registers if changes happened, usually
        this means a hardware interrupt or sometimes
@@ -1733,15 +1764,37 @@ int true_kvm_vm86(struct vm86_struct *info)
   unsigned int trapno, exit_reason;
 
   regs = &monitor->regs;
-  *regs = info->regs;
 #if 0
   memcpy(&monitor->fpstate, &vm86_fpu_state, sizeof(vm86_fpu_state));
 #endif
   monitor->int_revectored = info->int_revectored;
-  monitor->tss.esp0 = offsetof(struct monitor, regs) + sizeof(monitor->regs);
 
-  regs->eflags &= (SAFE_MASK | X86_EFLAGS_VIF | X86_EFLAGS_VIP);
-  regs->eflags |= X86_EFLAGS_FIXED | X86_EFLAGS_VM | X86_EFLAGS_IF;
+  /* A VCPI client owning the CPU still runs DOS under itself in v86, and
+     those traps come to us like any other: the monitor puts the frame in
+     monitor->regs and we service it.  What we service it with has to go
+     back, or every edit is lost -- coopth_callf() pushes a call frame and
+     points cs:eip at its hlt, and dropping that makes the monitor iret to
+     the very int the thread was started for, over and over, until the int
+     67h threads run out of recursion depth. */
+  if (!kvm_in_vcpi() || (regs->eflags & X86_EFLAGS_VM)) {
+    monitor->tss.esp0 = offsetof(struct monitor, regs) + sizeof(monitor->regs);
+    *regs = info->regs;
+    regs->eflags &= (SAFE_MASK | X86_EFLAGS_VIF | X86_EFLAGS_VIP);
+    regs->eflags |= X86_EFLAGS_FIXED | X86_EFLAGS_VM | X86_EFLAGS_IF;
+  } else if (regs->cs == 0) {	/* returning to a client we interrupted */
+    run->request_interrupt_window = 0;
+    if (pic_pending()) {
+      if (run->ready_for_interrupt_injection && run->if_flag) {
+        /* the client's registers are untouchable, so hand the interrupt
+           to KVM instead of rewriting cs:eip ourselves */
+        struct kvm_interrupt ki = { .irq = pic_get_inum() };
+        g_printf("KVM: VCPI: injecting interrupt %#x\n", ki.irq);
+        ioctl(vcpufd, KVM_INTERRUPT, &ki);
+      } else {
+        run->request_interrupt_window = 1;
+      }
+    }
+  }
 
   do {
     exit_reason = kvm_run();
@@ -1771,7 +1824,13 @@ int true_kvm_vm86(struct vm86_struct *info)
    * See https://github.com/dosemu2/dosemu2/issues/2624
    * for details.
    */
-  assert(regs->eflags & X86_EFLAGS_VM);
+  assert(kvm_in_vcpi() || (regs->eflags & X86_EFLAGS_VM));
+  /* a VCPI client ends a round either interrupted (cs=0, registers left
+     in the VM) or by dropping back to v86 through DE0C, and only in the
+     latter case are monitor->regs the guest's */
+  if (!(regs->eflags & X86_EFLAGS_VM))
+    return vm86_ret;
+
   info->regs = *regs;
   info->regs.eflags |= X86_EFLAGS_IOPL;
 #if 0
