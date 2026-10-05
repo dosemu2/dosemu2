@@ -225,6 +225,10 @@ class OurTestCase(BaseTestCase):
             self.fail("no registers in:\n%s" % out)
         return int(m.group(1), 16), int(m.group(2), 16), out
 
+    def ldtLines(self, out):
+        """How many descriptors an 'ldt' dump printed."""
+        return len(re.findall(r"(?m)^[0-9a-f]{4}: [0-9a-f]{8} [0-9a-f]{8} ", out))
+
     def dbgInsnAt(self, seg, off, pm):
         """Disassemble the one instruction at seg:off."""
         out = self.dbgCmd("u %s%04x:%04x 1" % ('#' if pm else '', seg, off))
@@ -446,6 +450,53 @@ class OurTestCase(BaseTestCase):
         self.assertRegex(results, r"ti [0-9a-f]{4}:0105", results)
         self.assertRegex(results, r"insn .*CD21", results)
         self.assertRegex(results, r"t [0-9a-f]{4}:0107", results)
+
+    def test_dosdebug_ldt(self):
+        """Dosdebug ldt line count"""
+
+        self.mkbat_testit("pmint")
+        self.mkcom_with_nasm("pmint", PMINT_ASM)
+
+        def body(args):
+            # the client's descriptors only exist once it is in protected
+            # mode, and the int3 it runs on the way in is what stops us there
+            self.dbgCmd("bpint 3")
+            self.dbgchild.sendline("g")
+            self.dbgWaitStop(pm=True, limit=40)
+            self.dbgCmd("bcint 3")
+
+            steps = []
+            steps += (self.dbgCmd("ldt"),)
+            steps += (self.dbgCmd("ldt 0"),)
+            steps += (self.dbgCmd("ldt 0 4"),)
+            steps += (self.dbgCmd("ldt 0 0"),)
+            steps += (self.dbgCmd("ldt 0 q"),)
+            steps += (self.dbgCmd("ldt 0 3000000000"),)
+            return '|'.join(steps)
+
+        results = self.runWithDosdebug("testit.bat", body)
+
+        self.assertNotIn('Timeout', results)
+
+        steps = results.split('|')
+
+        # empty descriptors are skipped rather than printed, so how many
+        # lines a dump has depends on what the client allocated: a page is
+        # sixteen at most, and this client has always had more than four
+        page = self.ldtLines(steps[0])
+        self.assertLessEqual(page, 16, steps[0])
+        self.assertGreater(page, 4, steps[0])
+        # a selector on its own dumps the one entry it names
+        self.assertEqual(self.ldtLines(steps[1]), 1, steps[1])
+        # and the count the manual documents is read now
+        self.assertEqual(self.ldtLines(steps[2]), 4, steps[2])
+        # it has to be a number, and no lines at all is not a dump
+        self.assertIn("invalid line count '0'", steps[3], steps[3])
+        self.assertIn("invalid line count 'q'", steps[4], steps[4])
+        # a count that does not fit the int it is kept in used to come out
+        # negative and print nothing at all; clamped to the table, it prints
+        # at least what a page does
+        self.assertGreaterEqual(self.ldtLines(steps[5]), page, steps[5])
 
     def test_dosdebug_step_over_int_pm(self):
         """Dosdebug step over an int in protected mode"""
