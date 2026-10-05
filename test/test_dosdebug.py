@@ -732,6 +732,67 @@ class OurTestCase(BaseTestCase):
                          "'tc' stopped somewhere other than the int: "
                          + results)
 
+    def test_dosdebug_unix32(self):
+        """Dosdebug unix32 addresses"""
+
+        self.mkbat_testit("simple")
+        self.mkcom_with_nasm("simple", SIMPLE_ASM)
+
+        def body(args):
+            steps = []
+
+            # 'mode 2' is about dosemu's own address space, and the one
+            # address of it we can name without guessing is where the
+            # debugger itself says a DOS address lives
+            steps += (self.dbgCmd("mode 2"),)
+            steps += (self.dbgCmd("u 0:400 1"),)
+            m = re.search(r"(0x[0-9a-f]{6,16}):", steps[-1])
+            host = m.group(1) if m else "0x0"
+            steps += (self.dbgCmd("d %s 16" % host),)
+            steps += (self.dbgCmd("u %s 1" % host),)
+            # an address that is not mapped is an answer, not a death
+            steps += (self.dbgCmd("d 0 16"),)
+            steps += (self.dbgCmd("mode 0"),)
+            steps += (self.dbgCmd("d 0:400 16"),)
+            # the debugger is still there to answer, so dosemu is too
+            steps += (self.dbgCmd("r"),)
+
+            return '|'.join(steps)
+
+        results = self.runWithDosdebug("testit.bat", body)
+
+        self.assertNotIn('EndOfFile', results,
+                         "dosemu did not survive mode 2: " + results)
+        self.assertNotIn('Timeout', results)
+
+        steps = results.split('|')
+
+        self.assertIn("current mode: unix32", steps[0], steps[0])
+
+        # the address the debugger printed for a DOS address is one of
+        # dosemu's own, which on a 64bit host does not fit in 32 bits
+        m = re.search(r"(0x[0-9a-f]{6,16}):", steps[1])
+        self.assertIsNotNone(m, "no host address printed, which is what a "
+                                "dosemu that died looks like: " + steps[1])
+        host = m.group(1)
+        self.assertGreater(int(host, 16), 0xffffffff,
+                           "a host address should be above 4G: " + steps[1])
+
+        # fed back whole, it reaches the same memory as the DOS address
+        self.assertIn(host, steps[2], steps[2])
+        unix_bytes = re.findall(r"(?m)^0x[0-9a-f]+ ((?:[0-9A-F]{2} )+)", steps[2])
+        dos_bytes = re.findall(r"(?m)^0000:0400 ((?:[0-9A-F]{2} )+)", steps[6])
+        self.assertTrue(unix_bytes, steps[2])
+        self.assertTrue(dos_bytes, steps[6])
+        self.assertEqual(unix_bytes[0], dos_bytes[0],
+                         "the same memory read two ways differs:\n%s\n%s" % (
+                             steps[2], steps[6]))
+        self.assertRegex(steps[3], r"(?m)^0x[0-9a-f]+: [0-9A-F]{2}", steps[3])
+
+        # 0 is not one of dosemu's mappings
+        self.assertIn("is not mapped in dosemu", steps[4], steps[4])
+        self.assertIn("current mode: seg16", steps[5], steps[5])
+        self.assertRegex(steps[7], RE_CSIP_RM, steps[7])
 
 # The DOS variants we want get included here
 FRDOS130TestCase = frdos130(OurTestCase, {})
