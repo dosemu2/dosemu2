@@ -6,8 +6,6 @@ import termios
 
 from os import environ
 from ptyprocess import PtyProcessError
-from shutil import rmtree
-from tempfile import mkdtemp
 from time import time
 
 from common_framework import (BaseTestCase, main, main_setup, IPROMPT,
