@@ -17,7 +17,7 @@ from common_os import frdos130, ppdosgit
 # How long the trace loop is given to end by itself.
 TRACELOOP_LIMIT = 20
 
-# How long a trace loop is given to end by itself.\nTRACELOOP_LIMIT = 20\n\n# Something for DOS to run while the debugger looks at it.
+# Something for DOS to run while the debugger looks at it.
 SIMPLE_ASM = r"""
 	cpu 386
 	org 100h
