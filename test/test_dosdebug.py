@@ -14,7 +14,10 @@ from common_framework import (BaseTestCase, main, main_setup, IPROMPT,
                               DOSEMU_CONF_DEFAULT, UNSUPPORTED)
 from common_os import frdos130, ppdosgit
 
-# Something for DOS to run while the debugger looks at it.
+# How long the trace loop is given to end by itself.
+TRACELOOP_LIMIT = 20
+
+# How long a trace loop is given to end by itself.\nTRACELOOP_LIMIT = 20\n\n# Something for DOS to run while the debugger looks at it.
 SIMPLE_ASM = r"""
 	cpu 386
 	org 100h
@@ -635,6 +638,99 @@ class OurTestCase(BaseTestCase):
         bl = results.split("bl=")[-1].split("Interrupts:")[0]
         self.assertNotRegex(bl, r"\n\s*\d+: [0-9a-f]+",
                             "a breakpoint was left behind: " + results)
+
+
+    def test_dosdebug_tc_ends_on_int_bp(self):
+        """Dosdebug an interrupt breakpoint ends a trace loop"""
+
+        self.mkbat_testit("pmint")
+        self.mkcom_with_nasm("pmint", PMINT_ASM)
+
+        def body(args):
+            # into protected mode first: the int3 the client runs on the way
+            # in is a place we know we are inside it
+            self.dbgCmd("bpint 3")
+            self.dbgchild.sendline("g")
+            self.dbgWaitStop(pm=True, limit=40)
+            self.dbgCmd("bcint 3")
+
+            # 'tc' traces on until something stops it, printing a report per
+            # instruction, and the breakpoint on int 31h is such a something.
+            # Whether it stopped is the point of the test, so go by how long
+            # the reports kept coming: a loop that runs on fills the pipe for
+            # as long as it is given.
+            self.dbgCmd("bpintd 31")
+            start = time()
+            self.dbgchild.sendline("tc")
+            out = self.dbgRead(settle=1.0, limit=TRACELOOP_LIMIT)
+            quiet = time() - start
+
+            self.dbgCmd("bcintd 31")
+            seg, off, _ = self.dbgRegs(pm=True)
+            insn = self.dbgInsnAt(seg, off, pm=True)
+            return "quiet=%.1f bytes=%d insn=%s at=%04x:%08x" % (
+                    quiet, len(out), insn, seg, off)
+
+        results = self.runWithDosdebug("testit.bat", body,
+                                       timeout=TRACELOOP_LIMIT + 30)
+
+        m = re.search(r"quiet=([0-9.]+) bytes=(\d+) insn=(\S.*?) "
+                      r"at=([0-9a-f]{4}):([0-9a-f]{8})", results)
+        self.assertIsNotNone(m, results)
+        self.assertLess(float(m.group(1)), TRACELOOP_LIMIT,
+                        "'tc' was still tracing when the test gave up, "
+                        "after %s bytes of reports: %s"
+                        % (m.group(2), results))
+        self.assertRegex(m.group(3), r"CD31",
+                         "'tc' stopped somewhere other than the int: "
+                         + results)
+
+
+    def test_dosdebug_tc_ends_on_int_bp(self):
+        """Dosdebug an interrupt breakpoint ends a trace loop"""
+
+        self.mkbat_testit("pmint")
+        self.mkcom_with_nasm("pmint", PMINT_ASM)
+
+        def body(args):
+            # into protected mode first: the int3 the client runs on the way
+            # in is a place we know we are inside it
+            self.dbgCmd("bpint 3")
+            self.dbgchild.sendline("g")
+            self.dbgWaitStop(pm=True, limit=40)
+            self.dbgCmd("bcint 3")
+
+            # 'tc' traces on until something stops it, printing a report per
+            # instruction, and the breakpoint on int 31h is such a something.
+            # A loop that runs on instead leaves the debugger in its running
+            # state, where it answers nothing else, so what the state is
+            # afterwards is the whole question.
+            self.dbgCmd("bpintd 31")
+            self.dbgchild.sendline("tc")
+            traced = self.dbgRead(settle=1.0, limit=TRACELOOP_LIMIT)
+            regs = self.dbgCmd("r")
+
+            state = ""
+            for l in regs.split("\n"):
+                if l.startswith("system state:"):
+                    state = l.strip()
+            insn = ""
+            m = RE_CSIP_PM.search(regs)
+            if m:
+                self.dbgCmd("bcintd 31")
+                insn = self.dbgInsnAt(int(m.group(1), 16),
+                                      int(m.group(2), 16), pm=True)
+            return "[%s] insn=[%s] traced=%d" % (state, insn, len(traced))
+
+        results = self.runWithDosdebug("testit.bat", body,
+                                       timeout=TRACELOOP_LIMIT + 30)
+
+        self.assertNotIn('Timeout', results, results)
+        self.assertRegex(results, r"\[system state: \S*stopped",
+                         "'tc' was still tracing: " + results)
+        self.assertRegex(results, r"insn=\[\S.*CD31",
+                         "'tc' stopped somewhere other than the int: "
+                         + results)
 
 
 # The DOS variants we want get included here
