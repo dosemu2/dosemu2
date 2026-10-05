@@ -733,6 +733,72 @@ class OurTestCase(BaseTestCase):
                          + results)
 
 
+    def test_dosdebug_bp_pm(self):
+        """Dosdebug breakpoint in protected mode"""
+
+        self.mkbat_testit("pmint")
+        self.mkcom_with_nasm("pmint", PMINT_ASM)
+
+        def body(args):
+            steps = []
+
+            # The int3 the client runs on entering protected mode is what
+            # puts us inside it: an interrupt breakpoint on its own would
+            # just as likely catch the command interpreter.
+            self.dbgCmd("bpint 3")
+            self.dbgchild.sendline("g")
+            self.dbgWaitStop(pm=True, limit=40)
+            steps += (self.dbgCmd("bcint 3"),)
+
+            # Let the client's loop come round twice before anything is
+            # written into it, so that whatever the CPU emulator makes of
+            # that code it has made already.
+            self.dbgCmd("bpintd 31")
+            self.dbgchild.sendline("g")
+            self.dbgWaitStop(pm=True, limit=30)
+            self.dbgchild.sendline("g")
+            seg, off, _ = self.dbgWaitStop(pm=True, limit=30)
+            steps += (self.dbgCmd("bcintd 31"),)
+            steps += (self.dbgInsnAt(seg, off, pm=True),)
+
+            # a breakpoint on the instruction after that int, which the
+            # client has to come back to the moment the int returns
+            want = off + 2
+            steps += (self.dbgCmd("bp #%04x:%x" % (seg, want)),)
+            steps += (self.dbgCmd("bl"),)
+            self.dbgchild.sendline("g")
+            seg2, off2, out = self.dbgWaitStop(pm=True, limit=30)
+            steps += (out,)
+            steps += ("hit=%04x:%08x want=%04x:%08x" % (seg2, off2, seg, want),)
+            steps += (self.dbgCmd("bc 0"),)
+
+            return '|'.join(steps)
+
+        # the client runs its protected mode code under the CPU emulator
+        # whatever the host can do, because that is where a breakpoint
+        # written behind the emulator's back goes unnoticed
+        results = self.runWithDosdebug("testit.bat", body,
+                config=DOSEMU_CONF_DEFAULT + '$_cpu_vm_dpmi = "emulated"\n')
+        screen = self.logfiles['xpt'][0].read_bytes().decode('ASCII', 'replace')
+
+        self.assertNotIn('Timeout', results,
+                         "the client did not run to its end: " + results)
+
+        steps = results.split('|')
+
+        # the address the breakpoint went on is the int the loop runs
+        self.assertRegex(steps[2], r"CD31", steps[2])
+        # 'bl' lists each breakpoint as "<n>: <linear address>"
+        self.assertRegex(steps[4], r"(?m)^\s*0: [0-9a-f]+", steps[4])
+
+        m = re.search(r"hit=([0-9a-f]{4}):([0-9a-f]{8}) "
+                      r"want=([0-9a-f]{4}):([0-9a-f]{8})", steps[6])
+        self.assertIsNotNone(m, results)
+        self.assertEqual(m.group(1, 2), m.group(3, 4),
+                         "the breakpoint stopped somewhere else: " + steps[5])
+        # and the client is itself again once the breakpoint is gone
+        self.assertIn("PMINT OK", screen)
+
 # The DOS variants we want get included here
 FRDOS130TestCase = frdos130(OurTestCase, {})
 
