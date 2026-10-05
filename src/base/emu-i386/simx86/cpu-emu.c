@@ -685,6 +685,24 @@ static void Cpu2Scp(cpuctx_t *scp, int trapno)
  */
 
 /*
+ * What sgdt and sidt will report. The dpmi side makes the tables at
+ * init and they then stand for the whole run, so the registers are
+ * taken here with the rest of the state rather than read at the
+ * instruction. With dpmi off there are none and these keep what
+ * reset_emu_cpu() left in them.
+ */
+static void SyncDtr(DTR *dtr, int idt)
+{
+  dosaddr_t base;
+  unsigned limit;
+
+  if (dpmi_get_dtr_alias(idt, &base, &limit)) {
+    dtr->Base = base;
+    dtr->Limit = limit;
+  }
+}
+
+/*
  * Enter emulator in DPMI mode (context_switch)
  */
 static void Scp2CpuD(cpuctx_t *scp)
@@ -693,6 +711,8 @@ static void Scp2CpuD(cpuctx_t *scp)
 
   /* make clear we are in PM now */
   TheCPU.cr[0] |= 1;
+  SyncDtr(&TheCPU.GDTR, 0);
+  SyncDtr(&TheCPU.IDTR, 1);
   InvalidateSegs(); // makes sure real mode segs aren't confused with PM sels
   TheCPU.mode = 0;
   SetSegProt(Ofs_CS,_cs);

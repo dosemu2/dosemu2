@@ -136,6 +136,7 @@ unsigned short msdos_ldt_init(int page_size)
     dpmi_ext_ldt_monitor_enable(1);
 
     dpmi_ldt_alias = alias_sel;
+    dpmi_set_ldt_alias(shm.addr);
     return dpmi_ldt_alias;
 }
 
@@ -153,6 +154,7 @@ void msdos_ldt_done(void)
     FreeDescriptor(d16);
     FreeDescriptor(d32);
     ldt_backbuf = NULL;
+    dpmi_set_ldt_alias(0);
     DPMIUnmapHWRam(ldt_alias);
     DPMIUnmapHWRam(ldt_bb);
 }

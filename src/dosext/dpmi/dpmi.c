@@ -111,6 +111,94 @@ static void add_cli_to_blacklist(unsigned char *addr);
 #ifdef USE_MHPDBG
 static int dpmi_mhp_intxx_check(cpuctx_t *scp, int intno);
 #endif
+
+/* Work out the offset a modrm byte with a memory destination addresses,
+ * for the handful of instructions emulated below. reg[] is the eight
+ * general registers in encoding order. Returns the offset and puts the
+ * length of the modrm byte together with its sib and displacement into
+ * *len, or leaves *len at zero for a form not decoded here. *ss_rel is
+ * set when the default segment for the form is SS rather than DS. */
+static unsigned int decode_ea(const unsigned char *modrm, uint32_t *reg[8],
+    int a32, int *len, int *ss_rel)
+{
+  unsigned char m = modrm[0];
+  int mod = m >> 6, rm = m & 7;
+  unsigned int ofs = 0;
+  int n = 1;			/* the modrm byte itself */
+
+  *len = 0;
+  *ss_rel = 0;
+  if (mod == 3)			/* register destination, not ours */
+    return 0;
+
+  if (a32) {
+    if (rm == 4) {		/* sib follows */
+      unsigned char sib = modrm[1];
+      int base = sib & 7, index = (sib >> 3) & 7;
+
+      n++;
+      if (index != 4)		/* 4 encodes no index */
+	ofs += *reg[index] << (sib >> 6);
+      if (base == 5 && mod == 0) {
+	ofs += *(const uint32_t *)(modrm + n);
+	n += 4;
+      } else {
+	ofs += *reg[base];
+	if (base == 4 || base == 5)
+	  *ss_rel = 1;		/* esp or ebp based */
+      }
+    } else if (rm == 5 && mod == 0) {
+      ofs = *(const uint32_t *)(modrm + n);
+      n += 4;
+    } else {
+      ofs = *reg[rm];
+      if (rm == 5)
+	*ss_rel = 1;		/* ebp based */
+    }
+
+    if (mod == 1) {
+      ofs += (int8_t)modrm[n];
+      n += 1;
+    } else if (mod == 2) {
+      ofs += *(const int32_t *)(modrm + n);
+      n += 4;
+    }
+  } else {
+    unsigned short bx = *reg[3], bp = *reg[5], si = *reg[6], di = *reg[7];
+
+    switch (rm) {
+      case 0: ofs = bx + si; break;
+      case 1: ofs = bx + di; break;
+      case 2: ofs = bp + si; *ss_rel = 1; break;
+      case 3: ofs = bp + di; *ss_rel = 1; break;
+      case 4: ofs = si; break;
+      case 5: ofs = di; break;
+      case 6:
+	if (mod == 0) {
+	  ofs = *(const uint16_t *)(modrm + n);
+	  n += 2;
+	} else {
+	  ofs = bp;
+	  *ss_rel = 1;
+	}
+	break;
+      case 7: ofs = bx; break;
+    }
+
+    if (mod == 1) {
+      ofs += (int8_t)modrm[n];
+      n += 1;
+    } else if (mod == 2) {
+      ofs += *(const int16_t *)(modrm + n);
+      n += 2;
+    }
+    ofs &= 0xffff;
+  }
+
+  *len = n;
+  return ofs;
+}
+
 static int dpmi_fault1(cpuctx_t *scp);
 static void do_dpmi_retf(cpuctx_t *scp, void * const sp);
 static int prn_tid;
@@ -2543,6 +2631,97 @@ int dpmi_install_rsp(struct RSPcall_s *callback)
     return 0;
 }
 
+/*
+ * What a client finds where the descriptor tables should be.
+ *
+ * A 286 extender looks for its descriptors the way the hardware does:
+ * sgdt for the GDT, sldt for the index of the LDT inside it, the base
+ * and limit out of that entry, and then it indexes that table by
+ * selector. Under DPMI the LDT is the only table it has any business
+ * touching, and it is reachable: int 2Fh AX=1688h hands out an alias of
+ * it, read-only, and writes to that alias are picked up in msdos_ldt.c.
+ * What was missing is the step in between: something for sgdt to point
+ * at that names the alias. The same client reads the table sidt names
+ * before it goes on, so that has to be readable too.
+ *
+ * One page holds both tables, taken here at init and read-only, which
+ * is all a GDT a client cannot grow has to be. Its first half is a GDT
+ * whose single entry, at index 0 because that is what sldt reports,
+ * describes the LDT alias; its second half is an IDT of absent gates,
+ * which is the truth about what a client may take from the host's
+ * interrupt table. The page is there for the whole run; the one entry
+ * in it is written when there is an alias to name.
+ */
+#define DTR_ALIAS_LIMIT 0x7ff	/* 256 entries, as on a real machine */
+static struct {
+    dosaddr_t base;
+    unsigned limit;
+} dtr_alias[2];
+static dosaddr_t dtr_base = (dosaddr_t)-1;
+
+static void dtr_alias_setup(void)
+{
+    dpmi_pm_block *blk;
+
+    assert(DPMI_page_size >= 2 * (DTR_ALIAS_LIMIT + 1));
+    blk = DPMI_malloc(&host_pm_block_root, DPMI_page_size);
+    if (!blk) {
+	error("DPMI: can't allocate memory for descriptor tables\n");
+	return;
+    }
+    MEMSET_DOS(blk->base, 0, DPMI_page_size);
+    mprotect_mapping(MAPPING_DPMI, blk->base,
+	    HOST_PAGE_ALIGN(DPMI_page_size), PROT_READ);
+    dtr_base = blk->base;
+    dtr_alias[0].base = dtr_base;
+    dtr_alias[0].limit = DTR_ALIAS_LIMIT;
+    dtr_alias[1].base = dtr_base + DTR_ALIAS_LIMIT + 1;
+    dtr_alias[1].limit = DTR_ALIAS_LIMIT;
+    D_printf("DPMI: descriptor tables at %#x\n", dtr_base);
+}
+
+/*
+ * The one entry in that GDT, which msdos_ldt.c fills in when it has
+ * made the LDT alias and clears when it takes it away. Until then it
+ * reads as a descriptor that is not present, which is the truth.
+ */
+void dpmi_set_ldt_alias(dosaddr_t ldt_lin)
+{
+    /* one entry short of the whole table: the extender works out how
+     * many descriptors fit with a 16bit (limit + 1) / 8, and a limit of
+     * 0xffff wraps that to zero, which it reports as a fatal error */
+    unsigned lim = LDT_ENTRIES * LDT_ENTRY_SIZE - LDT_ENTRY_SIZE - 1;
+    unsigned char d[LDT_ENTRY_SIZE] = { 0 };
+
+    if (dtr_base == (dosaddr_t)-1)
+	return;
+    if (ldt_lin) {
+	d[0] = lim & 0xff;
+	d[1] = (lim >> 8) & 0xff;
+	d[2] = ldt_lin & 0xff;
+	d[3] = (ldt_lin >> 8) & 0xff;
+	d[4] = (ldt_lin >> 16) & 0xff;
+	d[5] = 0x82;		/* present, system, LDT */
+	d[6] = (lim >> 16) & 0x0f;
+	d[7] = (ldt_lin >> 24) & 0xff;
+    }
+    mprotect_mapping(MAPPING_DPMI, dtr_base,
+	    HOST_PAGE_ALIGN(DPMI_page_size), PROT_READ | PROT_WRITE);
+    MEMCPY_2DOS(dtr_base, d, sizeof(d));
+    mprotect_mapping(MAPPING_DPMI, dtr_base,
+	    HOST_PAGE_ALIGN(DPMI_page_size), PROT_READ);
+    D_printf("DPMI: ldt alias at %#x/%#x\n", ldt_lin, lim);
+}
+
+int dpmi_get_dtr_alias(int idt, dosaddr_t *base, unsigned *limit)
+{
+    if (!dtr_alias[!!idt].limit)
+	return 0;
+    *base = dtr_alias[!!idt].base;
+    *limit = dtr_alias[!!idt].limit;
+    return 1;
+}
+
 dosaddr_t DPMIMapHWRam(unsigned addr, unsigned size)
 {
     dpmi_pm_block *blk = DPMI_mapHWRam(&DPMI_CLIENT.pm_block_root, addr, size);
@@ -4266,12 +4445,14 @@ void dpmi_setup(void)
       break;
     }
 
-    get_ldt(ldt_buffer, LDT_ENTRIES * LDT_ENTRY_SIZE);
-
     if (dpmi_alloc_pool()) {
 	leavedos(2);
 	return;
     }
+    get_ldt(ldt_buffer, LDT_ENTRIES * LDT_ENTRY_SIZE);
+    /* the tables a client goes looking for, made once and for all */
+    dtr_alias_setup();
+
     if (!(_dpmi_sel16 = allocate_descriptors(1))) goto err;
     if (!(_dpmi_sel32 = allocate_descriptors(1))) goto err;
 
@@ -6017,14 +6198,71 @@ static int dpmi_fault1(cpuctx_t *scp)
               }
               LWORD32(eip, += 3);
               break;
-            default:
-              /* A memory operand needs the effective address worked out,
-               * which we cannot do here yet, so the store instructions
-               * lose their result. Say which one it was. */
-              error_once("DPMI: unsupported %s with a memory operand, "
-                  "modrm %#x\n%s", nm, csp[1], DPMI_show_state(scp));
-              LWORD32(eip, = org_eip + instr_len(lina, Segments(_cs>>3).is_32));
-              break;
+            default: { // memory operand
+              /* Storing to memory is as ordinary for these as storing to
+               * a register, and skipping the instruction leaves the
+               * client reading back whatever its buffer held before -
+               * silence where it asked a question. Work the effective
+               * address out and lay the answer down: six bytes for sgdt
+               * and sidt, two for sldt, str and smsw.
+               *
+               * Only for the five that store. The seven that read from
+               * this operand - lgdt, lidt, lldt, ltr, lmsw - or only set
+               * ZF reach us too, since they are privileged and fault out
+               * of a client at cpl 3, and writing to their operand would
+               * corrupt the very bytes they came to read. */
+              int len = 0, ss_rel = 0;
+              unsigned int ofs;
+              unsigned short sel;
+              unsigned char *p;
+
+              if (!stores) {
+                error_once("DPMI: unsupported %s with a memory operand, "
+                    "modrm %#x\n%s", nm, csp[1], DPMI_show_state(scp));
+                LWORD32(eip, = org_eip + instr_len(lina,
+                    Segments(_cs>>3).is_32));
+                break;
+              }
+
+              ofs = decode_ea(&csp[1], reg32, ASIZE_IS_32, &len, &ss_rel);
+              if (!len) {
+                error_once("DPMI: unsupported %s memory operand, "
+                    "modrm %#x\n%s", nm, csp[1], DPMI_show_state(scp));
+                LWORD32(eip, = org_eip + instr_len(lina,
+                    Segments(_cs>>3).is_32));
+                break;
+              }
+              sel = pref_seg != -1 ? pref_seg : (ss_rel ? _ss : _ds);
+              p = (unsigned char *)SEL_ADR(sel, ofs);
+              if (csp[0] && reg <= 1) {
+                /* sgdt and sidt always lay down the full six bytes,
+                 * whatever the operand size, and the base is little
+                 * endian like everything else the client reads. */
+                unsigned int base = reg ? EMU_IDT_BASE : EMU_GDT_BASE;
+                unsigned int limit = reg ? EMU_IDT_LIMIT : EMU_GDT_LIMIT;
+
+                /* the page msdos_ldt.c keeps, when there is one: a
+                 * client that follows what it reads here then finds
+                 * its own LDT rather than nothing at all */
+                dpmi_get_dtr_alias(reg, &base, &limit);
+                p[0] = limit;
+                p[1] = limit >> 8;
+                p[2] = base;
+                p[3] = base >> 8;
+                p[4] = base >> 16;
+                p[5] = base >> 24;
+              } else {
+                /* the memory form of smsw stores the low word of cr0 and
+                 * nothing else, so PG never reaches it; sldt and str name
+                 * descriptors the client has no business following and
+                 * stay zero, as in the register case above. */
+                unsigned int val = (csp[0] && reg == 4) ? CR0_PE : 0;
+
+                p[0] = val;
+                p[1] = val >> 8;
+              }
+              LWORD32(eip, += 2 + len);
+              break; }
           }
           break;
         }

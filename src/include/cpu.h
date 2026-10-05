@@ -574,4 +574,26 @@ extern int is_cli;
 void set_cpio(int base, int size);
 void set_drio(int base, int size);
 
+/* What sgdt and sidt report to a protected mode client.
+ *
+ * A base of zero is the one answer we must never give, because in a DOS
+ * address space linear zero is the interrupt vector table, which the
+ * client can read: it then builds descriptors out of interrupt vectors
+ * and faults on whatever comes out. Phar Lap's 286|DOS-Extender does
+ * exactly that. Report the top of the address space instead, the way the
+ * Linux kernel answers a ring 3 sgdt under UMIP, so the read faults
+ * outright and the client falls back to asking through DPMI.
+ *
+ * The limits are real ones rather than 0xffff, because a client that
+ * computes the entry count as (limit + 1) / 8 in sixteen bits wraps
+ * 0xffff to zero entries.
+ *
+ * They live here so that cpuemu, the DPMI instruction emulator and KVM
+ * give one answer rather than three literals that can drift apart.
+ */
+#define EMU_GDT_BASE	0xfffe0000
+#define EMU_GDT_LIMIT	0x0fff
+#define EMU_IDT_BASE	0xffff0000
+#define EMU_IDT_LIMIT	0x07ff
+
 #endif /* CPU_H */
