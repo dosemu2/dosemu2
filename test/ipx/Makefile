@@ -3,7 +3,16 @@
 #
 
 top_builddir=../..
-include $(top_builddir)/Makefile.conf
+-include $(top_builddir)/Makefile.conf
+
+# The packaged test run has no configured tree, so fall back to the
+# host's binutils, which is what configure finds on an x86 host anyway.
+REALTOPDIR ?= $(top_builddir)
+XAS ?= as
+XASFLAGS ?= --32
+AS_LD ?= ld
+AS_LDFLAGS ?= -melf_i386
+XOBJCOPY ?= objcopy
 
 COM = ipxtest.com
 ALL = $(COM)
