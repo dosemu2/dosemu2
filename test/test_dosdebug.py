@@ -656,52 +656,6 @@ class OurTestCase(BaseTestCase):
 
             # 'tc' traces on until something stops it, printing a report per
             # instruction, and the breakpoint on int 31h is such a something.
-            # Whether it stopped is the point of the test, so go by how long
-            # the reports kept coming: a loop that runs on fills the pipe for
-            # as long as it is given.
-            self.dbgCmd("bpintd 31")
-            start = time()
-            self.dbgchild.sendline("tc")
-            out = self.dbgRead(settle=1.0, limit=TRACELOOP_LIMIT)
-            quiet = time() - start
-
-            self.dbgCmd("bcintd 31")
-            seg, off, _ = self.dbgRegs(pm=True)
-            insn = self.dbgInsnAt(seg, off, pm=True)
-            return "quiet=%.1f bytes=%d insn=%s at=%04x:%08x" % (
-                    quiet, len(out), insn, seg, off)
-
-        results = self.runWithDosdebug("testit.bat", body,
-                                       timeout=TRACELOOP_LIMIT + 30)
-
-        m = re.search(r"quiet=([0-9.]+) bytes=(\d+) insn=(\S.*?) "
-                      r"at=([0-9a-f]{4}):([0-9a-f]{8})", results)
-        self.assertIsNotNone(m, results)
-        self.assertLess(float(m.group(1)), TRACELOOP_LIMIT,
-                        "'tc' was still tracing when the test gave up, "
-                        "after %s bytes of reports: %s"
-                        % (m.group(2), results))
-        self.assertRegex(m.group(3), r"CD31",
-                         "'tc' stopped somewhere other than the int: "
-                         + results)
-
-
-    def test_dosdebug_tc_ends_on_int_bp(self):
-        """Dosdebug an interrupt breakpoint ends a trace loop"""
-
-        self.mkbat_testit("pmint")
-        self.mkcom_with_nasm("pmint", PMINT_ASM)
-
-        def body(args):
-            # into protected mode first: the int3 the client runs on the way
-            # in is a place we know we are inside it
-            self.dbgCmd("bpint 3")
-            self.dbgchild.sendline("g")
-            self.dbgWaitStop(pm=True, limit=40)
-            self.dbgCmd("bcint 3")
-
-            # 'tc' traces on until something stops it, printing a report per
-            # instruction, and the breakpoint on int 31h is such a something.
             # A loop that runs on instead leaves the debugger in its running
             # state, where it answers nothing else, so what the state is
             # afterwards is the whole question.
@@ -709,26 +663,40 @@ class OurTestCase(BaseTestCase):
             self.dbgchild.sendline("tc")
             traced = self.dbgRead(settle=1.0, limit=TRACELOOP_LIMIT)
             regs = self.dbgCmd("r")
+            # clear it whatever came of it, so that a debugger which did stop
+            # is not left carrying the breakpoint into the next command
+            self.dbgCmd("bcintd 31")
 
             state = ""
             for l in regs.split("\n"):
                 if l.startswith("system state:"):
                     state = l.strip()
             insn = ""
+            seg = off = 0
             m = RE_CSIP_PM.search(regs)
             if m:
-                self.dbgCmd("bcintd 31")
-                insn = self.dbgInsnAt(int(m.group(1), 16),
-                                      int(m.group(2), 16), pm=True)
-            return "[%s] insn=[%s] traced=%d" % (state, insn, len(traced))
+                seg = int(m.group(1), 16)
+                off = int(m.group(2), 16)
+                insn = self.dbgInsnAt(seg, off, pm=True)
+            return "[%s] insn=[%s] traced=%d at=%04x:%08x" % (
+                    state, insn, len(traced), seg, off)
 
         results = self.runWithDosdebug("testit.bat", body,
                                        timeout=TRACELOOP_LIMIT + 30)
 
         self.assertNotIn('Timeout', results, results)
-        self.assertRegex(results, r"\[system state: \S*stopped",
-                         "'tc' was still tracing: " + results)
-        self.assertRegex(results, r"insn=\[\S.*CD31",
+        m = re.search(r"\[system state: ([^\]]*)\] insn=\[(.*)\] "
+                      r"traced=(\d+) at=([0-9a-f]{4}):([0-9a-f]{8})", results)
+        self.assertIsNotNone(m, "the debugger answered nothing of what the "
+                                "case asks for: " + results)
+        self.assertIn("stopped", m.group(1),
+                      "'tc' was still tracing: " + results)
+        self.assertGreater(int(m.group(3)), 0,
+                           "'tc' stopped without tracing anything: " + results)
+        self.assertNotEqual(m.group(4, 5), ("0000", "00000000"),
+                            "the debugger did not say where it stopped: "
+                            + results)
+        self.assertRegex(m.group(2), r"CD31",
                          "'tc' stopped somewhere other than the int: "
                          + results)
 
