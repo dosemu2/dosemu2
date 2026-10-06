@@ -160,10 +160,13 @@ static void set_irq_level(void *opaque, int n, int level)
     pic_set_irq(opaque, n, level);
 }
 
+static int int_out_queued;
+
 static void int_raise(void *arg)
 {
     int level = (uintptr_t)arg;
     /* If we are here, guest code already interrupted. So nothing to do. */
+    __atomic_store_n(&int_out_queued, 0, __ATOMIC_RELEASE);
     r_printf("int level from thread set to %i\n", level);
 }
 
@@ -172,7 +175,16 @@ static void set_int_out(void *opaque, int n, int level)
     pthread_t thr = (pthread_t)opaque;
 
     r_printf("PIC: int out set to %i\n", level);
-    if (!pthread_equal(thr, pthread_self()))
+    if (pthread_equal(thr, pthread_self()))
+        return;
+    /* What the guest needs here is the wakeup that add_thread_callback()
+     * does; int_raise() itself has nothing left to do.  A device thread that
+     * moves the line faster than the main thread drains the queue fills it
+     * up and turns every further move into an error message, so keep at most
+     * one entry in flight and let the rest be plain wakeups. */
+    if (__atomic_exchange_n(&int_out_queued, 1, __ATOMIC_ACQ_REL))
+        add_thread_callback(NULL, NULL, "pic");
+    else
         add_thread_callback(int_raise, (void *)(uintptr_t)level, "pic");
 }
 
@@ -266,6 +278,44 @@ unsigned pic_get_isr(void)
     ret = (pic[0].isr | (pic[1].isr << 8));
     pthread_mutex_unlock(&pic_mtx);
     return ret;
+}
+
+/* is this line requested and unmasked, whatever its priority */
+int pic_irq_requested(int irq)
+{
+    int ret;
+    PICCommonState *p = pic;
+
+    if (irq >= 8) {
+        irq -= 8;
+        p++;
+    }
+    pthread_mutex_lock(&pic_mtx);
+    ret = !!((1 << irq) & (p->irr & ~p->imr));
+    pthread_mutex_unlock(&pic_mtx);
+    return ret;
+}
+
+/* Take the keyboard line out of turn.  The timer outranks it and is
+   pending almost all the time while a VCPI client runs, so IRQ1 never
+   wins a fair contest: measured one delivery against 64 events sent.
+   Rotating the priority is what the chip itself offers for this. */
+int pic_get_inum_kbd(void)
+{
+    int inum;
+    uint8_t saved;
+
+    pthread_mutex_lock(&pic_mtx);
+    if (!slave_pic)
+        slave_pic = &pic[1];
+    saved = pic[0].priority_add;
+    pic[0].priority_add = 1;		/* IRQ1 first */
+    inum = pic_read_irq(&pic[0]);
+    if (pic[0].priority_add == 1)	/* untouched by the ack */
+        pic[0].priority_add = saved;
+    pthread_mutex_unlock(&pic_mtx);
+    r_printf("PIC: running keyboard interrupt %x out of turn\n", inum);
+    return inum;
 }
 
 int pic_pending(void)

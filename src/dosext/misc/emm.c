@@ -383,15 +383,21 @@ static inline void *realloc_memory_object(void *object, size_t oldsize, size_t b
  * logical page even after the window is remapped.
  *
  * So the handle that is mapped into the window gets pinned, on demand, to a
- * page of a small pool below 16M, where the DMA controller can reach it.  The
- * pin holds until the handle goes away, and a second query for the same
- * logical page returns the same address.
+ * page of a small pool below 16M, where the DMA controller can reach it.  A
+ * second query for the same logical page returns the same address.
+ *
+ * The pin outlives the handle.  A client that was given an address has put
+ * it into its own page tables, and VCPI has no call to tell it that the
+ * address went away, so a real memory manager can never take the page back.
+ * When the handle is deallocated the page therefore keeps its address and a
+ * private copy of what was in it, and only a reset releases it.
  */
 static void *vcpi_pool;
 static struct vcpi_pin {
   int handle;
   int logical_page;
   int page;			/* pool page, -1 when the slot is free */
+  void *orphan;			/* private memory, once the handle is gone */
 } *vcpi_pins;
 static int vcpi_pool_pages;
 
@@ -408,11 +414,14 @@ static void vcpi_pool_init(void)
     return;
   }
   vcpi_pool = pgainit(VCPI_POOL_SIZE >> PAGE_SHIFT);
-  for (i = 0; i < vcpi_pool_pages; i++)
+  for (i = 0; i < vcpi_pool_pages; i++) {
     vcpi_pins[i].page = -1;
+    vcpi_pins[i].orphan = NULL;
+  }
 }
 
-static void vcpi_unpin_handle(int handle)
+/* a reset is the one moment when no client can hold an address any more */
+static void vcpi_pool_reset(void)
 {
   int i;
 
@@ -421,22 +430,66 @@ static void vcpi_unpin_handle(int handle)
   for (i = 0; i < vcpi_pool_pages; i++) {
     unsigned pa;
 
+    if (vcpi_pins[i].page == -1)
+      continue;
+    pa = vcpi_pool_base + (vcpi_pins[i].page << PAGE_SHIFT);
+    e_invalidate_full_pa(pa, EMM_PAGE_SIZE);
+    unalias_mapping_pa(MAPPING_DPMI, pa, EMM_PAGE_SIZE);
+    if (vcpi_pins[i].orphan) {
+      free_mapping(MAPPING_EMS, vcpi_pins[i].orphan, EMM_PAGE_SIZE);
+      vcpi_pins[i].orphan = NULL;
+    }
+    pgafree(vcpi_pool, vcpi_pins[i].page);
+    vcpi_pins[i].page = -1;
+  }
+}
+
+/* The handle is going away or its memory is about to move, but the client
+ * keeps the physical address: give the page a private copy so that what the
+ * client reads there does not change under it. */
+static void vcpi_unpin_handle(int handle)
+{
+  int i;
+
+  if (!vcpi_pool)
+    return;
+  for (i = 0; i < vcpi_pool_pages; i++) {
+    unsigned pa;
+    void *mem;
+
     if (vcpi_pins[i].page == -1 || vcpi_pins[i].handle != handle)
       continue;
     pa = vcpi_pool_base + (vcpi_pins[i].page << PAGE_SHIFT);
-    E_printf("VCPI: unpinning handle %d page 0x%x from 0x%08x\n",
-	     handle, vcpi_pins[i].logical_page, pa);
+    mem = alloc_mapping(MAPPING_EMS, EMM_PAGE_SIZE);
+    if (mem == MAP_FAILED) {
+      error("VCPI: cannot keep page 0x%08x for the client\n", pa);
+      e_invalidate_full_pa(pa, EMM_PAGE_SIZE);
+      unalias_mapping_pa(MAPPING_DPMI, pa, EMM_PAGE_SIZE);
+      pgafree(vcpi_pool, vcpi_pins[i].page);
+      vcpi_pins[i].page = -1;
+      continue;
+    }
+    if (handle_info[handle].object)
+      memcpy(mem, (char *)handle_info[handle].object +
+	     vcpi_pins[i].logical_page * EMM_PAGE_SIZE, EMM_PAGE_SIZE);
     e_invalidate_full_pa(pa, EMM_PAGE_SIZE);
-    unalias_mapping_pa(MAPPING_DPMI, pa, EMM_PAGE_SIZE);
-    pgafree(vcpi_pool, vcpi_pins[i].page);
-    vcpi_pins[i].page = -1;
+    if (alias_mapping_pa(MAPPING_EMS, pa, EMM_PAGE_SIZE, PROT_RWX, mem)
+	== -1) {
+      error("VCPI: cannot alias kept page 0x%08x\n", pa);
+      free_mapping(MAPPING_EMS, mem, EMM_PAGE_SIZE);
+      continue;
+    }
+    E_printf("VCPI: handle %d page 0x%x kept at 0x%08x for the client\n",
+	     handle, vcpi_pins[i].logical_page, pa);
+    vcpi_pins[i].handle = NULL_HANDLE;
+    vcpi_pins[i].orphan = mem;
   }
 }
 
 /* returns the physical address of a logical page, or -1 */
 static unsigned vcpi_pin_page(int handle, int logical_page)
 {
-  int i, slot = -1, page;
+  int i, slot = -1, orph = -1, orph_same = -1, page;
   unsigned pa;
   void *src;
 
@@ -448,9 +501,43 @@ static unsigned vcpi_pin_page(int handle, int logical_page)
 	slot = i;
       continue;
     }
+    if (vcpi_pins[i].orphan) {
+      if (vcpi_pins[i].logical_page == logical_page && orph_same == -1)
+	orph_same = i;
+      else if (orph == -1)
+	orph = i;
+      continue;
+    }
     if (vcpi_pins[i].handle == handle &&
 	vcpi_pins[i].logical_page == logical_page)
       return vcpi_pool_base + (vcpi_pins[i].page << PAGE_SHIFT);
+  }
+  src = (char *)handle_info[handle].object + logical_page * EMM_PAGE_SIZE;
+  /* A page a client is still holding goes to the new handle the way real
+   * hardware hands it back: same address, and whatever was left in it.  The
+   * page that carried this logical page before is taken first, so a program
+   * that frees its handle and allocates the same size again finds its data
+   * where it left it -- which is what Strike Commander does between MENU
+   * and the game, with its heap living on these pages the whole time.
+   */
+  if (orph_same != -1 || (slot == -1 && orph != -1)) {
+    i = orph_same != -1 ? orph_same : orph;
+    pa = vcpi_pool_base + (vcpi_pins[i].page << PAGE_SHIFT);
+    memcpy(src, vcpi_pins[i].orphan, EMM_PAGE_SIZE);
+    free_mapping(MAPPING_EMS, vcpi_pins[i].orphan, EMM_PAGE_SIZE);
+    vcpi_pins[i].orphan = NULL;
+    e_invalidate_full_pa(pa, EMM_PAGE_SIZE);
+    if (alias_mapping_pa(MAPPING_EMS, pa, EMM_PAGE_SIZE, PROT_RWX, src)
+	== -1) {
+      pgafree(vcpi_pool, vcpi_pins[i].page);
+      vcpi_pins[i].page = -1;
+      return -1;
+    }
+    vcpi_pins[i].handle = handle;
+    vcpi_pins[i].logical_page = logical_page;
+    E_printf("VCPI: handle %d page 0x%x taken back at 0x%08x\n",
+	     handle, logical_page, pa);
+    return pa;
   }
   if (slot == -1)
     return -1;
@@ -458,7 +545,6 @@ static unsigned vcpi_pin_page(int handle, int logical_page)
   if (page < 0)
     return -1;
   pa = vcpi_pool_base + (page << PAGE_SHIFT);
-  src = (char *)handle_info[handle].object + logical_page * EMM_PAGE_SIZE;
   if (alias_mapping_pa(MAPPING_EMS, pa, EMM_PAGE_SIZE, PROT_RWX, src) == -1) {
     pgafree(vcpi_pool, page);
     return -1;
@@ -466,6 +552,7 @@ static unsigned vcpi_pin_page(int handle, int logical_page)
   vcpi_pins[slot].handle = handle;
   vcpi_pins[slot].logical_page = logical_page;
   vcpi_pins[slot].page = page;
+  vcpi_pins[slot].orphan = NULL;
   E_printf("VCPI: pinned handle %d page 0x%x to 0x%08x\n",
 	   handle, logical_page, pa);
   return pa;
@@ -2610,6 +2697,7 @@ void ems_reset(void)
       emm_deallocate_handle(i);
   }
   memcheck_map_free('E');
+  vcpi_pool_reset();
 
   ems_reset2();
 }

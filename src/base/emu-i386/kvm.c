@@ -1372,9 +1372,31 @@ static int kvm_post_run(struct vm86_regs *regs, struct kvm_regs *kregs)
            interrupts off, and there is nothing to report: let it finish. */
         return 0;
       }
+      if (!kvm_in_vcpi()) {
+        /* The client has already said it is done (pm_to_v86 clears the
+           flag first) but the stub is still on its way out under the
+           client's CR3 and TR.  None of this state is ours or the
+           client's to hand back: let the stub finish. */
+        g_printf("KVM: interrupt on the way out of a VCPI client\n");
+        return 0;
+      }
       g_printf("KVM: interrupt in VCPI code\n");
       /* the client owns the registers and they stay in the VM; cs=0 says
          that this is where we were */
+      regs->cs = 0;
+      return 1;
+    }
+    if (ns.cr3 != MONITOR_DOSADDR + offsetof(struct monitor, pde)) {
+      /* The other half of the same switch: the task register is already
+         ours while the page tables are still the client's.  Taking this
+         for our own state puts the client's CR3 in the global, and from
+         there mprotect_kvm() writes it into monitor->cr3, which the code
+         after the monitor's hlt loads to flush the TLB.  The monitor then
+         runs on a page directory that does not map it, so the next
+         instruction fetch faults, the fault cannot be delivered, and the
+         guest triple faults -- with every pte still intact, because the
+         tables are fine and CR3 simply no longer points at them. */
+      g_printf("KVM: interrupt halfway out to a VCPI client\n");
       regs->cs = 0;
       return 1;
     }
@@ -1838,7 +1860,8 @@ int true_kvm_vm86(struct vm86_struct *info)
       if (run->ready_for_interrupt_injection && run->if_flag) {
         /* the client's registers are untouchable, so hand the interrupt
            to KVM instead of rewriting cs:eip ourselves */
-        struct kvm_interrupt ki = { .irq = pic_get_inum() };
+        struct kvm_interrupt ki = { .irq = pic_irq_requested(1) ?
+            pic_get_inum_kbd() : pic_get_inum() };
         g_printf("KVM: VCPI: injecting interrupt %#x\n", ki.irq);
         ioctl(vcpufd, KVM_INTERRUPT, &ki);
       } else {
