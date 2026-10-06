@@ -7,6 +7,7 @@ from common_os import ppdosgit
 from func_build_freecom import build_freecom
 from func_build_freedos import build_freedos
 from func_build_pcmos import build_pcmos
+from func_cpu_endbr import cpu_endbr
 from func_cpu_smsw_mem import cpu_smsw_mem
 from func_cpu_trap_flag import cpu_trap_flag
 from func_cpu_undoc_shift import cpu_undoc_shift
@@ -31,6 +32,16 @@ class OurTestCase(BaseTestCase):
     def test_build_pcmos(self):
         """Build PC-MOS"""
         build_pcmos(self)
+
+    @mark('cputest')
+    def test_cpu_endbr(self):
+        """CPU ENDBR32/ENDBR64 as NOP"""
+        cpu_endbr(self)
+
+    @mark('cputest')
+    def test_cpu_smsw_mem(self):
+        """CPU SMSW with memory operand"""
+        cpu_smsw_mem(self)
 
     @mark('cputest')
     def test_cpu_undoc_shift(self):
@@ -60,11 +71,6 @@ class EMUTestCase(ppdosgit(OurTestCase, {
     use_cpu = 'emu'
 
     @mark('cputest')
-    def test_cpu_smsw_mem(self):
-        """CPU SMSW with memory operand"""
-        cpu_smsw_mem(self)
-
-    @mark('cputest')
     def test_cpu_trap_flag(self):
         """CPU Trap Flag"""
         cpu_trap_flag(self)
@@ -82,11 +88,6 @@ class KVMTestCase(ppdosgit(OurTestCase, {
     use_cpu = 'kvm'
 
     @mark('cputest')
-    def test_cpu_smsw_mem(self):
-        """CPU SMSW with memory operand"""
-        cpu_smsw_mem(self)
-
-    @mark('cputest')
     @acceptFailure
     def test_cpu_trap_flag(self):
         """CPU Trap Flag"""
@@ -99,11 +100,6 @@ class VM86TestCase(ppdosgit(OurTestCase, {
         "test_fpu_fisttp_sim_sim": UNSUPPORTED,  # Requires Pentium 4 (SSE3)
     })):
     use_cpu = 'vm86'
-
-    @mark('cputest')
-    def test_cpu_smsw_mem(self):
-        """CPU SMSW with memory operand"""
-        cpu_smsw_mem(self)
 
     @mark('cputest')
     def test_cpu_trap_flag(self):

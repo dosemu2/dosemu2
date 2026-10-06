@@ -405,7 +405,7 @@ static void vcpi_pool_init(void)
 {
   int i;
 
-  if (!config.vcpi || !VCPI_POOL_SIZE)
+  if (!config.jemm || !VCPI_POOL_SIZE)
     return;
   vcpi_pool_pages = VCPI_POOL_SIZE / EMM_PAGE_SIZE;
   vcpi_pins = malloc(vcpi_pool_pages * sizeof(*vcpi_pins));
@@ -2632,7 +2632,7 @@ ems_fn(struct vm86_regs *state)
 
   case VCPI_INTERFACE:		/* 0xDE */
     EMS_TRACE("VCPI");
-    if (config.vcpi) {
+    if (config.jemm) {
       vcpi_interface(state);
       break;
     }
