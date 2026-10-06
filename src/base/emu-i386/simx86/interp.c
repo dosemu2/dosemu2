@@ -1468,11 +1468,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			case Ofs_BL:	/*3*/	// RCR
 				Gen(O_RCR, m, count);
 				break;
-			case Ofs_DH:	/*6*/	// undoc
-				if (opc==SHIFTbv) {
-					goto illegal_op;
-				}
-				break;
+			case Ofs_DH:	/*6*/	// undoc, same as /4
 			case Ofs_AH:	/*4*/	// SHL,SAL
 				Gen(O_SHL, m, count);
 				break;
@@ -1512,10 +1508,7 @@ intop3b:		{ int op = ArOpsFR[D_MO(opc)];
 			case Ofs_BX:	/*3*/	// RCR
 				Gen(O_RCR, m, count);
 				break;
-			case Ofs_SI:	/*6*/	// undoc
-				if ((opc==SHIFTw)||(opc==SHIFTwv)) {
-					goto illegal_op;
-				}
+			case Ofs_SI:	/*6*/	// undoc, same as /4
 			case Ofs_SP:	/*4*/	// SHL,SAL
 				Gen(O_SHL, m, count);
 				break;
