@@ -45,6 +45,23 @@ void mhp_send(void);
 void mhp_close(void);
 void mhp_clear_all_bp(void);
 void mhp_printf(const char *, ...) FORMAT(printf, 1, 2);
+/* Called by the DPMI exec helper around its own int 21h, so that bpload can
+ * catch an EXEC issued by a protected mode client.  "pre" turns the call into
+ * a load-without-execute and returns nonzero when it did; "post" then returns
+ * nonzero if the caller should hand control to the DBGload stub. */
+#ifdef USE_MHPDBG
+int mhp_bpload_exec_pre(void);
+int mhp_bpload_exec_post(void);
+#else
+static inline int mhp_bpload_exec_pre(void)
+{
+  return 0;
+}
+static inline int mhp_bpload_exec_post(void)
+{
+  return 0;
+}
+#endif
 int mhp_getaxlist_value(int v, int mask);
 int mhp_getcsip_value(void);
 void mhp_modify_eip(int delta);

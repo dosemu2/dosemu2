@@ -11,8 +11,8 @@ from tempfile import mkdtemp
 from time import time
 
 from common_framework import (BaseTestCase, main, main_setup, IPROMPT,
-                              DOSEMU_CONF_DEFAULT, UNSUPPORTED)
-from common_os import frdos130, ppdosgit
+                              DOSEMU_CONF_DEFAULT)
+from common_os import frdos130, ppdosgit, SYSTYPE_FDPP
 
 # Something for DOS to run while the debugger looks at it.
 SIMPLE_ASM = r"""
@@ -420,11 +420,15 @@ class OurTestCase(BaseTestCase):
             # mov ax (3)
             self.dbgCmd("bpload")
             self.dbgchild.sendline("g")
-            self.dbgchild.expect(["bpload: INT3 caught at"], timeout=40)
+            # a real mode shell gets the int3 bpload put on the address the
+            # EXEC returns to, a protected mode one has nothing there to put
+            # it on and is told about the program instead
+            which = self.dbgchild.expect(["bpload: INT3 caught at",
+                                          "At entry of program"], timeout=40)
             self.dbgRead(1.0)
 
             seg, off, _ = self.dbgRegs(pm=False)
-            steps = ["entry %04x:%04x" % (seg, off)]
+            steps = ["report %d" % which, "entry %04x:%04x" % (seg, off)]
             for cmd in ("ti", "ti"):
                 self.dbgchild.sendline(cmd)
                 self.dbgWaitStop(pm=False, limit=20)
@@ -441,6 +445,10 @@ class OurTestCase(BaseTestCase):
         results = self.runWithDosdebug("testit.bat", body)
 
         self.assertNotIn('Timeout', results)
+        # comcom32 is the protected mode shell, so its EXEC is the one the
+        # int3 cannot be used for
+        want = 1 if self.systype == SYSTYPE_FDPP else 0
+        self.assertIn("report %d" % want, results, results)
         self.assertRegex(results, r"entry [0-9a-f]{4}:0100", results)
         self.assertRegex(results, r"ti [0-9a-f]{4}:0103", results)
         self.assertRegex(results, r"ti [0-9a-f]{4}:0105", results)
@@ -498,11 +506,7 @@ class OurTestCase(BaseTestCase):
 # The DOS variants we want get included here
 FRDOS130TestCase = frdos130(OurTestCase, {})
 
-# bpload intercepts the DOS EXEC call, and comcom32 makes that call from
-# protected mode, where the interception faults
-PPDOSGITTestCase = ppdosgit(OurTestCase, {
-    "test_dosdebug_step_rm": UNSUPPORTED,
-})
+PPDOSGITTestCase = ppdosgit(OurTestCase, {})
 
 if __name__ == '__main__':
 
