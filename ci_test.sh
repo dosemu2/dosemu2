@@ -77,6 +77,13 @@ cat >&2 << EOF6
 EOF6
 python3 test/test_term.py
 
+cat >&2 << EOF7
+=====================================================
+=            Tests run on the video code            =
+=====================================================
+EOF7
+python3 test/test_video.py
+
 # This section here only runs for proving out test_comcom changes in PRs etc, the tests are
 # run for real in the Comcom64 repository
 if [ "${COMCOM_CHANGED}" = "true" ] ; then

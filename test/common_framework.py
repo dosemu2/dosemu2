@@ -1047,6 +1047,103 @@ class BaseTestCase(object):
         self.assertIn(self.version, results)
 
 
+# How long a video probe is given, and the `name=hex` pairs it reports.
+VIDEO_RUN_TIMEOUT = 60
+VIDEO_FIELDS = re.compile(r"(\w+)=([0-9a-f]+)")
+
+
+class VideoProbeTestCase(BaseTestCase):
+    """What a test of the screen itself needs, which DOS cannot give it.
+
+    What dosemu2 puts on a screen cannot be asked of a DOS program running
+    on top of a DOS distribution: a graphics mode, the video aperture and
+    the VGA BIOS all want the test to be the only thing talking to the
+    screen.  A case here therefore assembles a program of its own and has
+    dosemu2 boot it as the command interpreter, so there is no DOS to
+    unpack and nothing else running.  The backend is SDL, asked for its
+    dummy driver: a real aperture and real mode changes, with no display
+    anywhere near the machine the test runs on.
+
+    This is not a test case itself.  It carries the scaffolding every such
+    case repeats -- no distribution, no boot test, one cached run per case
+    whose logs each test of that case is handed back -- so that a case is
+    its own probe and its own assertions and nothing else.
+    """
+
+    attrs = {'video'}
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        # There is no DOS distribution to unpack: the probe is the whole
+        # DOS side of the test
+        cls.tarfile = ""
+        cls.report = None
+        cls.raw = None
+        cls.bootlog = ""
+
+    # ... and so nothing here can boot one
+    test_0_basic_boot = None
+
+    def relog(self):
+        """Give a test that took the cached run the logs of that run.
+
+        The framework shows each test its own dosemu and output logs when
+        it fails, and names them after the test that is running, so a test
+        that did not run dosemu2 itself has to be handed them.
+        """
+        self.logfiles['xpt'][1] = "output.log"
+        self.logfiles['xpt'][0].write_bytes(self.__class__.raw or b"")
+        self.logfiles['log'][0].write_text(self.__class__.bootlog)
+
+    def runProbe(self, source, config=DOSEMU_CONF_DEFAULT, until=None,
+                 timeout=VIDEO_RUN_TIMEOUT, env=None):
+        """Assemble `source`, boot it as command.com and hand back the pty.
+
+        `until` says when the run is done; it is usually a predicate that
+        looks at the file the probe writes, because a probe that paints on
+        a screen nobody reads has nothing else to say.  A probe that stays
+        put once it is finished, rather than exiting, keeps dosemu2 from
+        starting it a second time over the screen the test is about.
+        """
+        self.mkcom_with_nasm("command", source)
+
+        home = self.imagedir / "home"
+        if not home.is_dir():
+            home.mkdir()
+
+        e = {
+            "HOME": str(home),
+            # dosemu2 takes its command interpreter from here
+            "DOSEMU2_COMCOM_DIR": str(self.workdir),
+            # a backend with a video aperture, and the one driver of it
+            # that needs no display
+            "SDL_VIDEODRIVER": "dummy",
+            "DISPLAY": "",
+        }
+        if env:
+            e.update(env)
+
+        raw = self.runDosemuRaw(("-S",), config=config, until=until,
+                                timeout=timeout, env=e)
+        self.__class__.raw = raw
+        self.__class__.bootlog = self.boot_log()
+        self.relog()
+
+        if "initializing SDL plugin" not in self.__class__.bootlog:
+            self.skipTest("this build has no SDL plugin")
+        return raw
+
+    def fields(self, path):
+        """The probe's report: one dict of `name=hex` pairs per line."""
+        lines = []
+        for line in path.read_text(errors="replace").splitlines():
+            got = dict(VIDEO_FIELDS.findall(line))
+            if got:
+                lines.append(got)
+        return lines
+
+
 class MyTestResult(unittest.TextTestResult):
 
     with_color_terminal = False
