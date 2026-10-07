@@ -59,6 +59,8 @@ from func_memory_dpmi_leak_check_dos import memory_dpmi_leak_check_dos
 from func_memory_dpmi_reinit_pool import memory_dpmi_reinit_pool
 from func_memory_ems_borland import memory_ems_borland, memory_emm286_borland
 from func_memory_ems_vcpi import memory_ems_vcpi, memory_ems_vcpi_disabled
+from func_memory_jemm import memory_jemm_api, memory_jemm_disabled, \
+    memory_jemm_windows, memory_jemm_xms, memory_jemm_mouse
 from func_memory_hma import (memory_hma_freespace, memory_hma_alloc, memory_hma_a20,
                              memory_hma_alloc3, memory_hma_chain)
 from func_memory_uma import memory_uma_strategy
@@ -1125,6 +1127,31 @@ class OurTestCase(BaseTestCase):
         """Memory EMS VCPI off by default"""
         memory_ems_vcpi_disabled(self)
 
+    @mark(['memtest', 'emstest'])
+    def test_memory_jemm_api(self):
+        """Memory JEMM private API"""
+        memory_jemm_api(self)
+
+    @mark(['memtest', 'emstest'])
+    def test_memory_jemm_disabled(self):
+        """Memory JEMM API off by default"""
+        memory_jemm_disabled(self)
+
+    @mark(['memtest', 'emstest'])
+    def test_memory_jemm_windows(self):
+        """Memory JEMM window layout"""
+        memory_jemm_windows(self)
+
+    @mark(['memtest', 'emstest'])
+    def test_memory_jemm_xms(self):
+        """Memory JEMM leaves XMS alone"""
+        memory_jemm_xms(self)
+
+    @mark(['memtest', 'emstest'])
+    def test_memory_jemm_mouse(self):
+        """Memory JEMM mouse from protected mode"""
+        memory_jemm_mouse(self)
+
     def test_floppy_img(self):
         """Floppy image file"""
         floppy_img(self)
@@ -1625,6 +1652,8 @@ class OurTestCase(BaseTestCase):
         video_font_load(self)
 
 DRDOS701TestCase = drdos701(OurTestCase, {
+    r"test_memory_(jemm_(api|windows|xms|mouse)|ems_vcpi)$": UNSUPPORTED,
+
     "test_command_com_psp_fcbs": KNOWNFAIL,
     "test_command_com_cmdline_length_new_dos01": UNSUPPORTED,
     "test_command_com_cmdline_length_new_dos02": UNSUPPORTED,
@@ -1663,6 +1692,8 @@ DRDOS701TestCase = drdos701(OurTestCase, {
 })
 
 FRDOS120TestCase = frdos120(OurTestCase, {
+    r"test_memory_(jemm_(api|windows|xms|mouse)|ems_vcpi)$": UNSUPPORTED,
+
     "test_command_com_psp_fcbs": KNOWNFAIL,
     "test_command_com_cmdline_length_old_dos01": UNSUPPORTED,
     "test_command_com_cmdline_length_old_dos02": UNSUPPORTED,
@@ -1736,6 +1767,8 @@ FRDOS120TestCase = frdos120(OurTestCase, {
 })
 
 FRDOS130TestCase = frdos130(OurTestCase, {
+    r"test_memory_(jemm_(api|windows|xms|mouse)|ems_vcpi)$": UNSUPPORTED,
+
     "test_command_com_psp_fcbs": KNOWNFAIL,
     "test_command_com_cmdline_length_old_dos01": UNSUPPORTED,
     "test_command_com_cmdline_length_old_dos02": UNSUPPORTED,
@@ -1791,6 +1824,8 @@ FRDOS130TestCase = frdos130(OurTestCase, {
 })
 
 FRDOSGITTestCase = frdosgit(OurTestCase, {
+    r"test_memory_(jemm_(api|windows|xms|mouse)|ems_vcpi)$": UNSUPPORTED,
+
     "test_command_com_cmdline_length_old_dos01": UNSUPPORTED,
     "test_command_com_cmdline_length_old_dos02": UNSUPPORTED,
     "test_fat_bpb_set_fstype_dinfo": KNOWNFAIL,
@@ -1822,6 +1857,8 @@ FRDOSGITTestCase = frdosgit(OurTestCase, {
 })
 
 MSDOS622TestCase = msdos622(OurTestCase, {
+    r"test_memory_(jemm_(api|windows|xms|mouse)|ems_vcpi)$": UNSUPPORTED,
+
     "test_command_com_cmdline_length_new_dos01": UNSUPPORTED,
     "test_command_com_cmdline_length_new_dos02": UNSUPPORTED,
     "test_fat32_img_d_writable": UNSUPPORTED,
@@ -1840,6 +1877,8 @@ MSDOS622TestCase = msdos622(OurTestCase, {
 })
 
 MSDOS700TestCase = msdos700(OurTestCase, {
+    r"test_memory_(jemm_(api|windows|xms|mouse)|ems_vcpi)$": UNSUPPORTED,
+
     "test_command_com_cmdline_length_old_dos01": UNSUPPORTED,
     "test_command_com_cmdline_length_old_dos02": UNSUPPORTED,
     "test_fat32_img_d_writable": UNSUPPORTED,
@@ -1855,6 +1894,8 @@ MSDOS700TestCase = msdos700(OurTestCase, {
 })
 
 MSDOS710TestCase = msdos710(OurTestCase, {
+    r"test_memory_(jemm_(api|windows|xms|mouse)|ems_vcpi)$": UNSUPPORTED,
+
     "test_command_com_cmdline_length_old_dos01": UNSUPPORTED,
     "test_command_com_cmdline_length_old_dos02": UNSUPPORTED,
     # Real mode sharing and locking was removed on MS-DOS 7.10

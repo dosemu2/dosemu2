@@ -117,6 +117,8 @@ Mouse_ROUTINE_OFF:
 	int	$DOS_HELPER_INT
 	popw	%bx
 	popw	%ax
+	.globl bios_ljmp_eoi2
+bios_ljmp_eoi2:
 	ljmp $BIOSSEG, $EOI2_OFF
 
 /* ----------------------------------------------------------------- */
@@ -210,13 +212,18 @@ MOUSE_INT33_OFF:
 	jmp 1f
 	int33_chain:
 	.word INT_RVC_33_OFF
+	.globl bios_int33_chain_seg
+bios_int33_chain_seg:
 	.word BIOSSEG
 	.word 0x424B	// signature "KB"
 	.byte 0		// flag
 	jmp 30f		// EB xx for compat
 	.space 7	// padding
 	30: lret
-	1: ljmp $BIOSSEG,$int33_cont
+	1:
+	.globl bios_ljmp_int33
+bios_ljmp_int33:
+	ljmp $BIOSSEG,$int33_cont
 	int33_cont:
 	ljmp *%cs:int33_chain
 
@@ -1131,6 +1138,8 @@ INT71_OFF:
 /* ----------------------------------------------------------------- */
 	_ORG(0xfff0)
 /* COMPAS FFFF0		jmp to powerup */
+	.globl bios_ljmp_reset
+bios_ljmp_reset:
 	ljmp	$BIOSSEG, $ROM_BIOS_SELFTEST
 /* COMPAS FFFF5		ROM BIOS date */
 	.ascii	"02/25/93"  /* our bios date */
