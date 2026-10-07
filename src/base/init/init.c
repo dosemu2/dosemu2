@@ -351,42 +351,22 @@ static void low_mem_init_config_scrub(void)
   const uint32_t mem_1M = 1024 * 1024;
   /* 16Mb limit is for being in reach of DMAc */
   const uint32_t mem_16M = mem_1M * 16;
-  uint32_t min_phys_rsv = LOWMEM_SIZE + EXTMEM_SIZE + VCPI_POOL_SIZE;
+  uint32_t min_phys_rsv = LOWMEM_SIZE + EXTMEM_SIZE;
 
   if (EXTMEM_SIZE < HMASIZE)
     config.ext_mem = 64;
-  if (config.xms_size)
+  if (config.xms_size) {
     /* reserve 1Mb for XMS mappings */
     min_phys_rsv += mem_1M;
-  /* Only what has to stay in reach of the DMA controller is subject to the
-   * limit: the VCPI pool, and the megabyte XMS maps through.  With neither of
-   * them there is nothing below 16M to run out of, and $_ext_mem alone is
-   * free to be as large as it likes. */
-  if ((VCPI_POOL_SIZE || config.xms_size) && min_phys_rsv > mem_16M) {
-    uint32_t over = min_phys_rsv - mem_16M;
-    uint32_t budget = mem_16M - (config.xms_size ? mem_1M : 0);
-    uint32_t room = budget > LOWMEM_SIZE + EXTMEM_SIZE ?
-	budget - LOWMEM_SIZE - EXTMEM_SIZE : 0;
-
-    /* the VCPI pool is as large as EMS, so it can be the one that does not
-     * fit, and then no $_ext_mem small enough exists: the subtraction below
-     * would wrap and name a size of gigabytes */
-    if (over + HMASIZE > EXTMEM_SIZE)
-      error("no room below 16M: the VCPI page pool is as large as $_ems and "
-	    "takes %u kb of it. Please set $_ems to (%u) or lower, or set "
-	    "$_jemm=(off)\n", VCPI_POOL_SIZE / 1024, room / 1024);
-    else if (config.xms_size)
+    if (min_phys_rsv > mem_16M) {
       error("$_ext_mem too large, please set to (%d) or lower, or set $_xms=(0)\n",
-	    (EXTMEM_SIZE - over) / 1024);
-    else
-      error("$_ext_mem too large, please set to (%d) or lower\n",
-	    (EXTMEM_SIZE - over) / 1024);
-    config.exitearly = 1;
-    return;
+	    (EXTMEM_SIZE - (min_phys_rsv - mem_16M)) / 1024);
+      config.exitearly = 1;
+      return;
+    }
   }
 
-  min_phys_rsv = roundUpToNextPowerOfTwo(LOWMEM_SIZE + EXTMEM_SIZE +
-      VCPI_POOL_SIZE + XMS_SIZE);
+  min_phys_rsv = roundUpToNextPowerOfTwo(LOWMEM_SIZE + EXTMEM_SIZE + XMS_SIZE);
   if (config.dpmi && min_phys_rsv > config.dpmi_base) {
     error("$_dpmi_base is too small, please set to at least (0x%x)\n", min_phys_rsv);
     config.exitearly = 1;
@@ -410,6 +390,8 @@ static void do_sm_error(int prio, const char *fmt, ...)
         dbug_printf("%s", buf);
 }
 
+dosaddr_t ems_mem_base;
+
 void map_memory_space(void)
 {
   unsigned char *lowmem;
@@ -422,14 +404,18 @@ void map_memory_space(void)
   smregister_default_error_notifier(do_sm_error);
   open_mapping(MAPPING_INIT_LOWRAM);
 
-  /* the pool sits above ext mem, so it has to be inside the reserved
-   * area too, or the hwram window it lives in would not cover it */
-  phys_low = roundUpToNextPowerOfTwo(LOWMEM_SIZE + EXTMEM_SIZE +
-      VCPI_POOL_SIZE + XMS_SIZE);
+  phys_low = roundUpToNextPowerOfTwo(LOWMEM_SIZE + EXTMEM_SIZE + XMS_SIZE);
   memsize = phys_low;
   if (config.dpmi)
     /* LOWMEM_SIZE accounted twice for alignment */
     memsize += config.dpmi_base + HUGE_PAGE_ALIGN(dpmi_mem_size());
+  /* EMS memory goes above all of it, the DPMI area included: nothing down
+   * there has to reach it, and the window it is aliased into is in the
+   * first megabyte anyway */
+  if (config.ems_size) {
+    ems_mem_base = memsize;
+    memsize += EMS_MEM_SIZE;
+  }
   g_printf ("DOS+HMA memory area being mapped in\n");
   lowmem = alloc_mapping_huge_page_aligned(MAPPING_LOWMEM, memsize);
   if (lowmem == MAP_FAILED) {
@@ -455,11 +441,6 @@ void map_memory_space(void)
   if (!EMU_FULLSIM())
     c_printf("Conventional memory mapped from %p to %p\n", lowmem, mem_base);
 
-  if (VCPI_POOL_SIZE) {
-    memcheck_addtype('P', "VCPI pages");
-    memcheck_reserve('P', vcpi_pool_base, VCPI_POOL_SIZE);
-  }
-
   if (config.xms_size) {
     memcheck_addtype('x', "XMS");
     memcheck_reserve('x', xms_base, XMS_SIZE);
@@ -468,6 +449,15 @@ void map_memory_space(void)
   sminit_f(&main_pool, 0, memsize, SMFLG_NOMEMSET);
   ptr = smalloc(&main_pool, LOWMEM_SIZE + HMASIZE);
   assert(ptr == 0);
+  if (config.ems_size) {
+    /* before the top-down allocation below, which would take it otherwise */
+    dosaddr_t eptr = smalloc_fixed(&main_pool, ems_mem_base, EMS_MEM_SIZE);
+    assert(eptr != (dosaddr_t)-1);
+    memcheck_addtype('m', "EMS");
+    /* identity: the physical addresses EMS hands out are its own window */
+    register_hardware_ram_virtual('m', ems_mem_base, EMS_MEM_SIZE,
+	ems_mem_base);
+  }
   /* we have an uncommitted hole up to phys_low */
   ptr += phys_low;
   phys_rsv = phys_low - (LOWMEM_SIZE + HMASIZE);

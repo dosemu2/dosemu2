@@ -210,6 +210,7 @@ static struct handle_record {
   u_char active;
   int numpages;
   void *object;
+  unsigned pa;			/* physical home in the EMS window */
   char name[9];
   u_short saved_mappings_handle[EMM_MAX_SAVED_PHYS];
   u_short saved_mappings_logical[EMM_MAX_SAVED_PHYS];
@@ -373,100 +374,50 @@ static inline void *realloc_memory_object(void *object, size_t oldsize, size_t b
 }
 
 /*
- * Physical addresses for EMS pages.  Unlike XMS, whose blocks can be locked
- * and so always carry a physical address (see map_EMB() in xms.c), EMS pages
- * have no lock function and dosemu2 never gave them one.  VCPI AX=DE06h needs
- * one though: a client asks for the physical address of a page frame window
- * and then points the DMA controller at it, which has to keep reaching that
- * logical page even after the window is remapped.
- *
- * So the handle that is mapped into the window gets pinned, on demand, to a
- * page of a small pool below 16M, where the DMA controller can reach it.  The
- * pin holds until the handle goes away, and a second query for the same
- * logical page returns the same address.
+ * Physical addresses for EMS pages.  A VCPI client asks for the physical
+ * address of a page with AX=DE06h and then hands it to the DMA controller,
+ * which has to keep reaching that logical page after the window is remapped.
+ * XMS gets such an address from map_EMB() when a client locks a block; EMS
+ * has no lock function and never had one, so a handle is given a physical
+ * home of its own in the EMS window when it is allocated, and keeps it for
+ * as long as it lives.  The home is one run of pages, as the object it
+ * stands for is one run of memory, so a handle can be refused for want of
+ * a large enough run while smaller ones are still free - which is what
+ * happens to an XMS block too.
  */
-static void *vcpi_pool;
-static struct vcpi_pin {
-  int handle;
-  int logical_page;
-  int page;			/* pool page, -1 when the slot is free */
-} *vcpi_pins;
-static int vcpi_pool_pages;
+static void *ems_pgpool;
 
-static void vcpi_pool_init(void)
+static unsigned ems_map_object(void *addr, unsigned size, int handle)
 {
-  int i;
-
-  if (!config.jemm || !VCPI_POOL_SIZE)
-    return;
-  vcpi_pool_pages = VCPI_POOL_SIZE / EMM_PAGE_SIZE;
-  vcpi_pins = malloc(vcpi_pool_pages * sizeof(*vcpi_pins));
-  if (!vcpi_pins) {
-    vcpi_pool_pages = 0;
-    return;
-  }
-  vcpi_pool = pgainit(VCPI_POOL_SIZE >> PAGE_SHIFT);
-  for (i = 0; i < vcpi_pool_pages; i++)
-    vcpi_pins[i].page = -1;
-}
-
-static void vcpi_unpin_handle(int handle)
-{
-  int i;
-
-  if (!vcpi_pool)
-    return;
-  for (i = 0; i < vcpi_pool_pages; i++) {
-    unsigned pa;
-
-    if (vcpi_pins[i].page == -1 || vcpi_pins[i].handle != handle)
-      continue;
-    pa = vcpi_pool_base + (vcpi_pins[i].page << PAGE_SHIFT);
-    E_printf("VCPI: unpinning handle %d page 0x%x from 0x%08x\n",
-	     handle, vcpi_pins[i].logical_page, pa);
-    e_invalidate_full_pa(pa, EMM_PAGE_SIZE);
-    unalias_mapping_pa(MAPPING_DPMI, pa, EMM_PAGE_SIZE);
-    pgafree(vcpi_pool, vcpi_pins[i].page);
-    vcpi_pins[i].page = -1;
-  }
-}
-
-/* returns the physical address of a logical page, or -1 */
-static unsigned vcpi_pin_page(int handle, int logical_page)
-{
-  int i, slot = -1, page;
+  int page;
   unsigned pa;
-  void *src;
 
-  if (!vcpi_pool || !handle_info[handle].object)
-    return -1;
-  for (i = 0; i < vcpi_pool_pages; i++) {
-    if (vcpi_pins[i].page == -1) {
-      if (slot == -1)
-	slot = i;
-      continue;
-    }
-    if (vcpi_pins[i].handle == handle &&
-	vcpi_pins[i].logical_page == logical_page)
-      return vcpi_pool_base + (vcpi_pins[i].page << PAGE_SHIFT);
+  if (!ems_pgpool || !addr || !size)
+    return 0;
+  page = pgaalloc(ems_pgpool, PAGE_ALIGN(size) >> PAGE_SHIFT, handle);
+  if (page < 0) {
+    error("EMS: no physical space for %u bytes\n", size);
+    return 0;
   }
-  if (slot == -1)
-    return -1;
-  page = pgaalloc(vcpi_pool, EMM_PAGE_SIZE >> PAGE_SHIFT, handle);
-  if (page < 0)
-    return -1;
-  pa = vcpi_pool_base + (page << PAGE_SHIFT);
-  src = (char *)handle_info[handle].object + logical_page * EMM_PAGE_SIZE;
-  if (alias_mapping_pa(MAPPING_EMS, pa, EMM_PAGE_SIZE, PROT_RWX, src) == -1) {
-    pgafree(vcpi_pool, page);
-    return -1;
+  pa = ems_mem_base + (page << PAGE_SHIFT);
+  if (alias_mapping_pa(MAPPING_EMS, pa, PAGE_ALIGN(size), PROT_RWX,
+		       addr) == -1) {
+    error("EMS: failed to map handle %d at 0x%08x\n", handle, pa);
+    pgafree(ems_pgpool, page);
+    return 0;
   }
-  vcpi_pins[slot].handle = handle;
-  vcpi_pins[slot].logical_page = logical_page;
-  vcpi_pins[slot].page = page;
-  E_printf("VCPI: pinned handle %d page 0x%x to 0x%08x\n",
-	   handle, logical_page, pa);
+  E_printf("EMS: handle %d is at physical address 0x%08x\n", handle, pa);
   return pa;
+}
+
+static void ems_unmap_object(unsigned pa, unsigned size)
+{
+  if (!pa)
+    return;
+  e_invalidate_full_pa(pa, PAGE_ALIGN(size));
+  /* MAPPING_DPMI as in unmap_EMB(): restore_mapping() takes no other cap */
+  unalias_mapping_pa(MAPPING_DPMI, pa, PAGE_ALIGN(size));
+  pgafree(ems_pgpool, (pa - ems_mem_base) >> PAGE_SHIFT);
 }
 
 static int emm_allocate_handle(int pages_needed)
@@ -498,6 +449,14 @@ static int emm_allocate_handle(int pages_needed)
          return (EMM_ERROR);
       }
       handle_info[i].object = obj;
+      handle_info[i].pa = ems_map_object(obj,
+	  pages_needed * EMM_PAGE_SIZE, i);
+      if (obj && !handle_info[i].pa) {
+	destroy_memory_object(obj, pages_needed * EMM_PAGE_SIZE);
+	handle_info[i].object = NULL;
+	emm_error = EMM_OUT_OF_LOG;
+	return (EMM_ERROR);
+      }
       handle_info[i].numpages = pages_needed;
       CLEAR_HANDLE_NAME(handle_info[i].name);
       handle_total++;
@@ -525,9 +484,10 @@ static int emm_deallocate_handle(int handle)
       emm_map[i].handle = NULL_HANDLE;
     }
   }
-  vcpi_unpin_handle(handle);
   numpages = handle_info[handle].numpages;
   object = handle_info[handle].object;
+  ems_unmap_object(handle_info[handle].pa, numpages * EMM_PAGE_SIZE);
+  handle_info[handle].pa = 0;
   destroy_memory_object(object,numpages*EMM_PAGE_SIZE);
   handle_info[handle].numpages = 0;
   handle_info[handle].active = 0;
@@ -1003,8 +963,11 @@ reallocate_pages(struct vm86_regs * state)
      if (emm_map[i].handle == handle)
         reunmap_page(i);
 
-  /* the object may move, so the pinned physical pages have to go */
-  vcpi_unpin_handle(handle);
+  /* the object may move, and the home is as large as the object, so it is
+   * given up here and taken again below at the new size */
+  ems_unmap_object(handle_info[handle].pa,
+      handle_info[handle].numpages * EMM_PAGE_SIZE);
+  handle_info[handle].pa = 0;
 
   Kdebug0(("want reallocate_pages handle %d num %d called object=%p\n",
 	   handle, newcount, handle_info[handle].object));
@@ -1058,6 +1021,11 @@ reallocate_pages(struct vm86_regs * state)
 
   Kdebug0(("reallocate_pages handle %d num %d called object=%p\n",
 	   handle, newcount, obj));
+
+  /* and take a home for whatever the handle holds now, the old size
+   * included: a failed realloc left the object where it was */
+  handle_info[handle].pa = ems_map_object(handle_info[handle].object,
+      handle_info[handle].numpages * EMM_PAGE_SIZE, handle);
 
   /* remove pages no longer in range, remap others */
 
@@ -2028,11 +1996,11 @@ os_set_function(struct vm86_regs * state)
  * that wants protected mode has to use DPMI.  See
  * https://github.com/dosemu2/dosemu2/issues/353 for the analysis.
  *
- * A page of a window answers with the pinned address of the handle that
- * is mapped there (see vcpi_pin_page()), so the answer depends on what is
- * mapped at the time of the call and stays valid afterwards.  Any other
- * page of the first megabyte answers with its own address, which is what
- * it is: dosemu2 maps the first megabyte identically.
+ * A page of a window answers with the address of the logical page that is
+ * mapped there, in the EMS window at ems_mem_base, so the answer depends
+ * on what is mapped at the time of the call and stays valid afterwards.
+ * Any other page of the first megabyte answers with its own address, which
+ * is what it is: dosemu2 maps the first megabyte identically.
  */
 static void vcpi_interface(struct vm86_regs *state)
 {
@@ -2061,14 +2029,14 @@ static void vcpi_interface(struct vm86_regs *state)
 	  continue;
 	if (emm_map[i].handle == NULL_HANDLE)
 	  break;
-	pa = vcpi_pin_page(emm_map[i].handle, emm_map[i].logical_page);
-	if (pa == (unsigned)-1) {
-	  error("VCPI: no physical page left for handle %d\n",
+	pa = handle_info[emm_map[i].handle].pa;
+	if (!pa) {
+	  error("VCPI: handle %d has no physical address\n",
 		emm_map[i].handle);
 	  SETHI_BYTE(state->eax, EMM_OUT_OF_PHYS);
 	  return;
 	}
-	addr = pa + (addr - base);
+	addr = pa + emm_map[i].logical_page * EMM_PAGE_SIZE + (addr - base);
 	break;
       }
       SETHI_BYTE(state->eax, EMM_NO_ERR);
@@ -2499,11 +2467,15 @@ static void ems_reset2(void)
   for (sh_base = 0; sh_base < MAX_HANDLES; sh_base++) {
     handle_info[sh_base].numpages = 0;
     handle_info[sh_base].active = 0;
+    handle_info[sh_base].pa = 0;
   }
 
   /* set up OS handle here */
   handle_info[OS_HANDLE].numpages = config.ems_cnv_pages;
   handle_info[OS_HANDLE].object = LOWMEM(cnv_start_seg << 4);
+  /* its pages are in conventional memory, which is mapped identically,
+   * so they are at their own address and need no home of their own */
+  handle_info[OS_HANDLE].pa = cnv_start_seg << 4;
   handle_info[OS_HANDLE].active = 0xff;
   for (j = 0; j < saved_phys_pages; j++) {
     handle_info[OS_HANDLE].saved_mappings_logical[j] = NULL_PAGE;
@@ -2554,7 +2526,7 @@ void ems_init(void)
   open_mapping(MAPPING_EMS);
   E_printf("EMS: initializing memory\n");
 
-  vcpi_pool_init();
+  ems_pgpool = pgainit(EMS_MEM_SIZE >> PAGE_SHIFT);
 
   memcheck_addtype('E', "EMS page frame");
   /* set up standard EMS frame in UMA */
