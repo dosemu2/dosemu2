@@ -1202,3 +1202,75 @@ static void biosfn_write_string(Bit8u flag,Bit8u page,Bit8u attr,Bit16u count,
   set_cursor_pos(page,oldcurs);
 }
 #endif
+
+/* ---------------------------------------------------------------------------
+ * The Video Save Pointer Table, which a real VGA BIOS keeps at 40h:a8h.
+ * Task switchers and mode-setting code walk it to find the video parameter
+ * table and reprogram the display from there; with the pointer left at zero
+ * they follow the interrupt vectors instead and the screen goes black.
+ * The chain is laid out here and copied into our own BIOS ROM by
+ * vbe_pre_init(), which is the only user of the two calls below.
+ * ------------------------------------------------------------------------ */
+
+struct save_ptr_table {
+    Bit32u video_param;		/* video parameter table */
+    Bit32u dyn_save;		/* parameter dynamic save area */
+    Bit32u alpha_override;	/* alphanumeric character set override */
+    Bit32u graph_override;	/* graphics character set override */
+    Bit32u secondary;		/* secondary save pointer table */
+    Bit32u reserved[2];
+} __attribute__((packed));
+
+struct sec_save_ptr_table {
+    Bit16u len;			/* length of this table */
+    Bit32u dcc;			/* display combination code table */
+    Bit32u alpha2_override;	/* second alphanumeric set override */
+    Bit32u palette;		/* user palette profile table */
+    Bit32u reserved[3];
+} __attribute__((packed));
+
+/* Display combination codes, as pairs of a primary and a secondary
+ * display.  We have no second display, so entry n is simply display
+ * code n, which keeps the index into this table equal to the display
+ * code dosemu puts in 40h:8ah.  The last pair is past the maximum
+ * display code and so ends the scan for readers that walk the table
+ * instead of taking the count.  */
+static const Bit8u dcc_table[] = {
+    0x0d,			/* number of entries */
+    0x01,			/* version */
+    0x0c,			/* maximum display code */
+    0x00,			/* reserved */
+    0x00, 0x00,  0x01, 0x00,  0x02, 0x00,  0x03, 0x00,
+    0x04, 0x00,  0x05, 0x00,  0x06, 0x00,  0x07, 0x00,
+    0x08, 0x00,  0x09, 0x00,  0x0a, 0x00,  0x0b, 0x00,
+    0x0c, 0x00,
+    0x0d, 0x00,			/* end of the table */
+};
+
+unsigned vgabios_save_area_size(void)
+{
+    return sizeof(struct save_ptr_table) + sizeof(struct sec_save_ptr_table) +
+	    sizeof(dcc_table) + sizeof(video_param_table);
+}
+
+/* Build the chain into buf, which the caller then copies to seg:off. */
+void vgabios_save_area_build(void *buf, unsigned seg, unsigned off)
+{
+    struct save_ptr_table *pri = buf;
+    struct sec_save_ptr_table *sec = (struct sec_save_ptr_table *)(pri + 1);
+    unsigned sec_off = sizeof(*pri);
+    unsigned dcc_off = sec_off + sizeof(*sec);
+    unsigned vpt_off = dcc_off + sizeof(dcc_table);
+
+    memset(pri, 0, sizeof(*pri));
+    pri->video_param = MK_FP16(seg, off + vpt_off);
+    pri->secondary = MK_FP16(seg, off + sec_off);
+
+    memset(sec, 0, sizeof(*sec));
+    sec->len = sizeof(*sec);
+    sec->dcc = MK_FP16(seg, off + dcc_off);
+
+    memcpy((char *)buf + dcc_off, dcc_table, sizeof(dcc_table));
+    memcpy((char *)buf + vpt_off, video_param_table,
+	    sizeof(video_param_table));
+}
