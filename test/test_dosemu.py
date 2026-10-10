@@ -83,6 +83,7 @@ from func_ndis import ndis_mac_driver
 from func_network import network_mtcp
 from func_ipx import ipx_relay
 from func_pktdrvr import pktdriver_api
+from func_mstcp import mstcp_htget
 from func_pit_mode_2 import pit_mode_2
 from func_pit_readback_status import pit_readback_status
 from func_video_font_load import video_font_load
@@ -1596,6 +1597,14 @@ class OurTestCase(BaseTestCase):
     def test_ipx_relay(self):
         """IPX over UDP relay"""
         ipx_relay(self)
+
+    def test_mstcp_htget(self):
+        """MS TCP/IP sockets htget"""
+        mstcp_htget(self, True)
+
+    def test_mstcp_htget_no_sockets(self):
+        """MS TCP/IP sockets htget without the stack"""
+        mstcp_htget(self, False)
 
     def test_passing_environment_variable(self):
         """Passing Environment Variable to DOS"""
