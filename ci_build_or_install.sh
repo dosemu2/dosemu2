@@ -45,6 +45,26 @@ git clone --depth 1 --no-single-branch https://github.com/dosemu2/fdpp.git ${LOC
   sudo make install
 )
 
+# Build and install libmodemu2k (used by the modemu/vmodem plugin).
+# Pinned to an unreleased commit for m2k_pending_to_line(), which the
+# vmodem driver reports as the UART transmit-queue depth, and for the
+# discard-on-leaving-ONLINE behaviour that lets it do so in every state,
+# and for flow control in telnet line mode, without which the count the
+# driver reports can be satisfied by discarding rather than sending.
+# Switch to the v0.2.5 tag once it is out.
+LOCALMODEMU2K="localmodemu2k.git"
+MODEMU2KREV="67f4c4c"
+git clone https://github.com/theimpossibleastronaut/modemu2k.git ${LOCALMODEMU2K}
+(
+  cd ${LOCALMODEMU2K} || exit 2
+  git checkout "$MODEMU2KREV"
+  sudo apt-get install -y meson ninja-build
+  meson setup build --buildtype=release
+  ninja -C build
+  sudo ninja -C build install
+  sudo ldconfig
+)
+
 # Install the build dependancies based Dosemu's debian/control file
 sudo add-apt-repository -y -c main -c main/debug ppa:dosemu2/ppa
 mk-build-deps --install --root-cmd sudo
