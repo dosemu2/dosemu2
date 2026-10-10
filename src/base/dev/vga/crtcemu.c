@@ -101,7 +101,12 @@ void CRTC_init(void)
   for(i = 0; i <= CRTC_MAX_INDEX; i++) vga.crtc.data[i] = crtc_ival[j][i];
 
   vga.crtc.index = 0;
-  vga.crtc.readonly = 0;
+  /* The BIOS tables set the write protect bit in CR11, so a program that
+   * wants to change CR0-CR7 has to clear it first.  Software relies on
+   * that: writing CR07 is the only way to reach line compare bit 8, and
+   * a program doing so expects the protection to keep the timing bits
+   * in the same register intact. */
+  vga.crtc.readonly = vga.crtc.data[0x11] >= 0x80;
 
   if(j == 15) {
     /* adjust crtc values for vesa modes that fit certain conditions */
