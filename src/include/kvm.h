@@ -19,6 +19,27 @@
 
 #include "emu.h"
 
+
+/* a snapshot of the vCPU as KVM itself has it, for the debugger */
+struct kvm_vcpu_state {
+  unsigned int eax, ebx, ecx, edx, esi, edi, ebp, esp, eip, eflags;
+  struct {
+    unsigned short sel;
+    unsigned int base, limit;
+    unsigned char db, dpl, present;
+  } seg[6];                    /* cs ss ds es fs gs */
+  unsigned int cr0, cr2, cr3, cr4;
+  struct {
+    unsigned int base;
+    unsigned short limit;
+  } gdt, idt;
+  struct {
+    unsigned short sel;
+    unsigned int base, limit;
+  } tr, ldt;
+  unsigned int monitor_base;   /* where dosemu's own monitor sits */
+};
+
 #ifdef USE_KVM
 /* kvm functions */
 int init_kvm_cpu(void);
@@ -41,6 +62,8 @@ void kvm_enter(int pm);
 void kvm_leave(int pm);
 void kvm_update_fpu(void);
 void kvm_get_fpu(void);
+int kvm_get_vcpu_state(struct kvm_vcpu_state *st);
+int kvm_read_monitor(unsigned int addr, void *buf, int len);
 
 void kvm_done(void);
 
@@ -65,6 +88,11 @@ static inline void kvm_enter(int pm) {}
 static inline void kvm_leave(int pm) {}
 static inline void kvm_update_fpu(void) {}
 static inline void kvm_get_fpu(void) {}
+static inline int kvm_get_vcpu_state(struct kvm_vcpu_state *st) { return -1; }
+static inline int kvm_read_monitor(unsigned int addr, void *buf, int len)
+{
+  return -2;
+}
 static inline void kvm_done(void) {}
 #endif
 
