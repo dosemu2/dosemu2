@@ -67,8 +67,13 @@ static unsigned short EMM_SEG;
 #define Scratch_Para_SIZE 32 // 512 bytes
 #define Scratch_SIZE (Scratch_Para_SIZE << 4)
 
-#define API_32(scp) (MSDOS_CLIENT.is_32 || (MSDOS_CLIENT.ext__thunk_16_32 && \
-    msdos_ldt_is32(_cs_)))
+static int caller_is_32(cpuctx_t *scp);
+
+/* With the THUNK_16_32x extension the bitness follows the caller, both
+ * ways: 32bit code in a 16bit client gets the 32bit registers, and 16bit
+ * code in a 32bit client is not handed the high halves it never set. */
+#define API_32(scp) (MSDOS_CLIENT.ext__thunk_16_32 ? caller_is_32(scp) : \
+    MSDOS_CLIENT.is_32)
 #define API_16_32(x) (API_32(scp) ? (x) : (x) & 0xffff)
 #define SEL_ADR_X(s, a, u) SEL_ADR_CLNT(s, a, API_32(scp))
 #define D_16_32(reg) API_16_32(reg)
@@ -136,6 +141,25 @@ static dosaddr_t rmcb_mem;
 static struct dos_helper_s reinit_hlp;
 
 static unsigned short get_xbuf_seg(cpuctx_t *scp, int off, void *arg);
+
+/*
+ * Which code issued the DOS call. Our int handlers live in dosemu's own
+ * stub segment, so _cs_ is that stub and says nothing about the client;
+ * the code that did the int is still named by the iret frame the DPMI
+ * host pushed, and nothing has been put on top of it yet.
+ */
+static int caller_is_32(cpuctx_t *scp)
+{
+    const void *sp = SEL_ADR_CLNT(_ss, _esp, MSDOS_CLIENT.is_32);
+    unsigned short cs = MSDOS_CLIENT.is_32 ? ((const unsigned int *)sp)[1] :
+	    ((const unsigned short *)sp)[1];
+    int is_32 = msdos_ldt_is32(cs);
+
+    if (is_32 == -1)
+	return MSDOS_CLIENT.is_32;
+    return is_32;
+}
+
 static void rsp_init(void);
 static unsigned short msdos_get_lowmem_size(void);
 static void msdos_init(int num, int is_32, unsigned short mseg,
@@ -1460,11 +1484,11 @@ int msdos_pre_extender(cpuctx_t *scp,
 	    SET_RMLWORD(dx, 0);
 	    break;
 	case 0x3f:		/* dos read */
-	    msdos_lr_helper(scp, MSDOS_CLIENT.is_32,
+	    msdos_lr_helper(scp, MSDOS_CLIENT.is_32, API_32(scp),
 		    rm_seg, ems_frame_mapped ? restore_ems_frame : NULL);
 	    return MSDOS_DONE;
 	case 0x40:		/* dos write */
-	    msdos_lw_helper(scp, MSDOS_CLIENT.is_32,
+	    msdos_lw_helper(scp, MSDOS_CLIENT.is_32, API_32(scp),
 		    rm_seg, ems_frame_mapped ? restore_ems_frame : NULL);
 	    return MSDOS_DONE;
 	case 0x53:		/* Generate Drive Parameter Table  */
