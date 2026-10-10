@@ -3281,7 +3281,7 @@ static void do_update_sft(struct file_fd *f, char *fname, char *fext,
     _sft_directory_entry(sft) = 0;
     _sft_directory_sector(sft) = 0;
     _sft_attribute_byte(sft) = attr;
-    _sft_device_info(sft) = (drive & 0x1f) | 0x0940 | SFT_FSHARED;
+    _sft_device_info(sft) = (drive & 0x1f) | 0x40 | SFT_FSHARED;
 
     if (f->type == TYPE_DISK) {
       time_to_dos(f->st.st_mtime, &_sft_date(sft), &_sft_time(sft));
