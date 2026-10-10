@@ -241,6 +241,31 @@ static inline int is_pf_set(void)
 	return FlagSync_P() != 0;
 }
 
+/* condition code 0..15, as encoded in the low nibble of the Jcc, SETcc
+ * and CMOVcc opcodes */
+static int test_cc(unsigned char n)
+{
+	switch(n) {
+		case 0x00: return is_of_set();
+		case 0x01: return !is_of_set();
+		case 0x02: return is_cf_set();
+		case 0x03: return !is_cf_set();
+		case 0x04: return is_zf_set();
+		case 0x05: return !is_zf_set();
+		case 0x06: return is_cf_set() || is_zf_set();
+		case 0x07: return !is_cf_set() && !is_zf_set();
+		case 0x08: return is_sf_set();
+		case 0x09: return !is_sf_set();
+		case 0x0a: return is_pf_set();
+		case 0x0b: return !is_pf_set();
+		case 0x0c: return is_sf_set() ^ is_of_set();
+		case 0x0d: return !(is_sf_set() ^ is_of_set());
+		case 0x0e: return (is_sf_set() ^ is_of_set()) || is_zf_set();
+		case 0x0f: return !(is_sf_set() ^ is_of_set()) && !is_zf_set();
+	}
+	return 0;
+}
+
 static inline void SET_ZF(unsigned int c)
 {
 	// to set ZF in RFL.res we must transfer SF/PF to RFL.cout
@@ -2458,27 +2483,17 @@ static unsigned int Gen_sim(IGen *IG, unsigned int *pmem_ref)
 	case O_SETCC: {
 		unsigned char o1 = (unsigned char)IG->p0;
 		GTRACE3("O_SETCC",0xff,0xff,o1);
-		switch(o1) {
-			case 0x00: DR1.b.bl = is_of_set(); break;
-			case 0x01: DR1.b.bl = !is_of_set(); break;
-			case 0x02: DR1.b.bl = is_cf_set(); break;
-			case 0x03: DR1.b.bl = !is_cf_set(); break;
-			case 0x04: DR1.b.bl = is_zf_set(); break;
-			case 0x05: DR1.b.bl = !is_zf_set(); break;
-			case 0x06: DR1.b.bl = is_cf_set() || is_zf_set(); break;
-			case 0x07: DR1.b.bl = !is_cf_set() && !is_zf_set(); break;
-			case 0x08: DR1.b.bl = is_sf_set(); break;
-			case 0x09: DR1.b.bl = !is_sf_set(); break;
-			case 0x0a:
-				e_printf("!!! SETp\n");
-				DR1.b.bl = is_pf_set(); break;
-			case 0x0b:
-				e_printf("!!! SETnp\n");
-				DR1.b.bl = !is_pf_set(); break;
-			case 0x0c: DR1.b.bl = is_sf_set() ^ is_of_set(); break;
-			case 0x0d: DR1.b.bl = !(is_sf_set() ^ is_of_set()); break;
-			case 0x0e: DR1.b.bl = (is_sf_set() ^ is_of_set()) || is_zf_set(); break;
-			case 0x0f: DR1.b.bl = !(is_sf_set() ^ is_of_set()) && !is_zf_set(); break;
+		if (o1 == 0x0a) e_printf("!!! SETp\n");
+		if (o1 == 0x0b) e_printf("!!! SETnp\n");
+		DR1.b.bl = test_cc(o1);
+		}
+		break;
+	case O_CMOV: {
+		unsigned char o1 = (unsigned char)IG->p0;
+		GTRACE3("O_CMOV",IG->p1,0xff,o1);
+		if (test_cc(o1)) {
+			if (mode & DATA16) CPUWORD(IG->p1) = DR1.w.l;
+			else CPULONG(IG->p1) = DR1.d;
 		}
 		}
 		break;
