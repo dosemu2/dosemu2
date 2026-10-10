@@ -402,7 +402,7 @@ extern int mfs_stat(const char *path, struct stat *sb, int drive);
 /* returns drive number and any bits that are impossible for drive.
  * Should be checked against MAX_DRIVE to make sure it is actually
  * a drive, i.e. no impossible-for-drive bits are set. */
-#define SFT_DRIVE(sft) ((sft_device_info(sft) & 0x88bf) ^ 0x8800)
+#define SFT_DRIVE(sft) ((sft_device_info(sft) & 0x88bf) ^ 0x8000)
 
 struct file_fd
 {
