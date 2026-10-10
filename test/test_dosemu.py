@@ -51,6 +51,7 @@ from func_memory_dpmi_int_stack import (memory_dpmi_int_stack,
 from func_memory_dpmi_linmem_oom import memory_dpmi_linmem_oom
 from func_memory_dpmi_nullseg import memory_dpmi_nullseg
 from func_memory_dpmi_pm_stack import memory_dpmi_pm_stack
+from func_memory_dpmi_hwram_seam import memory_dpmi_hwram_seam
 from func_memory_dpmi_ecm import (memory_dpmi_ecm_alloc, memory_dpmi_ecm_mini,
                                   memory_dpmi_ecm_modeswitch, memory_dpmi_ecm_psp)
 from func_memory_dpmi_japheth import memory_dpmi_japheth
@@ -1084,6 +1085,11 @@ class OurTestCase(BaseTestCase):
     def test_memory_dpmi_callgate(self):
         """Memory DPMI call gate in the LDT"""
         memory_dpmi_callgate(self)
+
+    @mark(['memtest', 'dpmitest'])
+    def test_memory_dpmi_hwram_seam(self):
+        """Memory DPMI physical mapping across a hwram seam"""
+        memory_dpmi_hwram_seam(self)
 
     @mark(['memtest', 'dpmitest'])
     def test_memory_dpmi_leak_check_nofree(self):
