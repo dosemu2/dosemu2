@@ -337,6 +337,11 @@ class Capture:
     ended, so what is taken here is the page and nothing after it.
     `wait` is for a page whose last write is not the marker itself, such
     as the prompt DOS puts up after the marker was echoed.
+
+    The marker reaching the pty does not mean the rest of the page has:
+    the backend draws the screen while DOS is still writing to it, so a
+    row painted before the marker can come in a later update.  What came
+    during runDosemuRaw()'s settle time is read before the page is taken.
     """
 
     def __init__(self, wait=None):
@@ -346,6 +351,7 @@ class Capture:
     def __call__(self, conv):
         if self.wait is not None and self.wait not in conv.captured:
             conv.expect(self.wait)
+        conv.read()
         self.out = conv.captured
 
 
