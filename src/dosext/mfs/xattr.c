@@ -48,11 +48,31 @@
 #define ENOATTR ENODATA
 #endif
 
+/*
+ * A file system that has no extended attributes at all answers
+ * ENOTSUP, and some spell it EOPNOTSUPP. That is not a failure to
+ * report: it says this file simply cannot carry DOS attributes, which
+ * is the same answer as a file that carries none. Reporting it lost
+ * nothing and cost a line of log for every file touched, which on a
+ * network file system without POSIX xattrs - AFS, say - is every
+ * directory listing.
+ */
+static int xattr_unsupported(int err)
+{
+  if (err == ENOTSUP)
+    return 1;
+#if defined(EOPNOTSUPP) && EOPNOTSUPP != ENOTSUP
+  if (err == EOPNOTSUPP)
+    return 1;
+#endif
+  return 0;
+}
+
 static int do_extr_xattr(const char *xbuf, ssize_t size, const char *name)
 {
   if (size == -1) {
     int errn = errno;
-    if (errn == ENODATA || errn == ENOATTR)
+    if (errn == ENODATA || errn == ENOATTR || xattr_unsupported(errn))
       return 0;
     error("MFS: failed to get xattrs for %s, %s\n", name, strerror(errn));
     return -1;
@@ -69,10 +89,13 @@ static int xattr_str(char *xbuf, int xsize, int attr)
   return (ret + 1);  // include '\0'
 }
 
-static int xattr_err(int err, const char *name)
+/* errn goes with err, rather than being read from errno here: the
+ * caller may have made other calls in between, and a successful one is
+ * free to leave errno anything it likes */
+static int xattr_err(int err, int errn, const char *name)
 {
-  if (err) {
-    error("MFS: failed to set xattrs for %s: %s\n", name, strerror(errno));
+  if (err && !xattr_unsupported(errn)) {
+    error("MFS: failed to set xattrs for %s: %s\n", name, strerror(errn));
 //    leavedos(5);
 //    return ACCESS_DENIED;
   }
@@ -82,8 +105,10 @@ static int xattr_err(int err, const char *name)
 int set_dos_xattr_fd(int fd, int attr, const char *name)
 {
   char xbuf[256];
-  return xattr_err(fsetxattr(fd, XATTR_DOSATTR_NAME, xbuf,
-      xattr_str(xbuf, sizeof(xbuf), attr), 0), name);
+  int err = fsetxattr(fd, XATTR_DOSATTR_NAME, xbuf,
+      xattr_str(xbuf, sizeof(xbuf), attr), 0);
+
+  return xattr_err(err, errno, name);
 }
 
 int set_dos_xattr(const char *fname, int attr)
@@ -91,7 +116,11 @@ int set_dos_xattr(const char *fname, int attr)
   char xbuf[256];
   int err = setxattr(fname, XATTR_DOSATTR_NAME, xbuf,
       xattr_str(xbuf, sizeof(xbuf), attr), 0);
-  if (err) {
+  int errn = errno;
+
+  /* no amount of permission makes a file system grow extended
+   * attributes, so there is nothing for the chmod below to win here */
+  if (err && !xattr_unsupported(errn)) {
     struct stat st;
     int err2 = stat(fname, &st);
     if (err2)
@@ -102,9 +131,10 @@ int set_dos_xattr(const char *fname, int attr)
         return ACCESS_DENIED;
       err = setxattr(fname, XATTR_DOSATTR_NAME, xbuf,
             xattr_str(xbuf, sizeof(xbuf), attr), 0);
+      errn = errno;
     }
   }
-  return xattr_err(err, fname);
+  return xattr_err(err, errn, fname);
 }
 
 int get_dos_xattr(const char *fname)
