@@ -38,7 +38,7 @@ enum { SOCK_VER, SOCK_OPEN, SOCK_CLOSE, SOCK_BIND, SOCK_SENDTO,
        SOCK_LISTEN, SOCK_ACONNECT, SOCK_ACCEPT, SOCK_GETSOCKNAME,
        SOCK_GETPEERNAME, SOCK_NBM, SOCK_GETFDS, SOCK_FIONREAD,
        SOCK_GETSOERR, SOCK_SOLINGER, SOCK_SOBCAST, SOCK_TCPNODELAY,
-       SOCK_SENDMSG };
+       SOCK_SENDMSG, SOCK_RECVMSG };
 
 struct sock_s {
     int fd;
@@ -116,11 +116,14 @@ static enum CbkRet select_cb(int arg0, void *arg, int nfds, int *r_err)
 #define CSOCK_ERR_WOULD_BLOCK         0x00000b00
 #define CSOCK_ERR_NOT_LISTENING       0x00000c00
 
-/* SOCK_SENDMSG takes at most this many segments, the least IOV_MAX that
- * POSIX guarantees. Each is { uint32_t base; uint32_t len; }, base
- * translated like any buffer: 16:16 for real mode and 16-bit clients,
- * an offset from DS for 32-bit ones. */
+/* SOCK_SENDMSG and SOCK_RECVMSG take at most this many segments, the
+ * least IOV_MAX that POSIX guarantees. Each is { uint32_t base;
+ * uint32_t len; }, base translated like any buffer: 16:16 for real mode
+ * and 16-bit clients, an offset from DS for 32-bit ones. */
 #define CSOCK_IOV_MAX                 16
+
+/* SOCK_RECVMSG flags */
+#define CSOCK_MSG_PEEK                0x02
 
 static int sockopt_err(const char *op)
 {
@@ -175,6 +178,20 @@ static int iov_map(struct iovec *iov, const unsigned char *v, uint32_t cnt,
             return -1;
     }
     return 0;
+}
+
+/* SOCK_RECVMSG on a blocking socket, polled by handle_timeout() */
+static enum CbkRet recvmsg_cb(int fd, void *arg, int flags, int *r_err)
+{
+    int rc = recvmsg(fd, arg, flags);
+    *r_err = rc;
+    if (rc == -1 && errno != EAGAIN) {
+        error("recvmsg(): %s\n", strerror(errno));
+        return CBK_ERR;
+    }
+    if (rc >= 0)
+        return CBK_DONE;
+    return CBK_CONT;
 }
 
 static void sock_handler(cpuctx_t *scp,
@@ -664,6 +681,39 @@ _ok: \
                 msg.msg_namelen = sizeof(sa);
             }
             TCP_IO("sendmsg", sendmsg(sock->fd, &msg, 0),);
+            break;
+        }
+
+        case SOCK_RECVMSG: {
+            struct sockaddr_in sa = {};
+            struct iovec iov[CSOCK_IOV_MAX];
+            struct msghdr msg = {};
+            int flags = 0;
+
+            TCP_PROLOG0;
+            L_printf("Starting recvmsg()\n"); \
+            if (iov_map(iov, SEL_ADR(_ds, _esi), _ecx, SEL_ADR, _ds) ||
+                    (_edx & ~CSOCK_MSG_PEEK)) {
+                _eax = CSOCK_ERR_INVALID_PARAM;
+                _eflags |= CF;
+                break;
+            }
+            if (_edx & CSOCK_MSG_PEEK)
+                flags |= MSG_PEEK;
+            msg.msg_name = &sa;
+            msg.msg_namelen = sizeof(sa);
+            msg.msg_iov = iov;
+            msg.msg_iovlen = _ecx;
+            if (sock->nb)
+                TCP_IO("recvmsg", recvmsg(sock->fd, &msg, flags),
+                    _ebx = sa.sin_addr.s_addr;
+                    _edx = sa.sin_port;
+                );
+            else
+                TCP_IO_B(recvmsg_cb, sock->fd, &msg, flags,
+                    _ebx = sa.sin_addr.s_addr;
+                    _edx = sa.sin_port;
+                );
             break;
         }
     }
