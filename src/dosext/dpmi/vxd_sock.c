@@ -87,15 +87,19 @@ struct sel_arg {
 static enum CbkRet select_cb(int arg0, void *arg, int nfds, int *r_err)
 {
     struct sel_arg *sel = arg;
+    /* select() clears the sets it gets, so every poll needs a fresh copy */
+    struct sel_arg res = *sel;
     struct timeval to = {};
-    int rc = RPT_SYSCALL(select(nfds, &sel->rfds, &sel->wfds, &sel->efds, &to));
+    int rc = RPT_SYSCALL(select(nfds, &res.rfds, &res.wfds, &res.efds, &to));
     *r_err = rc;
     if (rc == -1 && errno != EAGAIN) {
         error("select(): %s\n", strerror(errno));
         return CBK_ERR;
     }
-    if (rc > 0)
+    if (rc > 0) {
+        *sel = res;
         return CBK_DONE;
+    }
     return CBK_CONT;
 }
 
@@ -127,6 +131,7 @@ static void sock_handler(cpuctx_t *scp,
             if (_edi && _edi != 0xffff) {
                 rc = tcp_get_driver_info(SEL_ADR(_ds, _esi), _edi);
                 if (rc) {
+                    _eax = CSOCK_ERR_INTERNAL;
                     _eflags |= CF;
                     break;
                 }
@@ -188,9 +193,11 @@ static void sock_handler(cpuctx_t *scp,
             rc = op; \
             switch (rc) { \
             case 0: \
+                /* EOF on a stream, an empty datagram on UDP */ \
                 L_printf(n": EOF\n"); \
                 _eax = 0; \
                 _ecx = 0; \
+                c \
                 break; \
             case -1: \
                 switch (errno) { \
@@ -355,6 +362,9 @@ _ok: \
                     _eax = err;
                     for (i = 0; i < num_socks; i++) {
                         sock = &socks[i];
+                        /* a free slot keeps its stale fd */
+                        if (!sock->used)
+                            continue;
                         if (FD_ISSET(sock->fd, &sel.rfds))
                             _ebx |= 1 << i;
                         if (FD_ISSET(sock->fd, &sel.wfds))
@@ -369,6 +379,7 @@ _ok: \
                     break;
                 case 1:
                     /* timeout */
+                    _ebx = _ecx = _edx = 0;
                     _eax = 0;
                     break;
             }
