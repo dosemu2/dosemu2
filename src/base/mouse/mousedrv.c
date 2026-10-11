@@ -264,8 +264,10 @@ static void mouse_client_init(void)
 {
   int i;
 
+  if (config.dumb_video)
+    return;
 #ifdef USE_GPM
-  if (config.term && !config.dumb_video)
+  if (config.term)
     load_plugin("gpm");
 #endif
   register_mouse_client(&Mouse_raw);
