@@ -37,7 +37,8 @@ enum { SOCK_VER, SOCK_OPEN, SOCK_CLOSE, SOCK_BIND, SOCK_SENDTO,
        SOCK_RECVFROM, SOCK_SELECT, SOCK_CONNECT, SOCK_SEND, SOCK_RECV,
        SOCK_LISTEN, SOCK_ACONNECT, SOCK_ACCEPT, SOCK_GETSOCKNAME,
        SOCK_GETPEERNAME, SOCK_NBM, SOCK_GETFDS, SOCK_FIONREAD,
-       SOCK_GETSOERR, SOCK_SOLINGER, SOCK_SOBCAST, SOCK_TCPNODELAY };
+       SOCK_GETSOERR, SOCK_SOLINGER, SOCK_SOBCAST, SOCK_TCPNODELAY,
+       SOCK_SENDMSG };
 
 struct sock_s {
     int fd;
@@ -115,6 +116,12 @@ static enum CbkRet select_cb(int arg0, void *arg, int nfds, int *r_err)
 #define CSOCK_ERR_WOULD_BLOCK         0x00000b00
 #define CSOCK_ERR_NOT_LISTENING       0x00000c00
 
+/* SOCK_SENDMSG takes at most this many segments, the least IOV_MAX that
+ * POSIX guarantees. Each is { uint32_t base; uint32_t len; }, base
+ * translated like any buffer: 16:16 for real mode and 16-bit clients,
+ * an offset from DS for 32-bit ones. */
+#define CSOCK_IOV_MAX                 16
+
 static int sockopt_err(const char *op)
 {
     switch (errno) {
@@ -145,6 +152,29 @@ static void bool_opt(cpuctx_t *scp, int fd, int level, int opt)
     if (!_ecx)
         _edx = !!val;
     _eax = 0;
+}
+
+/* Translates @cnt segments at @v into @iov. Returns -1 for a count out of
+ * range or a segment that doesn't translate. */
+static int iov_map(struct iovec *iov, const unsigned char *v, uint32_t cnt,
+        void *(sel_adr)(unsigned short sel, unsigned int reg),
+        unsigned short ds)
+{
+    uint32_t i;
+
+    if (!v || cnt < 1 || cnt > CSOCK_IOV_MAX)
+        return -1;
+    for (i = 0; i < cnt; i++) {
+        uint32_t base, len;
+
+        memcpy(&base, v + i * 8, 4);
+        memcpy(&len, v + i * 8 + 4, 4);
+        iov[i].iov_base = len ? sel_adr(ds, base) : NULL;
+        iov[i].iov_len = len;
+        if (len && !iov[i].iov_base)
+            return -1;
+    }
+    return 0;
 }
 
 static void sock_handler(cpuctx_t *scp,
@@ -603,6 +633,39 @@ _ok: \
             L_printf("Starting tcpnodelay()\n"); \
             bool_opt(scp, sock->fd, IPPROTO_TCP, TCP_NODELAY);
             break;
+
+        case SOCK_SENDMSG: {
+            TCP_PROLOG;
+            struct iovec iov[CSOCK_IOV_MAX];
+            struct msghdr msg = {};
+
+            L_printf("Starting sendmsg()\n"); \
+            if (iov_map(iov, SEL_ADR(_ds, _esi), _ecx, SEL_ADR, _ds)) {
+                _eax = CSOCK_ERR_INVALID_PARAM;
+                _eflags |= CF;
+                break;
+            }
+            msg.msg_iov = iov;
+            msg.msg_iovlen = _ecx;
+            /* EBX = 0 sends to the connected peer. Only an unconnected
+             * socket may name an address: the BSDs refuse one on a
+             * connected socket with EISCONN, which TCP_IO would take for
+             * a finished connect. */
+            if (_ebx) {
+                struct sockaddr_in peer;
+                socklen_t len = sizeof(peer);
+
+                if (getpeername(sock->fd, (struct sockaddr *)&peer, &len) == 0) {
+                    _eax = CSOCK_ERR_INVALID_PARAM;
+                    _eflags |= CF;
+                    break;
+                }
+                msg.msg_name = &sa;
+                msg.msg_namelen = sizeof(sa);
+            }
+            TCP_IO("sendmsg", sendmsg(sock->fd, &msg, 0),);
+            break;
+        }
     }
 }
 
