@@ -188,9 +188,11 @@ static void sock_handler(cpuctx_t *scp,
             rc = op; \
             switch (rc) { \
             case 0: \
+                /* EOF on a stream, an empty datagram on UDP */ \
                 L_printf(n": EOF\n"); \
                 _eax = 0; \
                 _ecx = 0; \
+                c \
                 break; \
             case -1: \
                 switch (errno) { \
