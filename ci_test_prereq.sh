@@ -32,6 +32,7 @@ sudo apt install -y \
   libi86-testsuite-ia16-elf \
   gcc-multilib \
   dos2unix \
+  genisoimage \
   bridge-utils \
   libvirt-daemon \
   libvirt-daemon-system
