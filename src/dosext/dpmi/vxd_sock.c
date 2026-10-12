@@ -409,6 +409,7 @@ _ok: \
                     break;
                 case 1:
                     /* timeout */
+                    _ebx = _ecx = _edx = 0;
                     _eax = 0;
                     break;
             }
