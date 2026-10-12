@@ -391,7 +391,7 @@ _ok: \
         }
 
         case SOCK_RECVFROM: {
-            struct sockaddr_in sa;
+            struct sockaddr_in sa = {};
             socklen_t len = sizeof(sa);
             TCP_PROLOG0;
             if (sock->nb)
