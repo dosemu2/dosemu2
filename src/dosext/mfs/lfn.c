@@ -1082,7 +1082,7 @@ static int mfs_lfn_(void)
 		src = src_filename;
 		i = strlen(src);
 		/* drop trailing ':' unless at pos 1 */
-		if (i > 1 && src[i - 1] == ':') {
+		if (i > 2 && src[i - 1] == ':') {
 		    src[--i] = '\0';
 		    if (!is_dos_device(src))
 			return lfn_error(FILE_NOT_FOUND);
