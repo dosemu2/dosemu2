@@ -395,6 +395,9 @@ _ok: \
                     _eax = err;
                     for (i = 0; i < num_socks; i++) {
                         sock = &socks[i];
+                        /* a free slot keeps its stale fd */
+                        if (!sock->used)
+                            continue;
                         if (FD_ISSET(sock->fd, &sel.rfds))
                             _ebx |= 1 << i;
                         if (FD_ISSET(sock->fd, &sel.wfds))
