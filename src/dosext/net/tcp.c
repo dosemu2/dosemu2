@@ -648,7 +648,7 @@ static void tcp_thr(void *arg)
         _D(TCP_COPY_DRIVER_INFO);
 
         case TCP_OPEN:
-            switch (LO(ax)) {
+            switch (LO(ax) & 1) {
                 case 0: {
                     uint16_t lport, h;
                     err = tcp_connect(((unsigned)_SI << 16) | _DI, _CX, _DX, &lport, &h);
