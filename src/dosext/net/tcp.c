@@ -76,6 +76,10 @@ enum {
     DETACH_EVENT_LOCAL,
 };
 
+/* An option flag of TCP_OPEN (AL) beyond the spec, which defines only
+ * 1 = listener and 128 = asynchronous (unsupported here): turns Nagle off. */
+#define TCP_OPEN_NODELAY 0x10
+
 enum {
     ERR_NO_ERROR = 0,
     ERR_BAD_CALL,
@@ -416,8 +420,16 @@ static int do_timeout(uint16_t to,
     return ERR_CRITICAL;
 }
 
+static void set_nodelay(int fd)
+{
+    int val = 1;
+
+    if (setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &val, sizeof(val)) == -1)
+        error("TCP_NODELAY: %s\n", strerror(errno));
+}
+
 static int tcp_connect(uint32_t dest, uint16_t port, uint16_t to,
-    uint16_t *r_port, uint16_t *r_hand)
+    uint16_t *r_port, uint16_t *r_hand, int nodelay)
 {
     struct sockaddr_in sa;
     int fd, tmp, err, rc;
@@ -427,6 +439,8 @@ static int tcp_connect(uint32_t dest, uint16_t port, uint16_t to,
         return ERR_NOHANDLES;
     tmp = 1;
     ioctl(fd, FIONBIO, &tmp); /* non-blocking i/o */
+    if (nodelay)
+        set_nodelay(fd);
     sa.sin_addr.s_addr = dest;
     sa.sin_port = htons(port);
     sa.sin_family = AF_INET;
@@ -467,7 +481,7 @@ static int tcp_connect(uint32_t dest, uint16_t port, uint16_t to,
 }
 
 static int tcp_listen(uint32_t dest, uint16_t port,
-    uint16_t *r_port, uint16_t *r_hand)
+    uint16_t *r_port, uint16_t *r_hand, int nodelay)
 {
     struct sockaddr_in sa;
     socklen_t l = sizeof(sa);
@@ -479,6 +493,8 @@ static int tcp_listen(uint32_t dest, uint16_t port,
         return ERR_NOHANDLES;
     tmp = 1;
     ioctl(fd, FIONBIO, &tmp); /* non-blocking i/o */
+    if (nodelay)
+        set_nodelay(fd);    /* the accepted connection inherits it */
     sa.sin_addr.s_addr = myip;
     sa.sin_port = htons(port);
     sa.sin_family = AF_INET;
@@ -651,7 +667,8 @@ static void tcp_thr(void *arg)
             switch (LO(ax) & 1) {
                 case 0: {
                     uint16_t lport, h;
-                    err = tcp_connect(((unsigned)_SI << 16) | _DI, _CX, _DX, &lport, &h);
+                    err = tcp_connect(((unsigned)_SI << 16) | _DI, _CX, _DX, &lport, &h,
+                            !!(LO(ax) & TCP_OPEN_NODELAY));
                     if (err) {
                         CARRY;
                     } else {
@@ -664,7 +681,8 @@ static void tcp_thr(void *arg)
                 }
                 case 1: {
                     uint16_t lport, h;
-                    err = tcp_listen(((unsigned)_SI << 16) | _DI, _BX, &lport, &h);
+                    err = tcp_listen(((unsigned)_SI << 16) | _DI, _BX, &lport, &h,
+                            !!(LO(ax) & TCP_OPEN_NODELAY));
                     if (err) {
                         CARRY;
                     } else {
