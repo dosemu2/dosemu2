@@ -18,6 +18,7 @@
 #include <errno.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
+#include <netinet/tcp.h>
 #include <fcntl.h>
 #include <sys/ioctl.h>
 #ifdef __sun__
@@ -36,7 +37,7 @@ enum { SOCK_VER, SOCK_OPEN, SOCK_CLOSE, SOCK_BIND, SOCK_SENDTO,
        SOCK_RECVFROM, SOCK_SELECT, SOCK_CONNECT, SOCK_SEND, SOCK_RECV,
        SOCK_LISTEN, SOCK_ACONNECT, SOCK_ACCEPT, SOCK_GETSOCKNAME,
        SOCK_GETPEERNAME, SOCK_NBM, SOCK_GETFDS, SOCK_FIONREAD,
-       SOCK_GETSOERR, SOCK_SOLINGER };
+       SOCK_GETSOERR, SOCK_SOLINGER, SOCK_SOBCAST, SOCK_TCPNODELAY };
 
 struct sock_s {
     int fd;
@@ -113,6 +114,38 @@ static enum CbkRet select_cb(int arg0, void *arg, int nfds, int *r_err)
 #define CSOCK_ERR_NOT_CONNECTED       0x00000a00
 #define CSOCK_ERR_WOULD_BLOCK         0x00000b00
 #define CSOCK_ERR_NOT_LISTENING       0x00000c00
+
+static int sockopt_err(const char *op)
+{
+    switch (errno) {
+    case ENOPROTOOPT:   /* e.g. TCP_NODELAY on a UDP socket */
+    case EOPNOTSUPP:
+        return CSOCK_ERR_INVALID_PARAM;
+    }
+    error("%s: %s\n", op, strerror(errno));
+    return CSOCK_ERR_INTERNAL;
+}
+
+/* SOCK_SOBCAST and SOCK_TCPNODELAY, like SOCK_NBM: ECX = 0 returns the
+ * option in EDX (0 or 1), any other ECX sets it from EDX. */
+static void bool_opt(cpuctx_t *scp, int fd, int level, int opt)
+{
+    int val = !!_edx, rc;
+    socklen_t len = sizeof(val);
+
+    if (_ecx)
+        rc = setsockopt(fd, level, opt, &val, sizeof(val));
+    else
+        rc = getsockopt(fd, level, opt, &val, &len);
+    if (rc) {
+        _eax = sockopt_err(_ecx ? "setsockopt" : "getsockopt");
+        _eflags |= CF;
+        return;
+    }
+    if (!_ecx)
+        _edx = !!val;
+    _eax = 0;
+}
 
 static void sock_handler(cpuctx_t *scp,
         void *(SEL_ADR)(unsigned short sel, unsigned int reg))
@@ -558,6 +591,18 @@ _ok: \
             _eax = 0;
             break;
         }
+
+        case SOCK_SOBCAST:
+            TCP_PROLOG0;
+            L_printf("Starting sobcast()\n"); \
+            bool_opt(scp, sock->fd, SOL_SOCKET, SO_BROADCAST);
+            break;
+
+        case SOCK_TCPNODELAY:
+            TCP_PROLOG0;
+            L_printf("Starting tcpnodelay()\n"); \
+            bool_opt(scp, sock->fd, IPPROTO_TCP, TCP_NODELAY);
+            break;
     }
 }
 
