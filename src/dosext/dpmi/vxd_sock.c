@@ -88,15 +88,19 @@ struct sel_arg {
 static enum CbkRet select_cb(int arg0, void *arg, int nfds, int *r_err)
 {
     struct sel_arg *sel = arg;
+    /* select() clears the sets it gets, so every poll needs a fresh copy */
+    struct sel_arg res = *sel;
     struct timeval to = {};
-    int rc = RPT_SYSCALL(select(nfds, &sel->rfds, &sel->wfds, &sel->efds, &to));
+    int rc = RPT_SYSCALL(select(nfds, &res.rfds, &res.wfds, &res.efds, &to));
     *r_err = rc;
     if (rc == -1 && errno != EAGAIN) {
         error("select(): %s\n", strerror(errno));
         return CBK_ERR;
     }
-    if (rc > 0)
+    if (rc > 0) {
+        *sel = res;
         return CBK_DONE;
+    }
     return CBK_CONT;
 }
 
