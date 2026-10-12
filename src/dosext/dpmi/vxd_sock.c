@@ -160,6 +160,7 @@ static void sock_handler(cpuctx_t *scp,
             if (_edi && _edi != 0xffff) {
                 rc = tcp_get_driver_info(SEL_ADR(_ds, _esi), _edi);
                 if (rc) {
+                    _eax = CSOCK_ERR_INTERNAL;
                     _eflags |= CF;
                     break;
                 }
