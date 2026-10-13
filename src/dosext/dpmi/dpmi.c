@@ -28,6 +28,7 @@ Currently missing DPMI-0.9 functions:
 #include <fcntl.h>
 #include <unistd.h>
 #include <string.h>
+#include <alloca.h>
 #include <assert.h>
 #ifdef __linux__
 #include <linux/version.h>
@@ -487,6 +488,8 @@ int get_ldt(void *buffer, int len)
   return ret;
 }
 
+static void dtr_ldt_sync(unsigned entry);
+
 static int put_ldt(struct user_desc *ldt_info)
 {
   int __retval;
@@ -500,6 +503,8 @@ static int put_ldt(struct user_desc *ldt_info)
   }
   /* this also updates our ldt_buffer */
   __retval = emu_write_ldt(ldt_info, sizeof(*ldt_info));
+  if (!__retval)
+    dtr_ldt_sync(ldt_info->entry_number);
   return __retval;
 }
 
@@ -2677,6 +2682,110 @@ int dpmi_install_rsp(struct RSPcall_s *callback)
     return 0;
 }
 
+/*
+ * What a client finds where the descriptor tables should be.
+ *
+ * A 286 extender looks for its descriptors the way the hardware does:
+ * sgdt for the GDT, sldt for the index of the LDT inside it, the base
+ * and limit out of that entry, and then it indexes that table by
+ * selector. The LDT is the only table it has any business touching,
+ * so what it needs is a GDT holding one entry that describes the LDT,
+ * and an IDT, because the same client reads that one too.
+ *
+ * Two mappings of one shm object hold all three, the way msdos_ldt
+ * does it: ours stays writable, so put_ldt() keeps the LDT in step
+ * entry by entry without ever opening the client's view of it. In the
+ * client's mapping the GDT and the LDT are read-only, which is all a
+ * client that can grow neither of them may have, while the IDT is the
+ * last page and is left as allocated, writable, because a client that
+ * sets a gate of its own there (#1767) has to go on working; the host
+ * reads nothing back from that page, so such a write is discarded in
+ * the only way that costs nothing.
+ *
+ * The GDT's one entry is at index 0, because that is what sldt
+ * reports, and it describes the LDT on the pages after the GDT.
+ */
+#define DTR_LDT_SIZE (LDT_ENTRIES * LDT_ENTRY_SIZE)
+static dosaddr_t gdt_base, ldt_base, idt_base;	/* in the client's view */
+static unsigned char *dtr_backbuf;	/* our writable view of it all */
+static unsigned dtr_ldt_offs;		/* where the LDT starts in the block */
+
+static int dtr_alias_setup(void)
+{
+    char nm[] = "dtr_alias_%PXXXXXX";
+    /* one entry short of the whole table: the extender works out how
+     * many descriptors fit with a 16bit (limit + 1) / 8, and a limit of
+     * 0xffff wraps that to zero, which it reports as a fatal error */
+    unsigned lim = DTR_LDT_SIZE - LDT_ENTRY_SIZE - 1;
+    /* a page each for the GDT and the IDT, because the protection they
+     * get differs, and the attributes go per host page */
+    unsigned ldt_len = HOST_PAGE_ALIGN(DTR_LDT_SIZE);
+    unsigned len = 2 * HOST_PAGE_SIZE + ldt_len;
+    dpmi_pm_block *bbuf, *alias;
+    unsigned char *d;
+    uint16_t *attrs;
+    int i, npages;
+
+    assert(HOST_PAGE_SIZE >= EMU_GDT_LIMIT + 1 &&
+	    HOST_PAGE_SIZE >= EMU_IDT_LIMIT + 1);
+    tempname(nm, 6);
+    bbuf = DPMI_mallocShared(&host_pm_block_root, nm, len,
+	    SHM_NOEXEC | SHM_EXCL);
+    if (!bbuf) {
+	error("DPMI: can't allocate memory for descriptor tables\n");
+	return -1;
+    }
+    /* the very same memory once more, and this one the client sees */
+    alias = DPMI_mallocShared(&host_pm_block_root, nm, len, SHM_NOEXEC);
+    if (!alias || alias->handle == bbuf->handle) {
+	error("DPMI: can't alias memory for descriptor tables\n");
+	return -1;
+    }
+    /* the GDT and the LDT go read-only; the IDT page at the end keeps
+     * the protection it was allocated with */
+    npages = (HOST_PAGE_SIZE + ldt_len) / HOST_PAGE_SIZE;
+    attrs = alloca(sizeof(*attrs) * npages);
+    for (i = 0; i < npages; i++)
+	attrs[i] = 0x83;		/* NX, read-only */
+    if (!DPMI_SetPageAttributes(&host_pm_block_root, alias->handle, 0,
+	    attrs, npages)) {
+	error("DPMI: can't protect descriptor tables\n");
+	return -1;
+    }
+    dtr_backbuf = LINEAR2UNIX(bbuf->base);
+    dtr_ldt_offs = HOST_PAGE_SIZE;
+    ldt_base = alias->base + dtr_ldt_offs;
+    memset(dtr_backbuf, 0, len);
+    memcpy(dtr_backbuf + dtr_ldt_offs, ldt_buffer, DTR_LDT_SIZE);
+    d = dtr_backbuf;
+    d[0] = lim & 0xff;
+    d[1] = (lim >> 8) & 0xff;
+    d[2] = ldt_base & 0xff;
+    d[3] = (ldt_base >> 8) & 0xff;
+    d[4] = (ldt_base >> 16) & 0xff;
+    d[5] = 0x82;		/* present, system, LDT */
+    d[6] = (lim >> 16) & 0x0f;
+    d[7] = (ldt_base >> 24) & 0xff;
+    gdt_base = alias->base;
+    idt_base = alias->base + HOST_PAGE_SIZE + ldt_len;
+    D_printf("DPMI: gdt at %#x, idt at %#x, ldt at %#x/%#x\n",
+	    gdt_base, idt_base, ldt_base, lim);
+    return 0;
+}
+
+static void dtr_ldt_sync(unsigned entry)
+{
+    if (!dtr_backbuf || entry >= LDT_ENTRIES)
+	return;
+    memcpy(dtr_backbuf + dtr_ldt_offs + entry * LDT_ENTRY_SIZE,
+	    &ldt_buffer[entry * LDT_ENTRY_SIZE], LDT_ENTRY_SIZE);
+}
+
+dosaddr_t dpmi_get_dtr_base(int idt)
+{
+    return idt ? idt_base : gdt_base;
+}
+
 dosaddr_t DPMIMapHWRam(unsigned addr, unsigned size)
 {
     dpmi_pm_block *blk = DPMI_mapHWRam(&DPMI_CLIENT.pm_block_root, addr, size);
@@ -4410,12 +4519,15 @@ void dpmi_setup(void)
       break;
     }
 
-    get_ldt(ldt_buffer, LDT_ENTRIES * LDT_ENTRY_SIZE);
-
     if (dpmi_alloc_pool()) {
 	leavedos(2);
 	return;
     }
+    get_ldt(ldt_buffer, LDT_ENTRIES * LDT_ENTRY_SIZE);
+    /* the tables a client goes looking for, made once and for all */
+    if (dtr_alias_setup())
+	goto err2;
+
     if (!(_dpmi_sel16 = allocate_descriptors(1))) goto err;
     if (!(_dpmi_sel32 = allocate_descriptors(1))) goto err;
 
@@ -6270,9 +6382,10 @@ static int dpmi_fault1(cpuctx_t *scp)
                 /* sgdt and sidt always lay down the full six bytes,
                  * whatever the operand size, and the base is little
                  * endian like everything else the client reads. */
-                unsigned int base = 0;
+                /* the tables are there, so a client that follows
+                 * what it reads here finds its own LDT */
+                unsigned int base = dpmi_get_dtr_base(reg);
                 unsigned int limit = reg ? EMU_IDT_LIMIT : EMU_GDT_LIMIT;
-
                 p[0] = limit;
                 p[1] = limit >> 8;
                 p[2] = base;
