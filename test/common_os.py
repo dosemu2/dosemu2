@@ -189,6 +189,7 @@ def frdosgit(baseclass, actions):
                 Path(environ.get("FDOS_KERNEL_SYS", "../fdos/kernel.git/bin/kernel.sys")),
                 Path(environ.get("FDOS_COMMAND_COM", "../fdos/freecom.git/command.com")),
                 Path(environ.get("FDOS_SHARE_COM", "../fdos/share.git/src/share.com")),
+                Path(environ.get("FDOS_COUNTRY_SYS", "../fdos/country.git/country.sys")),
             ]
             for f in cls.files_to_copy:
                 if not f.is_file():
