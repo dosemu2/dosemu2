@@ -107,32 +107,68 @@ static int ustore_get(int handle)
     return ret;
 }
 
+/* LINEAR2UNIX() translates page by page: a plain pool page is at
+ * lowmem_base + addr, while a page that is an alias of something else
+ * (shm) is at that mapping's own host address. A pointer into such a
+ * page can't be taken back by dj64_ptr2addr(), so don't hand one out:
+ * a pool address is translated only if its page is a plain one. */
+static int dj64_in_pool(uint32_t addr)
+{
+    return addr >= config.dpmi_base &&
+            addr < config.dpmi_base + dpmi_mem_size();
+}
+
+static uint8_t *dj64_pool_ptr(uint32_t addr)
+{
+    uint8_t *ptr = LINEAR2UNIX(addr);
+    /* low memory is left alone: its aliases (UMB, EMS) are DOS memory dj64
+     * only reads, and ptr2addr() takes no low memory pointer back anyway */
+    if (dj64_in_pool(addr) && ptr != LOWMEM(addr)) {
+        dosemu_error("bad addr2ptr %#x\n", addr);
+        return NULL;
+    }
+    return ptr;
+}
+
 static uint8_t *dj64_addr2ptr(uint32_t addr)
 {
-    return LINEAR2UNIX(addr);
+    return dj64_pool_ptr(addr);
 }
 
 static uint8_t *dj64_addr2ptr2(uint32_t addr, uint32_t len)
 {
     e_invalidate(addr, len);
-    return LINEAR2UNIX(addr);
+    return dj64_pool_ptr(addr);
+}
+
+/* The inverse of dj64_addr2ptr() for the dpmi pool. The host address of
+ * the pool as a whole can't be had by translating its first page, which
+ * is what happened here and broke as soon as that page was an shm block;
+ * take the plain mapping and check that the page really translates back
+ * to the pointer, so a pointer into an aliased page is rejected rather
+ * than mapped to the wrong place. */
+static int dj64_pool_off(const uint8_t *ptr)
+{
+    ptrdiff_t off = ptr - (uint8_t *)LOWMEM(config.dpmi_base);
+    if (off < 0 || off >= dpmi_mem_size())
+        return -1;
+    if (LINEAR2UNIX(config.dpmi_base + off) != ptr)
+        return -1;
+    return off;
 }
 
 static uint32_t dj64_ptr2addr(const uint8_t *ptr)
 {
-    uint8_t *dpmi_base_ptr = LINEAR2UNIX(config.dpmi_base);
-    if (ptr >= dpmi_base_ptr && ptr < dpmi_base_ptr + dpmi_mem_size())
-        return config.dpmi_base + (ptr - dpmi_base_ptr);
+    int off = dj64_pool_off(ptr);
+    if (off != -1)
+        return config.dpmi_base + off;
     dosemu_error("bad ptr2addr %p\n", ptr);
     return -1;
 }
 
 static int dj64_dos_ptr(const uint8_t *ptr)
 {
-    uint8_t *dpmi_base_ptr = LINEAR2UNIX(config.dpmi_base);
-    if (ptr >= dpmi_base_ptr && ptr < dpmi_base_ptr + dpmi_mem_size())
-        return 1;
-    return 0;
+    return dj64_pool_off(ptr) != -1;
 }
 
 static void dj64_print(int prio, const char *format, va_list ap)
