@@ -12,6 +12,7 @@ from func_bpb_set import bpb_set
 from func_command_com_builtins import command_com_copy, command_com_keyword_exist
 from func_command_com_cmdline_length import command_com_cmdline_length
 from func_command_com_psp_checks import command_com_psp_fcbs
+from func_country import get_country
 from func_disk import three_drives_vfs, int21_disk_info
 from func_ds2_dirops import (ds2_delete_common, ds2_find_common, ds2_find_first,
                              ds2_find_mixed_wild_plain, ds2_rename_common)
@@ -91,7 +92,7 @@ from func_video_font_load import video_font_load
 class OurTestCase(BaseTestCase):
 
     attrs = {'cmdtest', 'dpmitest', 'emstest', 'fattest', 'fcbtest', 'hmatest', 'labeltest', 'lfntest',
-             'locktest', 'memtest', 'mfstest', 'nettest', 'serialtest', 'sfntest', 'sharetest', 'umatest',
+             'locktest', 'memtest', 'mfstest', 'nettest', 'nlstest', 'serialtest', 'sfntest', 'sharetest', 'umatest',
              'xmstest'}
 
     @mark('cmdtest')
@@ -102,6 +103,11 @@ class OurTestCase(BaseTestCase):
     def test_drv_removable(self):
         """Drive is removable (IOCTL)"""
         drv_removable(self)
+
+    @mark('nlstest')
+    def test_get_country(self):
+        """Get country settings"""
+        get_country(self)
 
     def test_mscdex_stub(self):
         """MSCDEX stub answers with no CD-ROM drive"""

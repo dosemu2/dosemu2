@@ -724,7 +724,7 @@ class BaseTestCase(object):
         else:
             return r"c:\share"
 
-    def runDosemu(self, cmd, opts=None, outfile=None, config=DOSEMU_CONF_DEFAULT, timeout=None,
+    def runDosemu(self, cmd, opts=None, outfile=None, config=DOSEMU_CONF_DEFAULT, timeout=None, env=None,
                     eofisok=False, interactions=[], xargs=None):
         default_timeout = int(environ.get("DEFAULT_TIMEOUT", '15'))
         if timeout is None:
@@ -756,7 +756,10 @@ class BaseTestCase(object):
             print(f'\n\nNO_TESTRUN=1, command line to run test is\n{dbin} {" ".join(args)}\n')
             _exit(0)  # Don't let unittest handle it, just exit
 
-        child = pexpect.spawn(dbin, args)
+        localenv = environ.copy()
+        if env:
+            localenv.update(env)
+        child = pexpect.spawn(dbin, args, env=localenv)
 
         # Tweak the pty to eliminate double CRs
         fd = child.fileno()
@@ -920,7 +923,7 @@ class BaseTestCase(object):
         self.logfiles['xpt'][0].write_bytes(out)
         return out
 
-    def runDosemuCmdline(self, xargs, cwd=None, config=DOSEMU_CONF_DEFAULT, timeout=None):
+    def runDosemuCmdline(self, xargs, cwd=None, config=DOSEMU_CONF_DEFAULT, timeout=None, env=None):
         default_timeout = int(environ.get("DEFAULT_TIMEOUT", '15'))
         if timeout is None:
             timeout = default_timeout
@@ -948,7 +951,10 @@ class BaseTestCase(object):
         self.logfiles['xpt'][1] = "output.log"
         ret = 'No output'
         try:
-            ret = check_output(args, cwd=cwd, timeout=timeout, stderr=STDOUT).decode(
+            localenv = environ.copy()
+            if env:
+                localenv.update(env)
+            ret = check_output(args, env=localenv, cwd=cwd, timeout=timeout, stderr=STDOUT).decode(
                 'ASCII', errors='backslashreplace')
         except CalledProcessError as e:
             ret = 'NonZeroReturn:%d\n' % e.returncode

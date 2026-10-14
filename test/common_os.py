@@ -35,6 +35,7 @@ def drdos701(baseclass, actions):
                 ("ibmdos.com", "52e71c8e9d74100f138071acaecdef4a79b67d3c"),
                 ("command.com", "4bc38f973b622509aedad8c6af0eca59a2d90fca"),
                 ("share.exe", "10f2c0e2cabe98617faa017806c80476b3b6c1e1"),
+                ("country.sys", "f46bbc4fb3e30a7730bebc10c18b2638601d6a05"),
             ]
             cls.systype = SYSTYPE_DRDOS_ORIGINAL
             cls.autoexec = "dautoemu.bat"
@@ -83,6 +84,7 @@ def frdos120(baseclass, actions):
                 ("kernel.sys", "0709f4e7146a8ad9b8acb33fe3fed0f6da9cc6e0"),
                 ("command.com", "0733db7babadd73a1b98e8983c83b96eacef4e68"),
                 ("share.com", "cadc29d49115cb3a250f90921cca345e7c427464"),
+                ("country.sys", "68b3d7f5cbf3321445602206935742be5737f5af"),
             ]
             cls.systype = SYSTYPE_FRDOS_NEW
             cls.autoexec = "fdautoem.bat"
@@ -128,6 +130,7 @@ def frdos130(baseclass, actions):
                 ("kernel.sys", "2bdf90c8bc8c0406cfa01349265bf782507af016"),
                 ("command.com", "15abab3d3ee4a50449517131a13b2c5164610582"),
                 ("share.com", "cadc29d49115cb3a250f90921cca345e7c427464"),
+                ("country.sys", "68b3d7f5cbf3321445602206935742be5737f5af"),
             ]
             cls.systype = SYSTYPE_FRDOS_NEW
             cls.autoexec = "fdautoem.bat"
@@ -186,6 +189,7 @@ def frdosgit(baseclass, actions):
                 Path(environ.get("FDOS_KERNEL_SYS", "../fdos/kernel.git/bin/kernel.sys")),
                 Path(environ.get("FDOS_COMMAND_COM", "../fdos/freecom.git/command.com")),
                 Path(environ.get("FDOS_SHARE_COM", "../fdos/share.git/src/share.com")),
+                Path(environ.get("FDOS_COUNTRY_SYS", "../fdos/country.git/country.sys")),
             ]
             for f in cls.files_to_copy:
                 if not f.is_file():
@@ -227,6 +231,7 @@ def msdos622(baseclass, actions):
                 ("msdos.sys", "d6a5f54006e69c4407e56677cd77b82395acb60a"),
                 ("command.com", "c2179d2abfa241edd388ab875cfabbac89fec44d"),
                 ("share.exe", "9e7385cfa91a012638520e89b9884e4ce616d131"),
+                ("country.sys", "8a4683aaae018d3e42e58c5ebcb2fe1f10092441"),
                 ("dos/himem.sys", "fb41fbc1c4bdd8652d445055508bc8265bc64aea"),
             ]
             cls.systype = SYSTYPE_MSDOS_INTERMEDIATE
@@ -278,6 +283,7 @@ def msdos700(baseclass, actions):
                 ("msdos.sys", "f5d01c68d518f4b8b2482d3815af8bb88003831d"),
                 ("command.com", "67696207c3963a0dc9afab8cf37dbdb966c1f663"),
                 ("share.exe", "67d6524f7d700147013365e1656e93c842b9af07"),
+                ("country.sys", "5f2d0c6e51cdc318c50ff48893b3706e024ea528"),
                 ("dos/himem.sys", "837993a3ec3edec102de9ab78a39ae049007d991"),
                 ("fx-video.com", "fb75a6605c40787e805022b36328a050712ddd1d"),  # Fix the Video mode byte for `dosemu -td`
             ]
@@ -326,17 +332,18 @@ Logo=0
 def msdos710(baseclass, actions):
 
     class MSDOS710TestCase(baseclass, unittest.TestCase):
-        # badged CDU (Chinese DOS Union) at winworldpc.com
+        # Microsoft Windows 95B (4.00.1111) (OSR2) [English] (CD) at winworldpc.com
 
         @classmethod
         def setUpClass(cls):
             super().setUpClass()
-            cls.version = "MS-DOS 7.1 [Version 7.10.1999]"
+            cls.version = "Windows 95. [Version 4.00.1111]"
             cls.prettyname = "MS-DOS-7.10"
             cls.files = [
                 ("io.sys", "8c586b1bf38fc2042f2383ca873283a466be2f44"),
                 ("msdos.sys", "cd1e6103ce9cdebbc7a5611df13ff4fbd5e2159c"),
-                ("command.com", "f6547d81e625a784633c059e536e90ee45532202"),
+                ("command.com", "c5b31c5040c320f896c38e406ce5af31775bd84a"),
+                ("country.sys", "5f2d0c6e51cdc318c50ff48893b3706e024ea528"),
                 ("dos/himem.sys", "e8a890c90520583bd00eadccce9d0d88b3b5b232"),
             ]
             cls.systype = SYSTYPE_MSDOS_NEW
