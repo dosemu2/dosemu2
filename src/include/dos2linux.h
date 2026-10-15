@@ -411,4 +411,7 @@ void set_exit_after_load(void);
 void set_boot_cls(void);
 void set_boot_showwin(void);
 
+const char *config_get_kernel_cmdline(void);
+void store_kernel_cmdline(const char *var);
+
 #endif /* DOS2LINUX_H */

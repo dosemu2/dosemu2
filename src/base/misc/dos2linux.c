@@ -184,6 +184,21 @@ void misc_e6_store_options(const char *str)
   g_printf ("Storing Options : %s\n", misc_dos_options);
 }
 
+/* :NAME=value on the command line: kernel command line, not a DOS var */
+static char *kernel_cmdline;
+
+void store_kernel_cmdline(const char *var)
+{
+    free(kernel_cmdline);
+    kernel_cmdline = strdup(var);
+}
+
+const char *config_get_kernel_cmdline(void)
+{
+    if (!kernel_cmdline || strncmp(kernel_cmdline, "FDCMDLINE=", 10) != 0)
+	return NULL;
+    return strchr(kernel_cmdline, '=') + 1;
+}
 
 static int pty_fd;
 static int mfs_idx;
