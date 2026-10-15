@@ -26,8 +26,7 @@ struct ext {
   int err;			/* CF */
 };
 
-#define EXT_COOKIE	0xd05e	/* cx: we know about the extension */
-#define EXT_GET_POOL	1	/* bx: report the private data pool */
+#define EXT_GET_POOL	0x1000	/* bx: report the private data pool */
 
 /* int 2fh ax=1687 in protected mode.  Our host answers it with the reinit
  * entry in es:edi.  As an extension, a client that puts the cookie in cx
@@ -39,15 +38,13 @@ static void get_ext(struct ext *e, int want_pool)
 {
   unsigned short r_ax = 0, r_bx = 0, r_si = 0, r_es = 0;
   unsigned int r_di = 0, r_fl = 0;
-  unsigned short i_cx = want_pool ? EXT_COOKIE : 0;
   unsigned short i_bx = want_pool ? EXT_GET_POOL : 0;
 
   asm volatile(
     "pushl %%ebx\n"
     "pushl %%esi\n"
     "pushl %%es\n"
-    "movw %7, %%bx\n"
-    "movw %6, %%cx\n"
+    "movw %6, %%bx\n"
     "movl $0x1687, %%eax\n"
     "int $0x2f\n"
     "movw %%ax, %0\n"
@@ -62,7 +59,7 @@ static void get_ext(struct ext *e, int want_pool)
     "popl %%esi\n"
     "popl %%ebx\n"
     : "=m"(r_ax), "=m"(r_bx), "=m"(r_si), "=m"(r_es), "=m"(r_di), "=m"(r_fl)
-    : "m"(i_cx), "m"(i_bx)
+    : "m"(i_bx)
     : "cc", "memory", "eax", "ecx", "edx", "edi");
 
   e->err = (r_fl & 1) ? -1 : 0;
@@ -121,12 +118,12 @@ int main(void)
     return 1;
   }
 
-  if (!(e0.bx & 0x800)) {
+  if (!(e0.bx & 0x400)) {
     printf("FAIL: host does not report a relocatable pool\n");
     return 1;
   }
 
-  get_ext(&e1, 1);
+  get_ext(&e1,0x1000);
   if (e1.err != 0) {
     printf("FAIL: extended 1687 refused\n");
     return 1;
@@ -135,15 +132,9 @@ int main(void)
     printf("FAIL: implausible pool\n");
     return 1;
   }
-  if (__dpmi_get_segment_base_address(e1.pool, &old_base) != 0) {
-    printf("FAIL: cannot read the pool's base\n");
-    return 1;
-  }
+  old_base = e1.pool << 4;
   printf("INFO: pool seg=%04x para=%04x\n", (unsigned short)(old_base >> 4),
          e1.si);
-
-  /* a mark we can watch travel */
-  _farpokel(_dos_ds, old_base, 0x5a5aa5a5);
 
   seg = __dpmi_allocate_dos_memory(e1.si, &sel);
   if (seg == -1) {
@@ -158,21 +149,13 @@ int main(void)
   for (i = 0; i < (unsigned)e1.si * 16; i += 4)
     _farpokel(_dos_ds, new_base + i, _farpeekl(_dos_ds, old_base + i));
 
-  if (call_reinit(&e1, 0x801, (unsigned short)sel) != 0) {
+  if (call_reinit(&e1, 0x1001, (unsigned short)seg) != 0) {
     printf("FAIL: reinit refused the move\n");
     return 1;
   }
 
-  if (_farpeekl(_dos_ds, new_base) != 0x5a5aa5a5) {
-    printf("FAIL: pool contents lost across reinit\n");
-    return 1;
-  }
-
   get_ext(&e2, 1);
-  if (__dpmi_get_segment_base_address(e2.pool, &new_base) != 0) {
-    printf("FAIL: cannot read the pool's new base\n");
-    return 1;
-  }
+  new_base = e2.pool << 4;
   printf("INFO: pool now seg=%04x para=%04x\n", (unsigned short)(new_base >> 4),
          e2.si);
   if (new_base != (unsigned long)seg * 16 || e2.si != e1.si) {

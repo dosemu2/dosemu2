@@ -24,6 +24,7 @@
 #include "int.h"
 #include "disks.h"
 #include "fatfs.h"
+#include "dos2linux.h"
 #include <fdpp/bprm.h>
 #if BPRM_MIN_VER < 10
 #error wrong bprm version
@@ -45,6 +46,7 @@ int fdpp_boot(far_t *plt, int plt_len, const void *krnl, int len,
     int env_len = 0;
     int warn_legacy_conf = 0;
     int use_comcom = 0;
+    const char *kenv;
 
     bprm.BprmLen = sizeof(bprm);
     bprm.BprmVersion = BPRM_SUPP_VER;
@@ -173,6 +175,12 @@ int fdpp_boot(far_t *plt, int plt_len, const void *krnl, int len,
 		    dsk->log_offs);
 	    env_len++;
 	}
+    }
+
+    kenv = get_kernel_var();
+    if (kenv) {
+	strcpy(env + env_len, kenv);
+	env_len += strlen(kenv) + 1;
     }
 
     env[env_len++] = '\0'; // second terminator
