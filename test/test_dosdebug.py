@@ -164,6 +164,34 @@ msg:
 """
 
 # 'stopped' reports and the 'r' dump name the instruction pointer like this
+# The watchpoint is a check in the CPU emulator's interpreter, so the client
+# has to be run by it.
+SIM_CONF = DOSEMU_CONF_DEFAULT + """\
+$_cpu_vm = "emulated"
+$_cpu_vm_dpmi = "emulated"
+$_cpuemu = (1)
+"""
+
+# writes one byte at 0000:0500, in the scratch area nobody else is using
+# while this runs
+WRITER_ASM = r"""
+	cpu 386
+	org 100h
+	bits 16
+start:
+	xor ax, ax
+	mov ds, ax
+	mov byte [0500h], 5ah
+	push cs
+	pop ds
+	mov dx, msg
+	mov ah, 9
+	int 21h
+	mov ax, 4C00h
+	int 21h
+msg:	db "WRITER OK",13,10,'$'
+"""
+
 RE_CSIP_RM = re.compile(r"CS:IP=([0-9a-f]{4}):([0-9a-f]{4})")
 RE_CSIP_PM = re.compile(r"CS:EIP= ([0-9a-f]{4}):([0-9a-f]{8})")
 
@@ -764,6 +792,32 @@ class OurTestCase(BaseTestCase):
                          "the breakpoint stopped somewhere else: " + steps[5])
         # and the client is itself again once the breakpoint is gone
         self.assertIn("PMINT OK", screen)
+
+    def test_dosdebug_bpw_sim(self):
+        """Dosdebug watchpoint under the interpreter"""
+
+        self.mkbat_testit("writer")
+        self.mkcom_with_nasm("writer", WRITER_ASM)
+
+        def body(args):
+            out = self.dbgCmd("bpw 0000:0500")
+            out += self.dbgCmd("bpw")
+            # the program runs, writes, and the watchpoint stops it
+            out += self.dbgCmd("g", settle=2, limit=30)
+            return out
+
+        results = self.runWithDosdebug("testit.bat", body, config=SIM_CONF,
+                                       timeout=60)
+
+        self.assertIn("Watchpoint 0 set at 00000500, 1 byte", results)
+        self.assertRegex(results, r"(?m)^0: 00000500 1$")
+        # 104 is the mov in WRITER_ASM: org 100h, two 2-byte insns before it
+        self.assertRegex(results, r"watchpoint 0: 00000500 written from "
+                                  r"eip 104, 00000500 now holds 5a, "
+                                  r"held [0-9a-f]{2}")
+        # and the client is still alive after being let go
+        screen = self.logfiles['xpt'][0].read_bytes().decode('ASCII', 'replace')
+        self.assertIn("WRITER OK", screen)
 
 # The DOS variants we want get included here
 FRDOS130TestCase = frdos130(OurTestCase, {})
