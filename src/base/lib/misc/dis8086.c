@@ -77,6 +77,7 @@ Any comments/updates/bug reports to:
 #define INLINE static inline
 #undef REG
 static int disasunix;
+static int disas64;
 static inline unsigned char mem_readb(uintptr_t x)
 {
   if (disasunix)
@@ -457,7 +458,7 @@ static char *addr_to_hex(UINT64 addr) {
   static char buffer[21];
 
 #ifdef __x86_64__
-  if (disasunix)
+  if (disas64)
     sprintf(buffer, "%lx", addr);
   else
 #endif
@@ -844,7 +845,7 @@ static void do_modrm(char subtype)
   if ((addrsize != 32) || (rm != 4))
     ua_str("%p:[");
 #ifdef __x86_64__
-  if (disasunix) {
+  if (disas64) {
     switch (rm) {
     case 0: uprintf("rax"); break;
     case 1: uprintf("rcx"); break;
@@ -1199,7 +1200,7 @@ static Bitu DasmI386(char* buffer, PhysPt pc, PhysPt cur_ip, bool bit32)
 	/* this is extremely basic and bare-bones and only
 	   meant for disassembling JIT-generated code */
 	x86_64_rex_w = 0;
-	if (disasunix && c == 0x48) {
+	if (disas64 && c == 0x48) {
 		x86_64_rex_w = 1;
 		c = getbyte();
 	}
@@ -1230,7 +1231,8 @@ int  dis_8086(uintptr_t code,
 	int rc;
 	refoff = 0;
 	disasunix = def_size & 4;
-	rc = DasmI386(outbuf, code, code - refsegbase, def_size & ~4);
+	disas64 = def_size & 8;
+	rc = DasmI386(outbuf, code, code - refsegbase, def_size & ~(4 | 8));
 	*refof = refsegbase + refoff;
 	return rc;
 }
