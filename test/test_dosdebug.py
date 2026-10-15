@@ -771,7 +771,6 @@ FRDOS130TestCase = frdos130(OurTestCase, {})
 # bpload intercepts the DOS EXEC call, and comcom32 makes that call from
 # protected mode, where the interception faults
 PPDOSGITTestCase = ppdosgit(OurTestCase, {
-    "test_dosdebug_step_rm": UNSUPPORTED,
 })
 
 if __name__ == '__main__':
