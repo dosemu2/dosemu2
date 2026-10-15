@@ -2285,10 +2285,10 @@ vga_mode_info *vga_emu_find_mode(int mode, vga_mode_info* vmi)
  *
  */
 
-static int __vga_emu_setmode(vga_mode_info *vmi, int width, int height)
+static int __vga_emu_setmode(int mode, vga_mode_info *vmi, int width,
+    int height)
 {
   int i;
-  int mode = vmi->VGA_mode;
 
   vga_msg("vga_emu_setmode: mode 0x%02x, (%d x %d x %d, %d x %d, %d x %d, %dk at 0x%04x)\n",
     mode, vmi->width, vmi->height, vmi->color_bits, vmi->text_width, vmi->text_height,
@@ -2483,17 +2483,17 @@ int vga_emu_setmode(int mode, int width, int height)
     return False;
   }
   pthread_rwlock_wrlock(&mode_mtx);
-  ret = __vga_emu_setmode(vmi, width, height);
+  ret = __vga_emu_setmode(mode, vmi, width, height);
   pthread_rwlock_unlock(&mode_mtx);
 //  render_update_vidmode();
   return ret;
 }
 
-int vga_emu_setmode_vmi(vga_mode_info *vmi, int width, int height)
+int vga_emu_setmode_vmi(int mode, vga_mode_info *vmi, int width, int height)
 {
   int ret;
   pthread_rwlock_wrlock(&mode_mtx);
-  ret = __vga_emu_setmode(vmi, width, height);
+  ret = __vga_emu_setmode(mode, vmi, width, height);
   pthread_rwlock_unlock(&mode_mtx);
   return ret;
 }
