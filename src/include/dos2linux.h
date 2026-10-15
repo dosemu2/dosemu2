@@ -413,5 +413,6 @@ void set_boot_showwin(void);
 
 const char *config_get_kernel_cmdline(void);
 void store_kernel_cmdline(const char *var);
+const char *get_kernel_var(void);
 
 #endif /* DOS2LINUX_H */

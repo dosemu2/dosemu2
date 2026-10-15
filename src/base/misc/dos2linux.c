@@ -200,6 +200,11 @@ const char *config_get_kernel_cmdline(void)
     return strchr(kernel_cmdline, '=') + 1;
 }
 
+const char *get_kernel_var(void)
+{
+    return kernel_cmdline;
+}
+
 static int pty_fd;
 static int mfs_idx;
 static int cbrk;
