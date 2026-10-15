@@ -62,6 +62,7 @@
 #include "dos2linux.h"
 #include "coopth.h"
 #include "kvm.h"
+#include "mapping/mapping.h"
 #include "Asm/ldt.h"
 #ifdef X86_EMULATOR
 #include "cpu-emu.h"
@@ -972,6 +973,46 @@ static void mhp_tracec(int argc, char *argv[])
   loopbuf[idx++] = '\0';
 }
 
+#define MAX_INSN_LEN 15	/* as long as an x86 instruction can be */
+
+/* A host address is read through a bare pointer, so one that is not mapped
+ * faults inside dosemu and its own handler takes the whole process down.
+ * dosemu knows what it has mapped, so ask it rather than the address. */
+static int unix_is_readable(uintptr_t addr, unsigned int len)
+{
+  dosaddr_t da;
+
+  if (!len || addr + len < addr)
+    return 0;
+  if (!mapping_is_mapped((void *)addr) ||
+      !mapping_is_mapped((void *)(addr + len - 1)))
+    return 0;
+  /* inside a mapping the pages of a DPMI block can still be absent */
+  da = DOSADDR_REL((unsigned char *)addr);
+  if (da > LOWMEM_SIZE + HMASIZE && !dpmi_is_valid_range(da, len))
+    return 0;
+  return 1;
+}
+
+/* In unix32 an address with no segment is one in dosemu's own space, and on
+ * a 64bit host that does not fit the 32 bits of the dosaddr_t mhp_getadr
+ * hands back - every address 'ldt' prints is above 4G.  Take it again here,
+ * in full.  Anything else, a symbol or a segmented address, is left to
+ * mhp_getadr as before. */
+static int unix_getadr(const char *a, uintptr_t *v)
+{
+  unsigned long ul;
+  char buf[32];
+
+  if (linmode != 2 || strchr(a, ':'))
+    return 0;
+  snprintf(buf, sizeof(buf), "%s", a);
+  if (!getval_ul(buf, 16, &ul))
+    return 0;
+  *v = ul;
+  return 1;
+}
+
 static void mhp_dump(int argc, char *argv[])
 {
   static char lastd[32];
@@ -980,30 +1021,36 @@ static void mhp_dump(int argc, char *argv[])
   dosaddr_t seekval;
   int i, i2;
   unsigned int buf = 0;
+  uintptr_t ubuf = 0;
   unsigned int seg;
   unsigned int off;
   unsigned int limit;
   int data32 = 0;
   int unixaddr;
   unsigned char c;
+  char *adr;
   int in_dpmi = addr_in_dpmi();
 
   if (argc > 1) {
-    if (!mhp_getadr(argv[1], &seekval, &seg, &off, &limit, in_dpmi)) {
-      mhp_printf("Invalid ADDR\n");
-      return;
-    }
-    snprintf(lastd, sizeof(lastd), "%s", argv[1]);
+    adr = argv[1];
   } else {
     if (!strlen(lastd)) {
       mhp_printf("No previous \'d\' command\n");
       return;
     }
-    if (!mhp_getadr(lastd, &seekval, &seg, &off, &limit, in_dpmi)) {
-      mhp_printf("Invalid ADDR\n");
-      return;
-    }
+    adr = lastd;
   }
+  unixaddr = unix_getadr(adr, &ubuf);
+  if (unixaddr) {
+    seekval = ubuf;
+    seg = off = 0;
+    limit = 0xFFFFFFFF;
+  } else if (!mhp_getadr(adr, &seekval, &seg, &off, &limit, in_dpmi)) {
+    mhp_printf("Invalid ADDR\n");
+    return;
+  }
+  if (argc > 1)
+    snprintf(lastd, sizeof(lastd), "%s", argv[1]);
   buf = seekval;
 
   if (argc > 2) {
@@ -1022,7 +1069,10 @@ static void mhp_dump(int argc, char *argv[])
 #endif
   if (in_dpmi && seg)
     data32 = dpmi_segment_is32(seg);
-  unixaddr = linmode == 2 && seg == 0 && limit == 0xFFFFFFFF;
+  if (unixaddr && !unix_is_readable(ubuf, nbytes)) {
+    mhp_printf("%#lx is not mapped in dosemu\n", (unsigned long)ubuf);
+    return;
+  }
   for (i = 0; i < nbytes; i++) {
     if ((i & 0x0f) == 0x00) {
       if (seg != 0 || limit != 0xFFFFFFFF) {
@@ -1031,12 +1081,12 @@ static void mhp_dump(int argc, char *argv[])
         else
           mhp_printf("%s%04x:%04x ", in_dpmi ? "#" : "", seg, off + i);
       } else if (unixaddr)
-        mhp_printf("%#08x ", seekval + i);
+        mhp_printf("%#014lx ", (unsigned long)(ubuf + i));
       else
         mhp_printf("%08X ", seekval + i);
     }
     if (unixaddr)
-      c = UNIX_READ_BYTE((uintptr_t)buf + i);
+      c = UNIX_READ_BYTE(ubuf + i);
     else
       c = READ_BYTE(buf + i);
     mhp_printf("%02X ", c);
@@ -1044,7 +1094,7 @@ static void mhp_dump(int argc, char *argv[])
       mhp_printf(" ");
       for (i2 = i - 15; i2 <= i; i2++) {
         if (unixaddr)
-          c = UNIX_READ_BYTE((uintptr_t)buf + i2);
+          c = UNIX_READ_BYTE(ubuf + i2);
         else
           c = READ_BYTE(buf + i2);
         c &= 0x7F;
@@ -1065,7 +1115,7 @@ static void mhp_dump(int argc, char *argv[])
       snprintf(lastd, sizeof(lastd), "%x:%x", seg, off + i);
     }
   } else if (unixaddr) {
-    snprintf(lastd, sizeof(lastd), "%#x", seekval + i);
+    snprintf(lastd, sizeof(lastd), "%#lx", (unsigned long)(ubuf + i));
   } else {
     snprintf(lastd, sizeof(lastd), "%x", seekval + i);
   }
@@ -1689,6 +1739,8 @@ static void mhp_disasm(int argc, char *argv[])
   unsigned int bytesdone;
   int i;
   unsigned int buf = 0;
+  uintptr_t ubuf = 0;
+  uintptr_t uorg;
   char bytebuf[IBUFS];
   char frmtbuf[IBUFS];
   unsigned int seg;
@@ -1697,25 +1749,31 @@ static void mhp_disasm(int argc, char *argv[])
   unsigned int ref;
   unsigned int limit;
   int segmented = (linmode == 0);
+  int unixaddr;
+  char *adr;
   const char *s;
   int in_dpmi = addr_in_dpmi();
 
   if (argc > 1) {
-    if (!mhp_getadr(argv[1], &seekval, &seg, &off, &limit, in_dpmi)) {
-      mhp_printf("Invalid ADDR\n");
-      return;
-    }
-    snprintf(lastu, sizeof(lastu), "%s", argv[1]);
+    adr = argv[1];
   } else {
     if (!strlen(lastu)) {
       mhp_printf("No previous \'u\' command\n");
       return;
     }
-    if (!mhp_getadr(lastu, &seekval, &seg, &off, &limit, in_dpmi)) {
-      mhp_printf("Invalid ADDR\n");
-      return;
-    }
+    adr = lastu;
   }
+  unixaddr = unix_getadr(adr, &ubuf);
+  if (unixaddr) {
+    seekval = ubuf;
+    seg = off = 0;
+    limit = 0xFFFFFFFF;
+  } else if (!mhp_getadr(adr, &seekval, &seg, &off, &limit, in_dpmi)) {
+    mhp_printf("Invalid ADDR\n");
+    return;
+  }
+  if (argc > 1)
+    snprintf(lastu, sizeof(lastu), "%s", argv[1]);
 
   if (argc > 2) {
     if (!getval_ui(argv[2], 0, &nbytes) || nbytes == 0 || nbytes > 256) {
@@ -1735,6 +1793,8 @@ static void mhp_disasm(int argc, char *argv[])
   if (in_dpmi) {
     def_size = (dpmi_segment_is32(seg) ? 3 : 0);
     segmented = 1;
+  } else if (unixaddr) {
+    def_size = 3;		/* dosemu's own code, so 32bit */
   } else {
     if (seekval < (a20 ? 0x10fff0 : 0x100000))
       def_size = (linmode ? 3 : 0);
@@ -1744,13 +1804,18 @@ static void mhp_disasm(int argc, char *argv[])
       def_size = 3;
   }
   if (linmode == 2) {
-    if (seg != 0 || limit != 0xFFFFFFFF)
-      seekval += (uintptr_t)mem_base;
+    if (!unixaddr)		/* a DOS address, seen where dosemu keeps it */
+      ubuf = (uintptr_t)mem_base + seekval;
     def_size |= 4;
+  }
+  if ((def_size & 4) && !unix_is_readable(ubuf, 1)) {
+    mhp_printf("%#lx is not mapped in dosemu\n", (unsigned long)ubuf);
+    return;
   }
   rc = 0;
   buf = seekval;
   org = codeorg ? codeorg : seekval;
+  uorg = codeorg ? codeorg : ubuf;
 
   for (bytesdone = 0; bytesdone < nbytes; bytesdone += rc) {
     dosaddr_t base_addr = GetSegmentBase(seg);
@@ -1761,12 +1826,20 @@ static void mhp_disasm(int argc, char *argv[])
     if (in_dpmi && base_addr + off + bytesdone > LOWMEM_SIZE + HMASIZE && !dpmi_is_valid_range(base_addr + off + bytesdone, 10))
       break;
     refseg = seg;
-    rc = dis_8086(buf + bytesdone, frmtbuf, def_size, &ref, (in_dpmi ? base_addr : refseg * 16));
+    /* dis8086 is given no length: it reads as far as the instruction it
+     * decodes goes, which is up to 15 bytes, so that much has to be there */
+    if ((def_size & 4) && !unix_is_readable(ubuf + bytesdone, MAX_INSN_LEN)) {
+      mhp_printf("%#014lx: <too close to the end of the mapping to decode>\n",
+                 (unsigned long)(uorg + bytesdone));
+      break;
+    }
+    rc = dis_8086((def_size & 4) ? ubuf + bytesdone : buf + bytesdone, frmtbuf,
+                  def_size, &ref, (in_dpmi ? base_addr : refseg * 16));
     if (bytesdone + rc > 256)
       break;
     for (i = 0; i < rc; i++) {
       if (def_size & 4)
-        sprintf(&bytebuf[i * 2], "%02X", UNIX_READ_BYTE((uintptr_t)buf + bytesdone + i));
+        sprintf(&bytebuf[i * 2], "%02X", UNIX_READ_BYTE(ubuf + bytesdone + i));
       else
         sprintf(&bytebuf[i * 2], "%02X", READ_BYTE(buf + bytesdone + i));
       bytebuf[(i * 2) + 2] = 0x00;
@@ -1789,7 +1862,8 @@ static void mhp_disasm(int argc, char *argv[])
         mhp_printf("(%s)", s);
     } else {
       if (def_size & 4)
-        mhp_printf("%#08x: %-16s %s", org + bytesdone, bytebuf, frmtbuf);
+        mhp_printf("%#014lx: %-16s %s", (unsigned long)(uorg + bytesdone),
+                   bytebuf, frmtbuf);
       else
         mhp_printf("%08x: %-16s %s", org + bytesdone, bytebuf, frmtbuf);
     }
@@ -1802,6 +1876,8 @@ static void mhp_disasm(int argc, char *argv[])
     } else {
       snprintf(lastu, sizeof(lastu), "%x:%x", seg, off + bytesdone);
     }
+  } else if (unixaddr) {
+    snprintf(lastu, sizeof(lastu), "%#lx", (unsigned long)(ubuf + bytesdone));
   } else {
     snprintf(lastu, sizeof(lastu), "%x", seekval + bytesdone);
   }
