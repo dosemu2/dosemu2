@@ -36,6 +36,7 @@
 #include "emu86.h"
 #include "trees.h"
 #include "codegen-arch.h"
+#include "mhpdbg.h"
 #include "cpatch.h"
 #include "vgaemu.h"
 
@@ -243,6 +244,7 @@ void stk_16(dosaddr_t addr, Bit16u value)
 {
 	prejit_sync();
 	e_invalidate_unlocked(addr, 2);
+	mhp_watch_write(addr, 2);
 	WRITE_WORD(addr, value);
 #if PROFILE
 	CpatchStkWrites++;
@@ -253,6 +255,7 @@ void stk_32(dosaddr_t addr, Bit32u value)
 {
 	prejit_sync();
 	e_invalidate_unlocked(addr, 4);
+	mhp_watch_write(addr, 4);
 	WRITE_DWORD(addr, value);
 #if PROFILE
 	CpatchStkWrites++;
@@ -267,6 +270,7 @@ static void wri8_slow(dosaddr_t addr, Bit8u value, unsigned char *eip)
 		CpatchInvalidates++;
 #endif
 	}
+	mhp_watch_write(addr, 1);
 	WRITE_BYTE(addr, value);
 }
 
@@ -278,6 +282,7 @@ static void wri16_slow(dosaddr_t addr, Bit16u value, unsigned char *eip)
 		CpatchInvalidates++;
 #endif
 	}
+	mhp_watch_write(addr, 2);
 	WRITE_WORD(addr, value);
 }
 
@@ -289,6 +294,7 @@ static void wri32_slow(dosaddr_t addr, Bit32u value, unsigned char *eip)
 		CpatchInvalidates++;
 #endif
 	}
+	mhp_watch_write(addr, 4);
 	WRITE_DWORD(addr, value);
 }
 
