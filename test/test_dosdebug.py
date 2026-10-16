@@ -819,6 +819,44 @@ class OurTestCase(BaseTestCase):
         screen = self.logfiles['xpt'][0].read_bytes().decode('ASCII', 'replace')
         self.assertIn("WRITER OK", screen)
 
+    def test_dosdebug_long_reply_unbroken(self):
+        """Dosdebug a long reply has no blank lines in it"""
+
+        self.mkbat_testit("simple")
+        self.mkcom_with_nasm("simple", SIMPLE_ASM)
+
+        def body(args):
+            # dosemu writes a reply one line at a time, and 256 of them
+            # are more than the pipe holds at once, so this one is read
+            # in several chunks, which is where the blank lines came from
+            return self.dbgCmd("u ff10:0100 256", settle=1, limit=25)
+
+        results = self.runWithDosdebug("testit.bat", body)
+
+        lines = results.split('\n')
+        insn = [i for i, l in enumerate(lines)
+                if re.match(r"[0-9a-f]{4}:[0-9a-f]{4} [0-9A-F]{2}", l)]
+        self.assertGreater(len(insn), 200, results)
+        blank = [l for l in lines[insn[0]:insn[-1] + 1] if l.strip() == '']
+        self.assertEqual(blank, [], "blank lines inside the reply:\n" + results)
+
+    def test_dosdebug_dump_ends_its_line(self):
+        """Dosdebug a short dump row ends its line"""
+
+        self.mkbat_testit("simple")
+        self.mkcom_with_nasm("simple", SIMPLE_ASM)
+
+        def body(args):
+            # ten bytes is less than the sixteen a full row holds
+            return self.dbgCmd("d 0:0 10", settle=1, limit=15)
+
+        results = self.runWithDosdebug("testit.bat", body)
+
+        m = re.search(r"(?m)^0000:0000( [0-9A-F]{2}){10}(.*)$", results)
+        self.assertIsNotNone(m, results)
+        self.assertEqual(m.group(2).strip(), '',
+                         "the prompt is on the dump line: " + results)
+
 # The DOS variants we want get included here
 FRDOS130TestCase = frdos130(OurTestCase, {})
 

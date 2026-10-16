@@ -1065,6 +1065,8 @@ static void mhp_dump(int argc, char *argv[])
       mhp_printf("\n");
     }
   }
+  if (nbytes & 0x0f)
+    mhp_printf("\n");		/* a row of less than 16 bytes */
 
   if (segmented) {
     if ((lastd[0] == '#') || (in_dpmi)) {
