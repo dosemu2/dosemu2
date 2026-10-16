@@ -51,8 +51,15 @@ BuildRequires: glib2-devel
 BuildRequires: binutils
 # Needed to assemble and link the 16/32bit x86 stubs. Since fedora 46 this
 # is a subpackage of binutils called cross-binutils-x86_64 (rhbz#2523586),
-# which carries a Provides for the old name, so this works on both.
+# which carries a Provides for the old name, so either name works.
+# Not on an x86 host though, where the native as/ld handle 32bit anyway:
+# unlike the old package, which lived in /usr/x86_64-linux-gnu/bin, the new
+# one installs into /usr/x86_64-redhat-linux/bin, which is gcc's tooldir.
+# Gcc then picks that ld over /usr/bin/ld, and it finds no libm, breaking
+# every link with undefined references to the versioned libm symbols.
+%ifnarch %{ix86} x86_64
 BuildRequires: binutils-x86_64-linux-gnu
+%endif
 BuildRequires: pkgconf-pkg-config
 BuildRequires: fdpp-devel
 BuildRequires: djdev64-devel
