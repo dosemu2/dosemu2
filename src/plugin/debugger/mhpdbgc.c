@@ -2842,6 +2842,30 @@ static void call_cmd(const char *cmd, const struct cmd_db *cmdtab,
     }
   }
   if (!cmdproc) {
+    /* no such name: take the word for the only command it is the start of,
+     * so that 'g' still works for 'go' */
+    const struct cmd_db *match = NULL;
+    size_t len = strlen(argv1[0]);
+    int ambiguous = 0;
+
+    for (cmdp = cmdtab; len && cmdp->cmdproc; cmdp++) {
+      if (strncmp(cmdp->cmdname, argv1[0], len) != 0)
+        continue;
+      if (!match)
+        match = cmdp;
+      else if (strcmp(cmdp->cmdname, match->cmdname) != 0)
+        ambiguous = 1;
+    }
+    if (ambiguous) {
+      if (printf)
+        (*printf)("Command %s is ambiguous\n", argv1[0]);
+      free(tmpcmd);
+      return;
+    }
+    if (match)
+      cmdproc = match->cmdproc;
+  }
+  if (!cmdproc) {
     if (printf)
       (*printf)("Command %s not found\n", argv1[0]);
   } else
@@ -3360,7 +3384,7 @@ static const struct cmd_db cmdtab[] = {
   {"m",             mhp_memset},
   {"d",             mhp_dump},
   {"u",             mhp_disasm},
-  {"g",             mhp_go},
+  {"go",            mhp_go},
   {"stop",          mhp_stop},
   {"mode",          mhp_mode},
   {"t",             mhp_trace},

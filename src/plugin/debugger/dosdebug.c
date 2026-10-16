@@ -156,7 +156,7 @@ static COMMAND cmds[] = {
    "[hexnum]          display interrupt vector hexnum (default whole table)\n"},
   {"u", NULL,
    "ADDR SIZE         unassemble memory (limit 256 bytes)\n"},
-  {"g", NULL,
+  {"go", NULL,
    "                  go (if stopped)\n"},
   {"stop", NULL,
    "                  stop (if running)\n"},
@@ -237,11 +237,17 @@ static COMMAND cmds[] = {
   {NULL, NULL, NULL}
 };
 
-static COMMAND *find_cmd(char *name)
+/* A word that is no command name of its own stands for the only command it
+ * is the start of, so 'g' still works now that the command is called 'go'.
+ * A name always wins over that: 't' is single step, not an ambiguity with
+ * 'ti' and 'tc'. */
+static COMMAND *find_cmd(char *name, int *ambiguous)
 {
-  int i;
+  int i, match = -1;
   char *tmp, *p;
+  size_t len;
 
+  *ambiguous = 0;
   tmp = strdup(name);
   if (!tmp)
     return NULL;
@@ -256,8 +262,36 @@ static COMMAND *find_cmd(char *name)
       return (&cmds[i]);
     }
 
+  len = strlen(tmp);
+  for (i = 0; len && cmds[i].name; i++) {
+    if (strncmp(cmds[i].name, tmp, len) != 0)
+      continue;
+    if (match == -1) {
+      match = i;
+      continue;
+    }
+    if (strcmp(cmds[i].name, cmds[match].name) == 0)
+      continue;  /* one command, listed once per syntax */
+    *ambiguous = 1;
+    break;
+  }
+
+  if (*ambiguous) {
+    fprintf(fpconout, "Command '%s' is ambiguous:", tmp);
+    for (i = 0; cmds[i].name; i++) {
+      if (strncmp(cmds[i].name, tmp, len) != 0)
+        continue;
+      if (i > 0 && strcmp(cmds[i].name, cmds[i - 1].name) == 0)
+        continue;
+      fprintf(fpconout, " %s", cmds[i].name);
+    }
+    fputs("\n", fpconout);
+    free(tmp);
+    return NULL;
+  }
+
   free(tmp);
-  return NULL;
+  return match == -1 ? NULL : (&cmds[match]);
 }
 
 static int db_quit(char *line) {
@@ -278,6 +312,8 @@ static int db_help(char *line) {
     if (cmds[i].doc)
       fprintf(fpconout, "%-10s %s", cmds[i].name, cmds[i].doc);
   }
+  fputs("\nA command can be shortened to any prefix that fits only it,"
+        " e.g. 'g' for 'go'\n", fpconout);
 
   fflush(fpconout);
   return 1;  // done
@@ -340,6 +376,7 @@ static void handle_console_input(char *line)
   static char last_line[MHP_BUFFERSIZE];
 
   COMMAND *cmd;
+  int ambiguous;
   char *p;
 
   if (!line) { // Ctrl-D
@@ -350,9 +387,11 @@ static void handle_console_input(char *line)
   }
 
   /* Check if command valid */
-  cmd = find_cmd(line);
+  cmd = find_cmd(line, &ambiguous);
   if (!cmd) {
-    fprintf(fpconout, "Command '%s' not implemented\n", line);
+    if (!ambiguous)
+      fprintf(fpconout, "Command '%.*s' not implemented, type ? for the list\n",
+              (int)strcspn(line, " \t"), line);
     return;
   }
 
@@ -370,7 +409,7 @@ static void handle_console_input(char *line)
     p = line;      // line okay to execute
 
   } else {
-    cmd = find_cmd(last_line);
+    cmd = find_cmd(last_line, &ambiguous);
     if (!cmd) {
       last_line[0] = '\0';
       return;
