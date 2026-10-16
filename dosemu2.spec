@@ -49,7 +49,10 @@ BuildRequires: libseccomp-devel
 BuildRequires: libsearpc-devel
 BuildRequires: glib2-devel
 BuildRequires: binutils
-#BuildRequires: binutils-x86_64-linux-gnu
+# Needed to assemble and link the 16/32bit x86 stubs. Since fedora 46 this
+# is a subpackage of binutils called cross-binutils-x86_64 (rhbz#2523586),
+# which carries a Provides for the old name, so this works on both.
+BuildRequires: binutils-x86_64-linux-gnu
 BuildRequires: pkgconf-pkg-config
 BuildRequires: fdpp-devel
 BuildRequires: djdev64-devel
