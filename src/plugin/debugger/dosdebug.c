@@ -434,10 +434,8 @@ static int handle_dbg_input(int *retval)
       char *eor = memchr(buf + i, MHP_EOR, n - i);
 
       len = eor ? eor - (buf + i) : n - i;
-      if (len) {
+      if (len)
         fwrite(buf + i, 1, len, fpconout);
-        fputs("\n", fpconout);
-      }
       if (!eor)
         break;
       saw_eor = 1;
