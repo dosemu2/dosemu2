@@ -34,7 +34,7 @@
 #include "serial.h"
 #include "ser_defs.h"
 #include "timers.h"
-#include "coopth.h"
+#include "coopth_guest.h"
 
 /* The following function sets the speed of the serial port.
  * num is the index, and speed is a baudrate divisor value.

@@ -136,7 +136,7 @@
 #include "timers.h"
 #include "video.h"
 #include "lowmem.h"
-#include "coopth.h"
+#include "coopth_guest.h"
 #include "utilities.h"
 #include "dos2linux.h"
 #include "vgaemu.h"

@@ -172,7 +172,7 @@ TODO:
 #include "redirect.h"
 #include "mangle.h"
 #include "utilities.h"
-#include "coopth.h"
+#include "coopth_guest.h"
 #include "lpt.h"
 #include "share.h"
 #include "xattr.h"

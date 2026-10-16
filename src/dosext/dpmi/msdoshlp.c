@@ -30,6 +30,7 @@
 #include "hlt.h"
 #include "timers.h"
 #include "coopth.h"
+#include "coopth_guest.h"
 #include "coopth_pm.h"
 #include "dpmisel.h"
 #define RMREG(r) (rmreg->r)

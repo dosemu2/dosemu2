@@ -32,6 +32,7 @@
 #include "fatfs.h"
 #include "hlt.h"
 #include "coopth.h"
+#include "coopth_guest.h"
 #include "doshelpers.h"
 #include "utilities.h"
 #include "mhpdbg.h"

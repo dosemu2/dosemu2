@@ -22,6 +22,7 @@
 #include "pic.h"
 #include "int.h"
 #include "coopth.h"
+#include "coopth_guest.h"
 #include "speaker.h"
 #include "dosemu_config.h"
 #include "sig.h"

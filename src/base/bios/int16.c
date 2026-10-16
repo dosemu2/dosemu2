@@ -13,7 +13,7 @@
 #include "timers.h"
 #include "int.h"
 #include "memory.h"
-#include "coopth.h"
+#include "coopth_guest.h"
 #include "dos2linux.h"
 #include "keyboard/keyb_server.h"
 

@@ -7,6 +7,8 @@
 #ifndef COOPTH_BE_H
 #define COOPTH_BE_H
 
+#include "coopth_common.h"
+
 #define COOPTH_POOL_SIZE 3000
 
 #define MAX_COOP_RECUR_DEPTH 5

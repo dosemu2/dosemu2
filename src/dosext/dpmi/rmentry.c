@@ -24,7 +24,7 @@
 
 #include "dos2linux.h"
 #include "emudpmi.h"
-#include "coopth.h"
+#include "coopth_common.h"
 #include "cpu.h"
 #include "int.h"
 #include "emu.h"

@@ -24,7 +24,7 @@
 #include "misc/smalloc.h"
 #include "emudpmi.h"
 #include "dpmisel.h"
-#include "coopth.h"
+#include "coopth_guest.h"
 #include "dosemu_debug.h"
 #include "dpmi_api.h"
 

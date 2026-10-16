@@ -31,7 +31,7 @@
 #endif
 #include "libbsd/string.h" // for strlcpy
 #include "timers.h"
-#include "coopth.h"
+#include "coopth_guest.h"
 #include "debug.h"
 #include "utilities.h"
 #include "dos2linux.h"

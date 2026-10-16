@@ -12,7 +12,7 @@
 #include "vc.h"
 #include "mapping/mapping.h"
 #include "bios.h"
-#include "coopth.h"
+#include "coopth_guest.h"
 #include "vgaemu.h"
 
 static void console_update_cursor(void)

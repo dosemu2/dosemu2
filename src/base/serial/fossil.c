@@ -25,6 +25,7 @@
 #include "int.h"
 #include "port.h"
 #include "coopth.h"
+#include "coopth_guest.h"
 #include "utilities.h"
 #include "serial.h"
 #include "ser_defs.h"

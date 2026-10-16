@@ -37,6 +37,7 @@
 #include "ipx.h"                /* TRB - add support for ipx */
 #include "bitops.h"
 #include "coopth.h"
+#include "coopth_guest.h"
 #include "utilities.h"
 #ifdef X86_EMULATOR
 #include "cpu-emu.h"

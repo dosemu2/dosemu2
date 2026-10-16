@@ -33,7 +33,7 @@
 #include "vga.h"
 #include "emudpmi.h"
 #include "lowmem.h"
-#include "coopth.h"
+#include "coopth_guest.h"
 #include "vbe.h"
 #include "vesa.h"
 #include "mapping/mapping.h"

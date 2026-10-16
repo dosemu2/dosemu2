@@ -1,0 +1,45 @@
+/*
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; if not, write to the Free Software
+ *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ */
+
+/* the in-thread ("guest") half of the coopth API: what a thread body may
+ * call about itself. Every entry point here asserts
+ * _coopth_is_in_thread(), so calling one of them from the host is a bug.
+ * This is the half that goes into libd2core.so. */
+
+#ifndef COOPTH_GUEST_H
+#define COOPTH_GUEST_H
+
+#include "coopth_common.h"
+
+int coopth_yield(void);
+int coopth_wait(void);
+int coopth_sleep(void);
+int coopth_sched(void);
+int coopth_sched_cond(void);
+void coopth_detach(void);
+void coopth_attach(void);
+void coopth_exit(void);
+int coopth_add_post_handler(coopth_func_t func, void *arg);
+int coopth_set_sleep_handler(coopth_func_t func, void *arg);
+int coopth_set_cleanup_handler(coopth_func_t func, void *arg);
+void coopth_push_user_data_cur(void *udata);
+void *coopth_pop_user_data_cur(void);
+void *coopth_get_user_data_cur(void);
+void *coopth_get_udata_cur(void);
+void coopth_cancel_disable_cur(void);
+void coopth_cancel_enable_cur(void);
+
+#endif

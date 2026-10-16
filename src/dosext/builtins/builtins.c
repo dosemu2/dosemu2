@@ -34,7 +34,7 @@
 #include "int.h"
 #include "utilities.h"
 #include "lowmem.h"
-#include "coopth.h"
+#include "coopth_common.h"
 #include "misc/smalloc.h"
 #include "redirect.h"
 #include "plugin_config.h"

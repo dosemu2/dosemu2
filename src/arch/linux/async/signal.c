@@ -26,6 +26,7 @@
 #include "int.h"
 #include "lowmem.h"
 #include "coopth.h"
+#include "coopth_guest.h"
 #include "emudpmi.h"
 #include "iodev.h"
 #include "debug.h"

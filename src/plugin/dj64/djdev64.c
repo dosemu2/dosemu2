@@ -27,6 +27,7 @@
 #include "emudpmi.h"
 #include "msdoshlp.h"
 #include "coopth.h"
+#include "coopth_guest.h"
 #include "coopth_pm.h"
 #include "hlt.h"
 #include "dos2linux.h"

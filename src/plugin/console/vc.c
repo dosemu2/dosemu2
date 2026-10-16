@@ -44,6 +44,7 @@
 #include "bios.h"
 #include "port.h"
 #include "coopth.h"
+#include "coopth_guest.h"
 #include "video.h"
 #include "vc.h"
 #include "vga.h"

@@ -39,6 +39,7 @@
 #include "utilities.h"
 #include "libpcl/pcl.h"
 #include "coopth.h"
+#include "coopth_guest.h"
 #include "coopth_be.h"
 
 enum CoopthRet { COOPTH_YIELD, COOPTH_WAIT, COOPTH_SLEEP, COOPTH_SCHED,

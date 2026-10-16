@@ -16,6 +16,7 @@
 #include "init.h"
 #include "int.h"
 #include "coopth.h"
+#include "coopth_guest.h"
 #include "port.h"
 #include "memory.h"
 #include "video.h"

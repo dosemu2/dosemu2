@@ -59,6 +59,7 @@
 #include "vgaemu.h"
 #include "hlt.h"
 #include "coopth.h"
+#include "coopth_guest.h"
 #include "mhpdbg.h"
 #include "ipx.h"
 #ifdef X86_EMULATOR
