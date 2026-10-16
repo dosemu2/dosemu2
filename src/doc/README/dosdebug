@@ -402,6 +402,32 @@ the mode that was when you defined the breakpoint.
 </para>
 </listitem></varlistentry>
 <varlistentry>
+<term>bpw [ADDR [n]]</term>
+<listitem>
+<para>
+     Stop after the client writes the n bytes (1 by default) at ADDR, or
+list the watchpoints if given nothing.  Only the CPU emulator's interpreter
+($_cpuemu = (1)) reports the writes a watchpoint is made of, so bpw refuses
+to set one while something else runs the client.
+</para>
+
+<para>
+A write dosemu itself makes into the client's memory, which is how most of
+what DOS does for the client reaches it, goes nowhere near the emulator and
+is not seen.  An instruction cannot be stopped halfway either, so the write
+has already happened by the time the report arrives, and the registers
+printed with it are not the writing instruction's; the report names its eip
+instead.
+</para>
+</listitem></varlistentry>
+<varlistentry>
+<term>bcw [No.]</term>
+<listitem>
+<para>
+     Clear a watchpoint, or all of them if given nothing.
+</para>
+</listitem></varlistentry>
+<varlistentry>
 <term>bpint xx</term>
 <listitem>
 <para>

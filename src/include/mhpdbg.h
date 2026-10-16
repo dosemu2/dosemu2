@@ -44,6 +44,23 @@ unsigned int mhp_debug(unsigned, unsigned int, unsigned int);
 void mhp_send(void);
 void mhp_close(void);
 void mhp_clear_all_bp(void);
+void mhp_watch_poll(void);
+void mhp_watch_clr(void);
+/* Reports a write the CPU emulator's interpreter makes for the client;
+ * returns whether it hit a watchpoint, as finding out which instruction
+ * the interpreter is on is too slow to do for every write. */
+#ifdef USE_MHPDBG
+int mhp_watch_write(dosaddr_t addr, unsigned int len);
+void mhp_watch_pc(unsigned int pc);
+#else
+static inline int mhp_watch_write(dosaddr_t addr, unsigned int len)
+{
+  return 0;
+}
+static inline void mhp_watch_pc(unsigned int pc)
+{
+}
+#endif
 void mhp_printf(const char *, ...) FORMAT(printf, 1, 2);
 int mhp_getaxlist_value(int v, int mask);
 int mhp_getcsip_value(void);

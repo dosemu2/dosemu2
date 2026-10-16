@@ -70,6 +70,7 @@
 #include "msdoshlp.h"
 #include "codegen.h"
 #include "codegen-sim.h"
+#include "mhpdbg.h"
 
 #undef	DEBUG_MORE
 
@@ -2849,23 +2850,35 @@ uint64_t sim_read_qword(dosaddr_t x)
 	return do_read_qword(x, emu_pagefault_handler);
 }
 
+/* FindPC() walks the tree of translated code, so it is only asked once a
+ * watchpoint has something to report. */
+static void sim_watch(dosaddr_t addr, unsigned int len)
+{
+	if (mhp_watch_write(addr, len) && currentIG)
+		mhp_watch_pc(FindPC(currentIG) - LONG_CS);
+}
+
 void sim_write_byte(dosaddr_t x, uint8_t y)
 {
+	sim_watch(x, 1);
 	do_write_byte(x, y, emu_pagefault_handler);
 }
 
 void sim_write_word(dosaddr_t x, uint16_t y)
 {
+	sim_watch(x, 2);
 	do_write_word(x, y, emu_pagefault_handler);
 }
 
 void sim_write_dword(dosaddr_t x, uint32_t y)
 {
+	sim_watch(x, 4);
 	do_write_dword(x, y, emu_pagefault_handler);
 }
 
 void sim_write_qword(dosaddr_t x, uint64_t y)
 {
+	sim_watch(x, 8);
 	do_write_qword(x, y, emu_pagefault_handler);
 }
 

@@ -2054,6 +2054,187 @@ static int bp_exists(unsigned int seekval)
   return 0;
 }
 
+/* Write watchpoints.
+ *
+ * Every write the CPU emulator's interpreter makes for the client goes
+ * through sim_write_*() in codegen-sim.c, so a watch is a check in there
+ * and needs nothing else: no page protection, and no limit on where in
+ * the client's memory it can sit.
+ *
+ * What the jit writes from compiled code is not seen, and neither is what
+ * dosemu itself writes into the client's memory on its behalf, so bpw
+ * refuses to arm unless the interpreter is what runs the client.
+ *
+ * An instruction cannot be stopped halfway, so the write is let through
+ * and reported at the next poll, with the bytes as they were before it.
+ */
+#define MAXWP 4
+#define WP_SHOW 8		/* bytes of a watch to print */
+
+static struct {
+  dosaddr_t addr;
+  unsigned int len;
+  int is_valid;
+} wptab[MAXWP];
+
+static int wp_num;		/* valid entries, tested on every write */
+
+static struct {
+  int num;			/* the watch that was hit, -1 for none */
+  dosaddr_t addr;		/* the first watched byte it wrote */
+  unsigned int pc;		/* the writing instruction, 0 if unknown */
+  unsigned int olen;
+  unsigned char old[WP_SHOW];
+} wp_hit = { .num = -1 };
+
+/* The interpreter runs the client in the mode the debugger is looking at. */
+static int wp_can_watch(void)
+{
+#ifdef X86_EMULATOR
+  return config.cpusim && (dbg_in_dpmi() ? EMU_DPMI() : EMU_V86());
+#else
+  return 0;
+#endif
+}
+
+/* Called from the interpreter with the write still to come, so the bytes
+ * read here are the ones it is about to overwrite. */
+int mhp_watch_write(dosaddr_t addr, unsigned int len)
+{
+  unsigned int i;
+  int num;
+
+  if (!wp_num || wp_hit.num != -1)
+    return 0;
+  for (num = 0; num < MAXWP; num++) {
+    if (wptab[num].is_valid && addr < wptab[num].addr + wptab[num].len &&
+        addr + len > wptab[num].addr)
+      break;
+  }
+  if (num == MAXWP)
+    return 0;
+
+  wp_hit.num = num;
+  wp_hit.addr = _max(addr, wptab[num].addr);
+  wp_hit.pc = 0;
+  wp_hit.olen = _min(wptab[num].len, (unsigned int)WP_SHOW);
+  for (i = 0; i < wp_hit.olen; i++)
+    wp_hit.old[i] = READ_BYTE(wptab[num].addr + i);
+  return 1;
+}
+
+/* the caller's answer to mhp_watch_write() returning 1 */
+void mhp_watch_pc(unsigned int pc)
+{
+  wp_hit.pc = pc;
+}
+
+/* called from mhp_poll(), with the write already done */
+void mhp_watch_poll(void)
+{
+  unsigned int i;
+  int num = wp_hit.num;
+
+  if (num == -1)
+    return;
+  mhp_printf("\nwatchpoint %d: %08x written", num, wp_hit.addr);
+  if (wp_hit.pc)
+    mhp_printf(" from eip %x", wp_hit.pc);
+  mhp_printf(", %08x now holds", wptab[num].addr);
+  for (i = 0; i < wp_hit.olen; i++)
+    mhp_printf(" %02x", READ_BYTE(wptab[num].addr + i));
+  mhp_printf(", held");
+  for (i = 0; i < wp_hit.olen; i++)
+    mhp_printf(" %02x", wp_hit.old[i]);
+  /* said because the registers printed next are not the writing
+   * instruction's: it has finished by the time this is read */
+  mhp_printf("\nstopped after the write, not on it\n");
+  wp_hit.num = -1;
+  mhpdbgc.want_to_stop = 1;
+}
+
+/* the debugger terminal is going away */
+void mhp_watch_clr(void)
+{
+  int i;
+
+  for (i = 0; i < MAXWP; i++)
+    wptab[i].is_valid = 0;
+  wp_num = 0;
+  wp_hit.num = -1;
+}
+
+static void mhp_bpw(int argc, char *argv[])
+{
+  dosaddr_t seekval;
+  unsigned int seg, off, limit, len = 1;
+  int i;
+
+  if (argc < 2) {
+    mhp_printf("Watchpoints:\n");
+    for (i = 0; i < MAXWP; i++) {
+      if (wptab[i].is_valid)
+        mhp_printf("%d: %08x %u\n", i, wptab[i].addr, wptab[i].len);
+    }
+    return;
+  }
+  if (!check_for_stopped())
+    return;
+  if (!wp_can_watch()) {
+    mhp_printf("Only the CPU emulator's interpreter ($_cpuemu = (1)) reports"
+               " its writes, and it does not run the client here\n");
+    return;
+  }
+  if (!mhp_getadr(argv[1], &seekval, &seg, &off, &limit, addr_in_dpmi())) {
+    mhp_printf("Invalid ADDR\n");
+    return;
+  }
+  if (argc > 2 && (!getval_ui(argv[2], 0, &len) || !len)) {
+    mhp_printf("Invalid size '%s'\n", argv[2]);
+    return;
+  }
+  if (len > WP_SHOW)
+    len = WP_SHOW;
+  for (i = 0; i < MAXWP; i++) {
+    if (!wptab[i].is_valid) {
+      wptab[i].addr = seekval;
+      wptab[i].len = len;
+      wptab[i].is_valid = 1;
+      wp_num++;
+      mhp_printf("Watchpoint %d set at %08x, %u byte%s\n", i, seekval, len,
+                 len == 1 ? "" : "s");
+      mhp_printf("not seen: what dosemu writes into this memory for the"
+                 " client\n");
+      return;
+    }
+  }
+  mhp_printf("Watchpoint table full, nothing done\n");
+}
+
+static void mhp_bcw(int argc, char *argv[])
+{
+  unsigned int num;
+
+  if (!wp_num) {
+    mhp_printf("No watchpoints set\n");
+    return;
+  }
+  if (argc < 2) {
+    mhp_watch_clr();
+    mhp_printf("All watchpoints cleared\n");
+    return;
+  }
+  if (!getval_ui(argv[1], 0, &num) || num >= MAXWP || !wptab[num].is_valid) {
+    mhp_printf("Invalid watchpoint number\n");
+    return;
+  }
+  wptab[num].is_valid = 0;
+  wp_num--;
+  if (wp_hit.num == (int)num)
+    wp_hit.num = -1;
+  mhp_printf("Watchpoint %u cleared\n", num);
+}
+
 int mhp_setbp(unsigned int seekval)
 {
   int i1;
@@ -2100,6 +2281,7 @@ void mhp_clear_all_bp(void)
   int i1;
 
   mhp_bpclr();
+  mhp_watch_clr();
   trapped_bp = -1;
   trace_bp = 0;
   for (i1 = 0; i1 < MAXBP; i1++) {
@@ -3178,6 +3360,8 @@ static const struct cmd_db cmdtab[] = {
   {"tc",            mhp_tracec},
   {"r32",           mhp_regs32},
   {"bp",            mhp_bp},
+  {"bpw",           mhp_bpw},
+  {"bcw",           mhp_bcw},
   {"bc",            mhp_bc},
   {"bl",            mhp_bl},
   {"bpint",         mhp_bpint},
