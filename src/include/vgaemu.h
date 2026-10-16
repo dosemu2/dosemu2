@@ -440,6 +440,7 @@ typedef struct {
   int pixel_size;			/* bits / pixel (including reserved bits) */
   int buffer_seg;			/* segment for banked modes */
   int display_start;			/* offset for the 1st pixel */
+  int pel_pan;				/* and the fine part of it, in pixels */
   int power_state;			/* display power state (cf. VBE functions) */
   int color_modified;			/* set if some palette/dac data have been changed */
   int inst_emu;				/* set if we emulate vga accesses, see vgaemu.c */
