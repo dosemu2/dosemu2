@@ -125,6 +125,7 @@ void mhpdbg_trace_init(void);
 
 struct brkentry {
   unsigned int brkaddr;
+  char origin[32];	/* address as the user typed it, for 'bl' */
   unsigned char opcode;
   char is_dpmi;
   char is_valid;

@@ -571,6 +571,32 @@ class OurTestCase(BaseTestCase):
         self.assertRegex(results, r"insn .*CD21", results)
         self.assertRegex(results, r"t [0-9a-f]{4}:0107", results)
 
+    def test_dosdebug_bl_shows_bp_origin(self):
+        """Dosdebug bl shows a breakpoint's address as it was typed"""
+
+        self.mkbat_testit("simple")
+        self.mkcom_with_nasm("simple", SIMPLE_ASM)
+
+        def body(args):
+            self.dbgCmd("bpload")
+            self.dbgchild.sendline("g")
+            self.dbgchild.expect(["bpload: INT3 caught at"], timeout=40)
+            self.dbgRead(1.0)
+
+            seg, off, _ = self.dbgRegs(pm=False)
+            want = "%04x:0105" % seg
+            self.dbgCmd("bp " + want)
+            return "want=%s bl=%s" % (want, self.dbgCmd("bl"))
+
+        results = self.runWithDosdebug("testit.bat", body)
+
+        want = re.search(r"want=(\S+)", results).group(1)
+        # "<n>: <linear address>, <address as typed>"; bpload has one
+        # of its own, which was not typed and is listed without it
+        self.assertRegex(results,
+                         r"(?m)^\s*\d+: [0-9a-f]{8}, " + re.escape(want) + "$",
+                         results)
+
     def test_dosdebug_ldt(self):
         """Dosdebug ldt line count"""
 

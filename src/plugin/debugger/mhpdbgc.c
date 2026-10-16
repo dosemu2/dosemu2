@@ -2245,7 +2245,7 @@ static void mhp_bcw(int argc, char *argv[])
   mhp_printf("Watchpoint %u cleared\n", num);
 }
 
-int mhp_setbp(unsigned int seekval)
+static int setbp(unsigned int seekval, const char *origin)
 {
   int i1;
 
@@ -2262,11 +2262,18 @@ int mhp_setbp(unsigned int seekval)
       mhpdbgc.brktab[i1].brkaddr = seekval;
       mhpdbgc.brktab[i1].is_valid = 1;
       mhpdbgc.brktab[i1].is_dpmi = dbg_in_dpmi();
+      snprintf(mhpdbgc.brktab[i1].origin, sizeof(mhpdbgc.brktab[i1].origin),
+               "%s", origin ? origin : "");
       return 1;
     }
   }
   mhp_printf("Breakpoint table full, nothing done\n");
   return 0;
+}
+
+int mhp_setbp(unsigned int seekval)
+{
+  return setbp(seekval, NULL);
 }
 
 int mhp_clearbp(unsigned int seekval)
@@ -2306,6 +2313,7 @@ static void mhp_bp(int argc, char *argv[])
   unsigned int seg;
   unsigned int off;
   unsigned int limit;
+  char origin[sizeof(mhpdbgc.brktab[0].origin)];
 
   if (!check_for_stopped())
     return;
@@ -2315,12 +2323,14 @@ static void mhp_bp(int argc, char *argv[])
     return;
   }
 
+  /* mhp_getadr() cuts the string at the colon */
+  snprintf(origin, sizeof(origin), "%s", argv[1]);
   if (!mhp_getadr(argv[1], &seekval, &seg, &off, &limit, dbg_in_dpmi())) {
     mhp_printf("Invalid ADDR\n");
     return;
   }
 
-  mhp_setbp(seekval);
+  setbp(seekval, origin);
 }
 
 static void mhp_bl(int argc, char *argv[])
@@ -2330,7 +2340,11 @@ static void mhp_bl(int argc, char *argv[])
   mhp_printf("Breakpoints:\n");
   for (i1 = 0; i1 < MAXBP; i1++) {
     if (mhpdbgc.brktab[i1].is_valid) {
-      mhp_printf("%d: %08x\n", i1, mhpdbgc.brktab[i1].brkaddr);
+      if (mhpdbgc.brktab[i1].origin[0])
+        mhp_printf("%d: %08x, %s\n", i1, mhpdbgc.brktab[i1].brkaddr,
+                   mhpdbgc.brktab[i1].origin);
+      else
+        mhp_printf("%d: %08x\n", i1, mhpdbgc.brktab[i1].brkaddr);
     }
   }
   mhp_printf("Interrupts: ");
