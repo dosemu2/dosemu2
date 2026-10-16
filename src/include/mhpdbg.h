@@ -49,9 +49,13 @@ void mhp_watch_clr(void);
 /* Reports a write the CPU emulator's interpreter makes for the client;
  * returns whether it hit a watchpoint, as finding out which instruction
  * the interpreter is on is too slow to do for every write. */
+/* Asks the CPU's debug registers whether the debug trap just taken is a
+ * watchpoint's, which is how a watch is armed where KVM runs the client.
+ * Nonzero means it was ours and the trap must not reach the client. */
 #ifdef USE_MHPDBG
 int mhp_watch_write(dosaddr_t addr, unsigned int len);
 void mhp_watch_pc(unsigned int pc);
+int mhp_watch_dr_trap(void);
 #else
 static inline int mhp_watch_write(dosaddr_t addr, unsigned int len)
 {
@@ -59,6 +63,10 @@ static inline int mhp_watch_write(dosaddr_t addr, unsigned int len)
 }
 static inline void mhp_watch_pc(unsigned int pc)
 {
+}
+static inline int mhp_watch_dr_trap(void)
+{
+  return 0;
 }
 #endif
 void mhp_printf(const char *, ...) FORMAT(printf, 1, 2);

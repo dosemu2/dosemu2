@@ -2066,17 +2066,25 @@ static int bp_exists(unsigned int seekval)
 
 /* Write watchpoints.
  *
+ * Two machines can run the client and each reports its writes its own way.
+ *
  * Every write the CPU emulator's interpreter makes for the client goes
- * through sim_write_*() in codegen-sim.c, so a watch is a check in there
- * and needs nothing else: no page protection, and no limit on where in
- * the client's memory it can sit.
+ * through sim_write_*() in codegen-sim.c, so there a watch is a check in
+ * there and needs nothing else: no page protection, and no limit on where
+ * in the client's memory it can sit.  What the jit writes from compiled
+ * code is not seen, and neither is what dosemu itself writes into the
+ * client's memory on its behalf.
  *
- * What the jit writes from compiled code is not seen, and neither is what
- * dosemu itself writes into the client's memory on its behalf, so bpw
- * refuses to arm unless the interpreter is what runs the client.
+ * Under KVM there is no such place - the client is run by the CPU itself -
+ * so the watch goes into the CPU's own debug registers.  Those are the
+ * client's hardware, so the watch survives every mode and task switch it
+ * makes, the switch to ring 0 a VCPI client does included, which is the
+ * case the emulator cannot reach at all.  The price is the hardware's
+ * terms: four watches of one, two or four bytes, each aligned on its own
+ * size.
  *
- * An instruction cannot be stopped halfway, so the write is let through
- * and reported at the next poll, with the bytes as they were before it.
+ * Neither way can stop an instruction halfway, so the write is let through
+ * and reported afterwards, with the bytes as they were before it.
  */
 #define MAXWP 4
 #define WP_SHOW 8		/* bytes of a watch to print */
@@ -2089,22 +2097,60 @@ static struct {
 
 static int wp_num;		/* valid entries, tested on every write */
 
+/* How the watches that are set now are armed.  The interpreter cannot see
+ * the debug registers and KVM does not run the interpreter's handlers, so
+ * the two do not mix: the first watch picks the way and it stands until
+ * they are all cleared. */
+enum { WP_WAY_NONE, WP_WAY_SIM, WP_WAY_DR };
+static int wp_way;
+/* said once per set of watches, not once per crossing */
+static int wp_backend_warned;
+
 static struct {
   int num;			/* the watch that was hit, -1 for none */
   dosaddr_t addr;		/* the first watched byte it wrote */
   unsigned int pc;		/* the writing instruction, 0 if unknown */
+  int pc_next;			/* ... or the one after it, from a DR trap */
   unsigned int olen;
   unsigned char old[WP_SHOW];
 } wp_hit = { .num = -1 };
 
-/* The interpreter runs the client in the mode the debugger is looking at. */
-static int wp_can_watch(void)
+/* What runs the mode the debugger is looking at. */
+static int wp_vm(void)
 {
 #ifdef X86_EMULATOR
-  return config.cpusim && (dbg_in_dpmi() ? EMU_DPMI() : EMU_V86());
+  return dbg_in_dpmi() ? _CPU_VM_DPMI() : _CPU_VM();
 #else
-  return 0;
+  return dbg_in_dpmi() ? config.cpu_vm_dpmi : config.cpu_vm;
 #endif
+}
+
+/* Which way the client can be watched where it runs now, if at all. */
+static int wp_can_watch(void)
+{
+  if (wp_vm() == CPUVM_KVM)
+    return WP_WAY_DR;
+#ifdef X86_EMULATOR
+  if (config.cpusim && (dbg_in_dpmi() ? EMU_DPMI() : EMU_V86()))
+    return WP_WAY_SIM;
+#endif
+  return WP_WAY_NONE;
+}
+
+/* The debug registers hold what is in the table, or are handed back to the
+ * client when nothing is left to watch. */
+static int wp_arm_dr(void)
+{
+  struct kvm_watchpoint wp[KVM_MAX_WATCHPOINTS] = {};
+  int i;
+
+  for (i = 0; i < MAXWP && i < KVM_MAX_WATCHPOINTS; i++) {
+    if (!wptab[i].is_valid)
+      continue;
+    wp[i].addr = wptab[i].addr;
+    wp[i].len = wptab[i].len;
+  }
+  return kvm_set_watchpoints(wp, KVM_MAX_WATCHPOINTS);
 }
 
 /* Called from the interpreter with the write still to come, so the bytes
@@ -2114,7 +2160,9 @@ int mhp_watch_write(dosaddr_t addr, unsigned int len)
   unsigned int i;
   int num;
 
-  if (!wp_num || wp_hit.num != -1)
+  /* WP_WAY_DR: the hardware reports this write itself, and a client can be
+   * on KVM for its v86 while the interpreter runs its DPMI, so both would. */
+  if (!wp_num || wp_way == WP_WAY_DR || wp_hit.num != -1)
     return 0;
   for (num = 0; num < MAXWP; num++) {
     if (wptab[num].is_valid && addr < wptab[num].addr + wptab[num].len &&
@@ -2139,16 +2187,81 @@ void mhp_watch_pc(unsigned int pc)
   wp_hit.pc = pc;
 }
 
+/* Called on a debug trap to ask the hardware whether it was one of ours.
+ * A data watchpoint is a trap rather than a fault: the write has gone in by
+ * the time it is reported, which is where the interpreter's report stands
+ * as well, and cs:ip is on the instruction after the one that wrote.
+ * Nonzero means the trap was ours and must not reach the client. */
+int mhp_watch_dr_trap(void)
+{
+  int hits, i, mine = 0;
+
+  if (!wp_num || wp_way != WP_WAY_DR)
+    return 0;
+  hits = kvm_get_watchpoint_hits();
+  if (!hits)
+    return 0;
+  for (i = 0; i < MAXWP; i++) {
+    unsigned int j;
+
+    if (!(hits & (1 << i)) || !wptab[i].is_valid)
+      continue;
+    mine = 1;
+    if (wp_hit.num != -1)	/* one is already waiting to be reported */
+      continue;
+    wp_hit.num = i;
+    wp_hit.addr = wptab[i].addr;
+    wp_hit.pc = mhp_getcsip_value();
+    wp_hit.pc_next = 1;
+    wp_hit.olen = _min(wptab[i].len, (unsigned int)WP_SHOW);
+    for (j = 0; j < wp_hit.olen; j++)
+      wp_hit.old[j] = READ_BYTE(wptab[i].addr + j);
+  }
+  if (mine)
+    mhpdbgc.want_to_stop = 1;
+  /* a bit set for a watch that is no longer in the table is still ours to
+   * swallow: nobody else put it there */
+  return 1;
+}
+
+/* The two ways cannot see each other's ground, and the client can cross
+ * between them while a watch is set: KVM for its v86 and the CPU emulator
+ * for its DPMI is an ordinary configuration.  A watch armed on one side
+ * then reports nothing from the other, and nothing is also what a client
+ * that does not write looks like, so say it rather than go quiet.  Once per
+ * set of watches: a client that crosses does it often. */
+static void wp_check_backend(void)
+{
+  int now;
+
+  if (!wp_num || wp_backend_warned)
+    return;
+  now = wp_can_watch();
+  if (now == wp_way)
+    return;
+  wp_backend_warned = 1;
+  mhp_printf("\nthe watchpoints are armed %s, and the client now runs %s:"
+             " they see nothing while it does\n",
+             wp_way == WP_WAY_DR ? "in the debug registers, for KVM" :
+             "as a check in the interpreter, for the CPU emulator",
+             now == WP_WAY_DR ? "under KVM" :
+             now == WP_WAY_SIM ? "on the interpreter" : "neither way");
+}
+
 /* called from mhp_poll(), with the write already done */
 void mhp_watch_poll(void)
 {
   unsigned int i;
   int num = wp_hit.num;
 
-  if (num == -1)
+  if (num == -1) {
+    wp_check_backend();
     return;
+  }
   mhp_printf("\nwatchpoint %d: %08x written", num, wp_hit.addr);
-  if (wp_hit.pc)
+  if (wp_hit.pc && wp_hit.pc_next)
+    mhp_printf(", stopped just past %08x", wp_hit.pc);
+  else if (wp_hit.pc)
     mhp_printf(" from eip %x", wp_hit.pc);
   mhp_printf(", %08x now holds", wptab[num].addr);
   for (i = 0; i < wp_hit.olen; i++)
@@ -2160,6 +2273,7 @@ void mhp_watch_poll(void)
    * instruction's: it has finished by the time this is read */
   mhp_printf("\nstopped after the write, not on it\n");
   wp_hit.num = -1;
+  wp_hit.pc_next = 0;
   mhpdbgc.want_to_stop = 1;
 }
 
@@ -2172,13 +2286,20 @@ void mhp_watch_clr(void)
     wptab[i].is_valid = 0;
   wp_num = 0;
   wp_hit.num = -1;
+  wp_hit.pc_next = 0;
+  if (wp_way == WP_WAY_DR)
+    wp_arm_dr();		/* with the table empty, hands them back */
+  /* the next bpw is free to pick either way again, and whatever was said
+   * about this set is said afresh */
+  wp_way = WP_WAY_NONE;
+  wp_backend_warned = 0;
 }
 
 static void mhp_bpw(int argc, char *argv[])
 {
   dosaddr_t seekval;
   unsigned int seg, off, limit, len = 1;
-  int i;
+  int i, way;
 
   if (argc < 2) {
     mhp_printf("Watchpoints:\n");
@@ -2190,9 +2311,15 @@ static void mhp_bpw(int argc, char *argv[])
   }
   if (!check_for_stopped())
     return;
-  if (!wp_can_watch()) {
-    mhp_printf("Only the CPU emulator's interpreter ($_cpuemu = (1)) reports"
-               " its writes, and it does not run the client here\n");
+  way = wp_can_watch();
+  if (way == WP_WAY_NONE) {
+    mhp_printf("Only KVM or the CPU emulator's interpreter ($_cpuemu = (1))"
+               " reports the client's writes, and neither runs it here\n");
+    return;
+  }
+  if (wp_num && way != wp_way) {
+    mhp_printf("The watchpoints already set are armed the other way, for the"
+               " machine that was running then; clear them with bcw first\n");
     return;
   }
   if (!mhp_getadr(argv[1], &seekval, &seg, &off, &limit, addr_in_dpmi())) {
@@ -2203,7 +2330,19 @@ static void mhp_bpw(int argc, char *argv[])
     mhp_printf("Invalid size '%s'\n", argv[2]);
     return;
   }
-  if (len > WP_SHOW)
+  if (way == WP_WAY_DR) {
+    /* what a debug register holds: one, two or four bytes, on a boundary of
+     * its own size.  Anything else the CPU ignores without saying so. */
+    if (len != 1 && len != 2 && len != 4) {
+      mhp_printf("Under KVM a watch is 1, 2 or 4 bytes, not %u\n", len);
+      return;
+    }
+    if (seekval & (len - 1)) {
+      mhp_printf("Under KVM a watch of %u bytes starts on a multiple of %u,"
+                 " and %08x is not one\n", len, len, seekval);
+      return;
+    }
+  } else if (len > WP_SHOW)
     len = WP_SHOW;
   for (i = 0; i < MAXWP; i++) {
     if (!wptab[i].is_valid) {
@@ -2211,10 +2350,29 @@ static void mhp_bpw(int argc, char *argv[])
       wptab[i].len = len;
       wptab[i].is_valid = 1;
       wp_num++;
-      mhp_printf("Watchpoint %d set at %08x, %u byte%s\n", i, seekval, len,
-                 len == 1 ? "" : "s");
+      wp_way = way;
+      /* A watch that failed to arm reads exactly like one nothing has
+       * written to, and silence is the one answer a debugger must not
+       * give. */
+      if (way == WP_WAY_DR && wp_arm_dr() == -1) {
+        wptab[i].is_valid = 0;
+        wp_num--;
+        if (!wp_num)
+          wp_way = WP_WAY_NONE;
+        else
+          wp_arm_dr();		/* put the ones that were there back */
+        mhp_printf("The debug registers would not take the watch, nothing is"
+                   " set\n");
+        return;
+      }
+      mhp_printf("Watchpoint %d set at %08x, %u byte%s, %s\n", i, seekval,
+                 len, len == 1 ? "" : "s",
+                 way == WP_WAY_DR ? "in a debug register" :
+                 "as a check in the interpreter");
       mhp_printf("not seen: what dosemu writes into this memory for the"
                  " client\n");
+      if (way == WP_WAY_DR)
+        mhp_printf("the stop comes just after the write, not on it\n");
       return;
     }
   }
@@ -2240,8 +2398,16 @@ static void mhp_bcw(int argc, char *argv[])
   }
   wptab[num].is_valid = 0;
   wp_num--;
-  if (wp_hit.num == (int)num)
+  if (wp_hit.num == (int)num) {
     wp_hit.num = -1;
+    wp_hit.pc_next = 0;
+  }
+  if (wp_way == WP_WAY_DR)
+    wp_arm_dr();		/* without this one, and handed back if last */
+  if (!wp_num) {
+    wp_way = WP_WAY_NONE;
+    wp_backend_warned = 0;
+  }
   mhp_printf("Watchpoint %u cleared\n", num);
 }
 
