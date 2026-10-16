@@ -41,6 +41,7 @@
 #include "coopth.h"
 #include "coopth_guest.h"
 #include "coopth_be.h"
+#include "coopth_impl.h"
 
 enum CoopthRet { COOPTH_YIELD, COOPTH_WAIT, COOPTH_SLEEP, COOPTH_SCHED,
 	COOPTH_DONE, COOPTH_ATTACH, COOPTH_DETACH, COOPTH_LEAVE,
@@ -166,12 +167,12 @@ static void check_tid(int tid);
 #define CIDX(t, i) ((t)*MAX_COOP_RECUR_DEPTH+(i))
 #define CIDX2(t, i) (t),((t)*MAX_COOP_RECUR_DEPTH+(i))
 
-void coopth_init(void)
+void ct_init(void)
 {
     co_handle = co_thread_init();
 }
 
-int coopth_is_threaded(void)
+int ct_is_threaded(void)
 {
     return co_is_threaded(co_handle);
 }
@@ -334,7 +335,7 @@ static void do_del_thread(struct coopth_t *thr,
 	nothread_notifier(threads_cs[CTCL_NORMAL] + threads_left);
 }
 
-int coopth_get_thread_count(int cls)
+int ct_get_thread_count(int cls)
 {
     return threads_cs[cls] + threads_left;
 }
@@ -530,7 +531,7 @@ static int thread_run(struct coopth_t *thr, struct coopth_per_thread_t *pth)
     return ret;
 }
 
-struct crun_ret coopth_run_thread_internal(int tid)
+struct crun_ret ct_run_thread_internal(int tid)
 {
     struct coopth_t *thr;
     struct coopth_per_thread_t *pth;
@@ -541,7 +542,7 @@ struct crun_ret coopth_run_thread_internal(int tid)
     thr = &coopthreads[tid];
     pth = current_thr(thr);
     if (!pth->data.attached) {
-	/* someone used coopth_unsafe_detach()? */
+	/* someone used ct_unsafe_detach()? */
 	error("HLT on detached thread\n");
 	exit(2);
     }
@@ -594,7 +595,7 @@ static void call_prep(struct coopth_t *thr)
 	thr->ops->prep(CIDX2(thr->tid, i));
 }
 
-int coopth_create_internal(const char *name, coopth_func_t func,
+int ct_create_internal(const char *name, coopth_func_t func,
 	const struct coopth_be_ops *ops)
 {
     int num;
@@ -616,7 +617,7 @@ int coopth_create_internal(const char *name, coopth_func_t func,
     return num;
 }
 
-int coopth_create_multi_internal(const char *name, int len,
+int ct_create_multi_internal(const char *name, int len,
 	coopth_func_t func,
 	const struct coopth_be_ops *ops)
 {
@@ -649,7 +650,7 @@ static void check_tid(int tid)
     }
 }
 
-void coopth_ensure_sleeping(int tid)
+void ct_ensure_sleeping(int tid)
 {
     struct coopth_t *thr;
     struct coopth_per_thread_t *pth;
@@ -674,7 +675,7 @@ static int do_start(struct coopth_t *thr, struct coopth_state_t st, void *arg)
 		    thr->ops->get_dbg_val(CIDX2(thr->tid, i)));
 	}
 	error("\tthread %i rejected\n", i);
-	coopth_dump(0);
+	ct_dump(0);
 	exit(2);
 	return -1;
     }
@@ -754,7 +755,7 @@ static int do_start_internal(struct coopth_t *thr, void *arg,
     return CIDX(thr->tid, num);
 }
 
-struct cstart_ret coopth_start_internal(int tid, void *arg,
+struct cstart_ret ct_start_internal(int tid, void *arg,
 	void (*retf)(int, int))
 {
     struct cstart_ret ret;
@@ -768,7 +769,7 @@ struct cstart_ret coopth_start_internal(int tid, void *arg,
     return ret;
 }
 
-int coopth_start_custom_internal(int tid, void *arg)
+int ct_start_custom_internal(int tid, void *arg)
 {
     struct coopth_t *thr;
 
@@ -779,7 +780,7 @@ int coopth_start_custom_internal(int tid, void *arg)
     return do_start_internal(thr, arg, NULL);
 }
 
-void coopth_call_post_internal(int tid)
+void ct_call_post_internal(int tid)
 {
     struct coopth_t *thr;
 
@@ -792,7 +793,7 @@ void coopth_call_post_internal(int tid)
     thr->post_pth = NULL;
 }
 
-int coopth_set_ctx_handlers(int tid, coopth_hndl_t pre, coopth_hndl_t post,
+int ct_set_ctx_handlers(int tid, coopth_hndl_t pre, coopth_hndl_t post,
 	void *arg)
 {
     struct coopth_t *thr;
@@ -807,7 +808,7 @@ int coopth_set_ctx_handlers(int tid, coopth_hndl_t pre, coopth_hndl_t post,
     return 0;
 }
 
-int coopth_set_sleep_handlers(int tid, coopth_sleep_hndl_t pre,
+int ct_set_sleep_handlers(int tid, coopth_sleep_hndl_t pre,
 	coopth_hndl_t post)
 {
     struct coopth_t *thr;
@@ -821,7 +822,7 @@ int coopth_set_sleep_handlers(int tid, coopth_sleep_hndl_t pre,
     return 0;
 }
 
-int coopth_set_permanent_post_handler(int tid, coopth_hndl_t func)
+int ct_set_permanent_post_handler(int tid, coopth_hndl_t func)
 {
     struct coopth_t *thr;
     int i;
@@ -833,7 +834,7 @@ int coopth_set_permanent_post_handler(int tid, coopth_hndl_t func)
     return 0;
 }
 
-int coopth_set_thread_class(int tid, int cls)
+int ct_set_thread_class(int tid, int cls)
 {
     struct coopth_t *thr;
     int i;
@@ -846,7 +847,7 @@ int coopth_set_thread_class(int tid, int cls)
     return 0;
 }
 
-int coopth_set_detached(int tid)
+int ct_set_detached(int tid)
 {
     struct coopth_t *thr;
     check_tid(tid);
@@ -897,12 +898,12 @@ static void do_detach(struct coopth_t *thr, struct coopth_per_thread_t *pth)
     }
 }
 
-int coopth_unsafe_detach(int tid, const char *who)
+int ct_unsafe_detach(int tid, const char *who)
 {
     struct coopth_t *thr;
     struct coopth_per_thread_t *pth;
     check_tid(tid);
-    dbug_printf("coopth_unsafe_detach() called by %s\n", who);
+    dbug_printf("ct_unsafe_detach() called by %s\n", who);
     thr = &coopthreads[tid];
     pth = current_thr(thr);
     assert(pth->data.attached);
@@ -947,7 +948,7 @@ static void quick_sched_post(struct coopth_per_thread_t *pth)
     pth->quick_sched = 0;
 }
 
-void coopth_run(void)
+void ct_run(void)
 {
     assert(DETACHED_RUNNING >= 0);
     if (DETACHED_RUNNING)
@@ -956,7 +957,7 @@ void coopth_run(void)
     while (run_traverser(quick_sched_pred, NULL, quick_sched_post));
 }
 
-void coopth_run_tid(int tid)
+void ct_run_tid(int tid)
 {
     struct coopth_t *thr = &coopthreads[tid];
     struct coopth_per_thread_t *pth = current_thr(thr);
@@ -982,7 +983,7 @@ static int __coopth_is_in_thread(int warn, const char *f)
 #define _coopth_is_in_thread() __coopth_is_in_thread(1, __func__)
 #define _coopth_is_in_thread_nowarn() __coopth_is_in_thread(0, __func__)
 
-int coopth_get_tid(void)
+int ct_get_tid(void)
 {
     struct coopth_thrdata_t *thdata;
     if (!_coopth_is_in_thread_nowarn())
@@ -999,7 +1000,7 @@ static int coopth_get_tid_nofail(void)
     return *thdata->tid;
 }
 
-int coopth_add_post_handler(coopth_func_t func, void *arg)
+int ct_add_post_handler(coopth_func_t func, void *arg)
 {
     struct coopth_thrdata_t *thdata;
     assert(_coopth_is_in_thread());
@@ -1011,7 +1012,7 @@ int coopth_add_post_handler(coopth_func_t func, void *arg)
     return 0;
 }
 
-int coopth_set_sleep_handler(coopth_func_t func, void *arg)
+int ct_set_sleep_handler(coopth_func_t func, void *arg)
 {
     struct coopth_thrdata_t *thdata;
     assert(_coopth_is_in_thread());
@@ -1021,7 +1022,7 @@ int coopth_set_sleep_handler(coopth_func_t func, void *arg)
     return 0;
 }
 
-int coopth_set_cleanup_handler(coopth_func_t func, void *arg)
+int ct_set_cleanup_handler(coopth_func_t func, void *arg)
 {
     struct coopth_thrdata_t *thdata;
     assert(_coopth_is_in_thread());
@@ -1031,7 +1032,7 @@ int coopth_set_cleanup_handler(coopth_func_t func, void *arg)
     return 0;
 }
 
-void coopth_push_user_data(int tid, void *udata)
+void ct_push_user_data(int tid, void *udata)
 {
     struct coopth_t *thr;
     struct coopth_per_thread_t *pth;
@@ -1042,7 +1043,7 @@ void coopth_push_user_data(int tid, void *udata)
     pth->data.udata[pth->data.udata_num++] = udata;
 }
 
-void coopth_push_user_data_cur(void *udata)
+void ct_push_user_data_cur(void *udata)
 {
     struct coopth_thrdata_t *thdata;
     assert(_coopth_is_in_thread());
@@ -1051,7 +1052,7 @@ void coopth_push_user_data_cur(void *udata)
     thdata->udata[thdata->udata_num++] = udata;
 }
 
-void *coopth_pop_user_data(int tid)
+void *ct_pop_user_data(int tid)
 {
     struct coopth_t *thr;
     struct coopth_per_thread_t *pth;
@@ -1062,7 +1063,7 @@ void *coopth_pop_user_data(int tid)
     return pth->data.udata[--pth->data.udata_num];
 }
 
-void *coopth_pop_user_data_cur(void)
+void *ct_pop_user_data_cur(void)
 {
     struct coopth_thrdata_t *thdata;
     assert(_coopth_is_in_thread());
@@ -1071,7 +1072,7 @@ void *coopth_pop_user_data_cur(void)
     return thdata->udata[--thdata->udata_num];
 }
 
-void *coopth_get_user_data_cur(void)
+void *ct_get_user_data_cur(void)
 {
     struct coopth_thrdata_t *thdata;
     assert(_coopth_is_in_thread());
@@ -1080,7 +1081,7 @@ void *coopth_get_user_data_cur(void)
     return thdata->udata[thdata->udata_num - 1];
 }
 
-void coopth_set_udata(int tid, void *udata)
+void ct_set_udata(int tid, void *udata)
 {
     struct coopth_t *thr;
     check_tid(tid);
@@ -1088,7 +1089,7 @@ void coopth_set_udata(int tid, void *udata)
     thr->udata = udata;
 }
 
-void *coopth_get_udata_cur(void)
+void *ct_get_udata_cur(void)
 {
     struct coopth_t *thr;
     struct coopth_thrdata_t *thdata;
@@ -1174,7 +1175,7 @@ static int current_active(void)
     return thr->ops->is_active(CIDX2(tid, thr->cur_thr - 1));
 }
 
-int coopth_yield(void)
+int ct_yield(void)
 {
     assert(_coopth_is_in_thread());
     switch_state(COOPTH_YIELD);
@@ -1183,7 +1184,7 @@ int coopth_yield(void)
     return 1;
 }
 
-int coopth_sched(void)
+int ct_sched(void)
 {
     assert(_coopth_is_in_thread());
     ensure_attached();
@@ -1194,7 +1195,7 @@ int coopth_sched(void)
     return -check_cancel();
 }
 
-int coopth_sched_cond(void)
+int ct_sched_cond(void)
 {
     assert(_coopth_is_in_thread());
     ensure_attached();
@@ -1207,7 +1208,7 @@ int coopth_sched_cond(void)
     return 1;
 }
 
-int coopth_wait(void)
+int ct_wait(void)
 {
     assert(_coopth_is_in_thread());
     ensure_attached();
@@ -1217,7 +1218,7 @@ int coopth_wait(void)
     return 1;
 }
 
-int coopth_sleep(void)
+int ct_sleep(void)
 {
     int tid = coopth_get_tid_nofail();
 
@@ -1237,7 +1238,7 @@ static void ensure_single(struct coopth_thrdata_t *thdata)
 	dosemu_error("coopth: nested=%i (expected 1)\n", thr->cur_thr);
 }
 
-void coopth_ensure_single(int tid)
+void ct_ensure_single(int tid)
 {
     struct coopth_t *thr = &coopthreads[tid];
     if (thr->cur_thr != 1)
@@ -1245,7 +1246,7 @@ void coopth_ensure_single(int tid)
 }
 
 /* attach some thread to current context */
-void coopth_attach_to_cur(int tid)
+void ct_attach_to_cur(int tid)
 {
     struct coopth_t *thr;
     struct coopth_per_thread_t *pth;
@@ -1256,7 +1257,7 @@ void coopth_attach_to_cur(int tid)
     coopth_callf_op(thr, pth);
 }
 
-void coopth_attach(void)
+void ct_attach(void)
 {
     struct coopth_thrdata_t *thdata;
     assert(_coopth_is_in_thread());
@@ -1267,7 +1268,7 @@ void coopth_attach(void)
     switch_state(COOPTH_ATTACH);
 }
 
-void coopth_exit(void)
+void ct_exit(void)
 {
     struct coopth_thrdata_t *thdata;
     assert(_coopth_is_in_thread());
@@ -1275,7 +1276,7 @@ void coopth_exit(void)
     do_ljmp(thdata, COOPTH_JMP_EXIT);
 }
 
-void coopth_detach(void)
+void ct_detach(void)
 {
     struct coopth_thrdata_t *thdata;
     assert(_coopth_is_in_thread());
@@ -1286,7 +1287,7 @@ void coopth_detach(void)
     switch_state(COOPTH_DETACH);
 }
 
-void coopth_abandon(void)
+void ct_abandon(void)
 {
     struct coopth_thrdata_t *thdata;
     if (!_coopth_is_in_thread_nowarn())
@@ -1303,18 +1304,18 @@ void coopth_abandon(void)
      * also atomic wrt detached threads.
      * The detached leave operation calls the permanent post handler
      * immediately, and it should be called from the context of the main
-     * thread. This is the reason why coopth_leave() for detached thread
+     * thread. This is the reason why ct_leave() for detached thread
      * cannot be a no-op (non-permanent post handlers are discarded). */
     if (!thdata->attached)
 	thdata->atomic_switch = 1;
     switch_state(COOPTH_LEAVE);
 }
 
-/* for some time coopth_leave() was implemented on top of coopth_detach().
+/* for some time ct_leave() was implemented on top of ct_detach().
  * This appeared not the best implementation. In particular, the commit
  * 551371689 was needed to make leaving operation atomic, but this is
  * not needed for detached threads at all. While the detached threads
- * has a separate entry point (via coopth_run()), the left thread must
+ * has a separate entry point (via ct_run()), the left thread must
  * not have a separate entry point. So it appeared better to return the
  * special type "left" threads. */
 static void do_leave(struct coopth_thrdata_t *thdata)
@@ -1328,7 +1329,7 @@ static void do_leave(struct coopth_thrdata_t *thdata)
     switch_state(COOPTH_LEAVE);
 }
 
-void coopth_leave(void)
+void ct_leave(void)
 {
     struct coopth_thrdata_t *thdata;
     if (!_coopth_is_in_thread_nowarn())
@@ -1339,7 +1340,7 @@ void coopth_leave(void)
     do_leave(thdata);
 }
 
-void coopth_leave_internal(void)
+void ct_leave_internal(void)
 {
     struct coopth_thrdata_t *thdata;
     if (!_coopth_is_in_thread_nowarn())
@@ -1362,7 +1363,7 @@ static void do_awake(struct coopth_per_thread_t *pth)
 	pth->quick_sched = 1;	// optimize DPMI switches
 }
 
-void coopth_wake_up(int tid)
+void ct_wake_up(int tid)
 {
     struct coopth_t *thr;
     struct coopth_per_thread_t *pth;
@@ -1387,7 +1388,7 @@ static void do_cancel(struct coopth_t *thr, struct coopth_per_thread_t *pth)
     }
 }
 
-void coopth_unsafe_shutdown(void)
+void ct_unsafe_shutdown(void)
 {
     int i;
     struct coopth_thrdata_t *thdata = NULL;
@@ -1412,7 +1413,7 @@ again:
     }
 }
 
-void coopth_cancel(int tid)
+void ct_cancel(int tid)
 {
     struct coopth_t *thr;
     struct coopth_per_thread_t *pth;
@@ -1420,7 +1421,7 @@ void coopth_cancel(int tid)
     thr = &coopthreads[tid];
     pth = current_thr(thr);
     /* see if canceling self */
-    if (_coopth_is_in_thread_nowarn() && tid == coopth_get_tid()) {
+    if (_coopth_is_in_thread_nowarn() && tid == ct_get_tid()) {
 	assert(pth->data.left);
 	ensure_single(&pth->data);
 	return;
@@ -1434,12 +1435,12 @@ static void do_join(struct coopth_per_thread_t *pth, void (*helper)(void))
 	helper();
 }
 
-void coopth_join_internal(int tid, void (*helper)(void))
+void ct_join_internal(int tid, void (*helper)(void))
 {
     struct coopth_t *thr;
     struct coopth_per_thread_t *pth;
     /* since main thread can call this, we have to use helper
-     * function instead of just coopth_sched(). As a result,
+     * function instead of just ct_sched(). As a result,
      * recursion into run_vm86() can happen. Hope its safe. */
     assert(!_coopth_is_in_thread_nowarn() || is_detached());
     check_tid(tid);
@@ -1450,7 +1451,7 @@ void coopth_join_internal(int tid, void (*helper)(void))
 }
 
 /* desperate cleanup attempt, not extremely reliable */
-int coopth_flush_internal(unsigned id, void (*helper)(void))
+int ct_flush_internal(unsigned id, void (*helper)(void))
 {
     struct coopth_t *thr;
     assert(!_coopth_is_in_thread_nowarn() || is_detached());
@@ -1471,7 +1472,7 @@ int coopth_flush_internal(unsigned id, void (*helper)(void))
     return threads_joinable;
 }
 
-void coopth_done(void)
+void ct_done(void)
 {
     int i, tt, itd, it;
     struct coopth_thrdata_t *thdata = NULL;
@@ -1536,7 +1537,7 @@ again:
 	g_printf("coopth: leaked %i threads\n", threads_total);
 }
 
-int coopth_wants_sleep_internal(unsigned id)
+int ct_wants_sleep_internal(unsigned id)
 {
     struct coopth_t *thr = on_thread(id);
     struct coopth_per_thread_t *pth;
@@ -1547,12 +1548,12 @@ int coopth_wants_sleep_internal(unsigned id)
 	    pth->st.state == COOPTHS_SWITCH);
 }
 
-void coopth_set_nothread_notifier(void (*notifier)(int))
+void ct_set_nothread_notifier(void (*notifier)(int))
 {
     nothread_notifier = notifier;
 }
 
-void coopth_cancel_disable_cur(void)
+void ct_cancel_disable_cur(void)
 {
     struct coopth_thrdata_t *thdata;
     assert(_coopth_is_in_thread());
@@ -1560,7 +1561,7 @@ void coopth_cancel_disable_cur(void)
     thdata->canc_disabled = 1;
 }
 
-void coopth_cancel_enable_cur(void)
+void ct_cancel_enable_cur(void)
 {
     struct coopth_thrdata_t *thdata;
     assert(_coopth_is_in_thread());
@@ -1584,7 +1585,7 @@ static void do_bt(void *arg)
 #endif
 }
 
-void coopth_dump(int all)
+void ct_dump(int all)
 {
     int i;
     error("@coopthreads dump (%i total, %i joinable):\n",
