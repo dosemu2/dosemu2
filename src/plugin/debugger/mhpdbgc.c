@@ -2390,14 +2390,15 @@ static void mhp_bl(int argc, char *argv[])
         mhp_printf("%d: %08x\n", i1, mhpdbgc.brktab[i1].brkaddr);
     }
   }
-  mhp_printf("Interrupts: ");
+  mhp_printf("Interrupts:");
   for (i1 = 0; i1 < 256; i1++) {
     if (test_bit(i1, mhpdbg.intxxtab)) {
-      mhp_printf("%02x ", i1);
+      mhp_printf(" %02x", i1);
     }
   }
+  mhp_printf("\n");
 #if WITH_DPMI
-  mhp_printf("\nDPMI Interrupts:");
+  mhp_printf("DPMI Interrupts:");
   for (i1 = 0; i1 < 256; i1++) {
     if (dpmi_mhp_intxxtab[i1]) {
       mhp_printf(" %02x", i1);
@@ -2416,8 +2417,8 @@ static void mhp_bl(int argc, char *argv[])
       }
     }
   }
-#endif
   mhp_printf("\n");
+#endif
   if (mhpdbgc.bpload)
     mhp_printf("bpload active\n");
   print_log_breakpoints();
