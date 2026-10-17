@@ -300,6 +300,7 @@ int dpmi_install_rsp(struct RSPcall_s *callback);
 #define DPMI_EXT_GET_POOL 0x1000
 unsigned short dpmi_get_private_pool(unsigned short *r_paras);
 dosaddr_t DPMIMapHWRam(unsigned addr, unsigned size);
+dosaddr_t dpmi_get_dtr_base(int idt);
 int DPMIUnmapHWRam(dosaddr_t vbase);
 
 #endif // __ASSEMBLER__
@@ -390,6 +391,11 @@ static inline int dpmi_mhp_setIF(int on)
 static inline uint8_t *dpmi_get_ldt_buffer(void)
 {
     return NULL;
+}
+
+static inline dosaddr_t dpmi_get_dtr_base(int idt)
+{
+    return 0;
 }
 
 static inline int get_ldt(void *buffer)
