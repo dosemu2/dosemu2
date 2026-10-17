@@ -574,4 +574,11 @@ extern int is_cli;
 void set_cpio(int base, int size);
 void set_drio(int base, int size);
 
+/* The limits sgdt and sidt report to a protected mode client: real ones
+ * rather than 0xffff, because a client that computes the entry count as
+ * (limit + 1) / 8 in sixteen bits wraps 0xffff to zero entries. They live
+ * here so that cpuemu and the DPMI instruction emulator give one answer. */
+#define EMU_GDT_LIMIT	0x0fff
+#define EMU_IDT_LIMIT	0x07ff
+
 #endif /* CPU_H */
