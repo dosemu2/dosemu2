@@ -758,6 +758,21 @@ void e_invalidate(unsigned data, int cnt)
 	prejit_unlock();
 }
 
+/* As e_invalidate(), for a caller that knows where the emulator stands in
+ * the code it is throwing away: the node is broken there, so the sequence
+ * in flight ends instead of running on from ops it already has. */
+void e_invalidate_at(unsigned data, int cnt, unsigned char *eip)
+{
+	if (!eip) {
+		e_invalidate(data, cnt);
+		return;
+	}
+	prejit_lock();
+	if (e_querymprotrange(data, cnt) && e_querymark(data, cnt))
+		InvalidateNodeRangeFromFault(data, cnt, eip);
+	prejit_unlock();
+}
+
 void e_invalidate_pa(unsigned pa, int cnt)
 {
     dosaddr_t addr = physaddr_to_dosaddr(pa, cnt);
