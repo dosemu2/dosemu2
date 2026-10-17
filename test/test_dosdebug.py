@@ -956,8 +956,8 @@ class OurTestCase(BaseTestCase):
         self.mkcom_with_nasm("logger", LOGGER_ASM)
 
         # +D logs every int 21h the client makes, as
-        # 'INT21 at ff10:01e8: AX=0900, BX=...', naming the hlt that got
-        # dosemu there rather than the client
+        # 'INT21 at 00b5:0108: AX=0900, BX=...', naming the address the
+        # call came from
         config = DOSEMU_CONF_DEFAULT + '$_debug = "-D+D"\n'
 
         def body(args):
@@ -966,25 +966,18 @@ class OurTestCase(BaseTestCase):
             out = ["set=" + self.dbgCmd("bplog INT21.*AX=0900")]
             out.append("list=" + self.dbgCmd("bl"))
             self.dbgchild.sendline("g")
-            # the first of the client's two prints is what it matches
+            # the first of the client's two prints is what it matches, and
+            # the stop report that follows shows the client where the line
+            # said it was, not the hlt dosemu is in
             out.append("hit=" + self.dbgRead(settle=2.0, limit=30))
-            regs = self.dbgCmd("r")
-            out.append("at=" + regs)
-            # The line is logged while dosemu serves the int, so the stop is
-            # in the hlt that got it there, not in the client, and the
-            # client's own address is nowhere the user could read it: the
-            # frame on top of the stack is dosemu's.  An interrupt
-            # breakpoint takes us into the client's code without knowing any
-            # address, on the next call it makes there.
-            seg = int(re.search(r"DS=([0-9a-f]{4})", regs).group(1), 16)
-            out.append("set2=" + self.dbgCmd("bpint 21"))
+            # the report wound cs:eip back only to print, so the registers
+            # are dosemu's own again
+            seg, off, regs = self.dbgRegs(pm=False)
+            out.append("after=%04x:%04x " % (seg, off) + regs)
             out.append("clr=" + self.dbgCmd("bclog 0"))
+            # and nothing was set on the client to get its address
+            out.append("left=" + self.dbgCmd("bl"))
             self.dbgchild.sendline("g")
-            seg2, off2, stop = self.dbgWaitStop(pm=False, limit=30)
-            out.append("back=%04x:%04x client=%04x " % (seg2, off2, seg)
-                       + stop)
-            out.append("insn=" + self.dbgInsnAt(seg2, off2, pm=False))
-            out.append("done=" + self.dbgCmd("bcint 21"))
             return " | ".join(out)
 
         results = self.runWithDosdebug("testit.bat", body, config=config,
@@ -995,26 +988,39 @@ class OurTestCase(BaseTestCase):
         self.assertIn("log intercept on", listed, results)
         self.assertIn("log breakpoint 0: INT21.*AX=0900", listed, results)
         # the report quotes the line that matched
-        self.assertRegex(results,
+        hit = results.split("hit=")[-1].split(" | ")[0]
+        self.assertRegex(hit,
                          r"log break point 0 hit: >INT21 .*AX=0900[^<]*<",
                          results)
-        # and the match is what stopped the machine
-        at = results.split("at=")[-1].split(" | ")[0]
-        self.assertRegex(at, r"system state: .*stopped",
+        self.assertRegex(hit, r"system state: .*stopped",
                          "the log breakpoint did not stop anything: "
                          + results)
-        # and the client's own code is where the interrupt breakpoint takes
-        # us, on a call of its own
-        back = results.split("back=")[-1].split(" | ")[0]
-        m = re.match(r"([0-9a-f]{4}):[0-9a-f]{4} client=([0-9a-f]{4}) ", back)
-        self.assertIsNotNone(m, "no stop of the interrupt breakpoint: "
-                                + results)
-        self.assertEqual(m.group(1), m.group(2),
-                         "stopped outside the client: " + results)
-        self.assertIn("INT 0x21", back, results)
-        insn = results.split("insn=")[-1].split(" | ")[0]
-        self.assertRegex(insn, r"CD21", "not on the client's own int 21h: "
-                                        + results)
+        # and says where it is showing the client
+        m = re.search(r"showing the client at ([0-9a-f]{4}):([0-9a-f]{4}), "
+                      r"where the logged call was made", hit)
+        self.assertIsNotNone(m, "the log breakpoint showed no address of "
+                                "the client: " + results)
+        # which is the address the registers it printed are at
+        self.assertIn("CS:IP=%s:%s" % (m.group(1), m.group(2)), hit,
+                      "the registers are not those of the client: " + results)
+        # in the client's own code, which is the segment its ds points to
+        client = re.search(r"DS=([0-9a-f]{4})", hit).group(1)
+        self.assertEqual(m.group(1), client,
+                         "the address shown is outside the client: " + results)
+        # on the int 21h that was logged, not on the hlt that served it
+        self.assertRegex(hit, r"(?m)^%s:0*%s CD21" % (m.group(1), m.group(2)),
+                         "not showing the client's own int 21h: " + results)
+        # and dosemu is left where it was, in that hlt
+        after = results.split("after=")[-1].split(" | ")[0]
+        self.assertNotRegex(after, r"^%s:%s " % (m.group(1), m.group(2)),
+                            "cs:eip was left on the client: " + results)
+        self.assertRegex(after, r"(?m)^[0-9a-f]{4}:[0-9a-f]{4} F4\s+hlt",
+                         "dosemu is not back in the hlt it was in: "
+                         + results)
+        # nothing of the user's was needed to get the client's address
+        left = results.split("left=")[-1].split(" | ")[0]
+        self.assertNotRegex(left, r"(?m)^\s*\d+: [0-9a-f]+",
+                            "a breakpoint was set after all: " + results)
         clr = results.split("clr=")[-1].split(" | ")[0]
         self.assertIn("log intercept off", clr, results)
         # and with the breakpoint gone the client runs to its end
