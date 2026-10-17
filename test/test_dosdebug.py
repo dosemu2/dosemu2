@@ -174,6 +174,105 @@ $_cpuemu = (1)
 
 # writes one byte at 0000:0500, in the scratch area nobody else is using
 # while this runs
+SELMOVE_ASM = r"""
+	cpu 386
+	org 100h
+	bits 16
+start:
+	pop ax			; the word DOS pushes for .com files
+	mov bx, sp
+	shr bx, 4
+	jnz .smallstack
+	mov bx, 1000h		; it was a full 64 KiB stack
+.smallstack:
+	mov ah, 4Ah
+	int 21h			; give the rest back, the DPMI host wants some
+	xor ax, ax
+	xchg ax, word [2Ch]
+	mov es, ax
+	mov ah, 49h
+	int 21h			; free the environment if there is one
+
+	mov ax, 1687h
+	int 2Fh
+	or ax, ax
+	jnz nohost
+	push es			; save the entry point
+	push di
+	or si, si		; does the host want memory of its own?
+	jz .nomemneeded
+	mov bx, si
+	mov ah, 48h
+	int 21h
+	jc nomemory
+	mov es, ax
+.nomemneeded:
+	mov bp, sp
+	xor ax, ax		; a 16-bit client is enough
+	call far [bp]
+	jc initfailed
+
+			; protected mode from here on
+	mov ax, 0006h
+	mov bx, cs
+	int 31h		; cx:dx = the base of our code
+	mov si, cx
+	mov di, dx
+	xor ax, ax
+	mov cx, 1
+	int 31h		; a selector of our own
+	jc initfailed
+	mov bx, ax
+	mov ax, 0008h
+	xor cx, cx
+	mov dx, 0FFFFh
+	int 31h
+	mov ax, 0007h
+	mov cx, si
+	mov dx, di
+	int 31h		; it points where cs does
+	int3			; the debugger puts a breakpoint behind it here
+	mov ax, 0007h
+	mov cx, si
+	mov dx, di
+	add dx, 16
+	adc cx, 0
+	int 31h		; and now it points elsewhere
+	int3
+
+	mov dx, msg.ok
+	jmp short rmexit
+
+never:			; nothing runs these, they only hold breakpoints
+	nop
+	nop
+
+nohost:
+	mov dx, msg.nohost
+	jmp short rmerror
+nomemory:
+	mov dx, msg.nomemory
+	jmp short rmerror
+initfailed:
+	mov dx, msg.initfailed
+rmerror:
+	mov ah, 9
+	int 21h
+	mov ax, 4CFFh
+	int 21h
+rmexit:
+	mov ah, 9
+	int 21h
+	mov ax, 4C00h
+	int 21h
+
+msg:
+.ok:		db "SELMOVE OK",13,10,'$'
+.nohost:	db "SELMOVE no DPMI host",13,10,'$'
+.nomemory:	db "SELMOVE out of memory",13,10,'$'
+.initfailed:	db "SELMOVE init failed",13,10,'$'
+"""
+
 WRITER_ASM = r"""
 	cpu 386
 	org 100h
@@ -570,6 +669,77 @@ class OurTestCase(BaseTestCase):
         self.assertRegex(results, r"ti [0-9a-f]{4}:0105", results)
         self.assertRegex(results, r"insn .*CD21", results)
         self.assertRegex(results, r"t [0-9a-f]{4}:0107", results)
+
+    def test_dosdebug_bl_shows_bp_origin(self):
+        """Dosdebug bl shows a breakpoint's address as it was typed"""
+
+        self.mkbat_testit("simple")
+        self.mkcom_with_nasm("simple", SIMPLE_ASM)
+
+        def body(args):
+            self.dbgCmd("bpload")
+            self.dbgchild.sendline("g")
+            self.dbgchild.expect(["bpload: INT3 caught at"], timeout=40)
+            self.dbgRead(1.0)
+
+            seg, off, _ = self.dbgRegs(pm=False)
+            want = "%04x:0105" % seg
+            self.dbgCmd("bp " + want)
+            return "want=%s bl=%s" % (want, self.dbgCmd("bl"))
+
+        results = self.runWithDosdebug("testit.bat", body)
+
+        want = re.search(r"want=(\S+)", results).group(1)
+        # "<n>: <linear address>, <address as typed>"; bpload has one
+        # of its own, which was not typed and is listed without it
+        self.assertRegex(results,
+                         r"(?m)^\s*\d+: [0-9a-f]{8}, " + re.escape(want) + "$",
+                         results)
+
+    def test_dosdebug_bp_sel_moved(self):
+        """Dosdebug drops a breakpoint whose selector moved"""
+
+        self.mkbat_testit("selmove")
+        self.mkcom_with_nasm("selmove", SELMOVE_ASM)
+
+        def body(args):
+            steps = []
+            self.dbgCmd("bpint 3")
+            self.dbgchild.sendline("g")
+            self.dbgWaitStop(pm=True, limit=40)
+            _, _, regs = self.dbgRegs(pm=True)
+            sel = int(re.search(r"EBX: ([0-9a-f]{8})", regs).group(1), 16)
+            # 'never' is the label after the jmp to rmexit, 2 bytes on
+            # from the int3 we stopped behind: find it in the listing
+            lst = self.dbgCmd("u * 40")
+            m = re.search(r"(?m)^\s*#?[0-9a-f]{4}:0*([0-9a-f]+) 90\s", lst)
+            never = int(m.group(1), 16)
+            steps.append(self.dbgCmd("bp #%04x:%x" % (sel, never)))
+            bl = self.dbgCmd("bl")
+            lin = int(re.search(r"(?m)^\s*\d+: ([0-9a-f]{8}), #", bl).group(1), 16)
+            steps.append(self.dbgCmd("bp %x" % (lin + 1)))
+            steps.append(self.dbgCmd("bl"))
+            self.dbgchild.sendline("g")
+            self.dbgWaitStop(pm=True, limit=30)
+            steps.append(self.dbgCmd("bl"))
+            self.dbgCmd("bcint 3")
+            self.dbgchild.sendline("g")
+            return "sel=%04x lin=%08x|" % (sel, lin) + "|".join(steps)
+
+        results = self.runWithDosdebug("testit.bat", body)
+
+        m = re.search(r"sel=([0-9a-f]{4}) lin=([0-9a-f]{8})", results)
+        self.assertIsNotNone(m, results)
+        sel, lin = m.group(1), int(m.group(2), 16)
+        before, after = results.split("|")[3:5]
+        self.assertRegex(before, r"(?m)^\s*\d+: %08x, #%s:" % (lin, sel), before)
+        self.assertRegex(before, r"(?m)^\s*\d+: %08x, " % (lin + 1), before)
+        # the selector moved, so its breakpoint goes, with a word on why
+        self.assertRegex(after, r"Warning: cleared breakpoint \d+ because "
+                         r"#%s:\S+ no longer points to %08x" % (sel, lin), after)
+        self.assertNotRegex(after, r"(?m)^\s*\d+: %08x" % lin, after)
+        # and the one set by its linear address stays
+        self.assertRegex(after, r"(?m)^\s*\d+: %08x, " % (lin + 1), after)
 
     def test_dosdebug_ldt(self):
         """Dosdebug ldt line count"""

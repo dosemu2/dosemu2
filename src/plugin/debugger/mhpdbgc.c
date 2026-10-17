@@ -1934,8 +1934,8 @@ static void mhp_memset(int argc, char *argv[])
   }
 }
 
-static unsigned int mhp_getadr(char *a1, dosaddr_t *v1, unsigned int *s1,
-      unsigned int *o1, unsigned int *lim, int use_ldt)
+static unsigned int getadr(char *a1, dosaddr_t *v1, unsigned int *s1,
+      unsigned int *o1, unsigned int *lim, int use_ldt, int *is_sel)
 {
   char *srchp;
   unsigned int seg1;
@@ -2050,7 +2050,15 @@ static unsigned int mhp_getadr(char *a1, dosaddr_t *v1, unsigned int *s1,
 
   *v1 = base_addr + off1;
   *lim = limit - off1;
+  if (is_sel)
+    *is_sel = 1;
   return 1;
+}
+
+static unsigned int mhp_getadr(char *a1, dosaddr_t *v1, unsigned int *s1,
+      unsigned int *o1, unsigned int *lim, int use_ldt)
+{
+  return getadr(a1, v1, s1, o1, lim, use_ldt, NULL);
 }
 
 static int bp_exists(unsigned int seekval)
@@ -2245,7 +2253,8 @@ static void mhp_bcw(int argc, char *argv[])
   mhp_printf("Watchpoint %u cleared\n", num);
 }
 
-int mhp_setbp(unsigned int seekval)
+static int setbp(unsigned int seekval, const char *origin, int is_sel,
+    unsigned int sel, unsigned int off)
 {
   int i1;
 
@@ -2262,11 +2271,46 @@ int mhp_setbp(unsigned int seekval)
       mhpdbgc.brktab[i1].brkaddr = seekval;
       mhpdbgc.brktab[i1].is_valid = 1;
       mhpdbgc.brktab[i1].is_dpmi = dbg_in_dpmi();
+      snprintf(mhpdbgc.brktab[i1].origin, sizeof(mhpdbgc.brktab[i1].origin),
+               "%s", origin ? origin : "");
+      mhpdbgc.brktab[i1].is_sel = is_sel;
+      mhpdbgc.brktab[i1].sel = sel;
+      mhpdbgc.brktab[i1].off = off;
       return 1;
     }
   }
   mhp_printf("Breakpoint table full, nothing done\n");
   return 0;
+}
+
+int mhp_setbp(unsigned int seekval)
+{
+  return setbp(seekval, NULL, 0, 0, 0);
+}
+
+/* A breakpoint set with a selector stays only as long as that selector
+ * still points where it did: once it is freed or moved, the breakpoint
+ * is stale. One set with a linear address, or a real mode segment, which
+ * can not move, stays.
+ */
+static int bp_sel_moved(int i1)
+{
+  struct brkentry *b = &mhpdbgc.brktab[i1];
+
+  if (!b->is_sel)
+    return 0;
+  return !dpmi_active() || !DPMIValidSelector(b->sel) ||
+      GetSegmentBase(b->sel) + b->off != b->brkaddr;
+}
+
+static void clear_moved_bp(int i1)
+{
+  mhp_printf("Warning: cleared breakpoint %d because %s no longer points to "
+      "%08x\n", i1, mhpdbgc.brktab[i1].origin, mhpdbgc.brktab[i1].brkaddr);
+  if (i1 == trapped_bp)
+    trapped_bp = -1;
+  mhpdbgc.brktab[i1].brkaddr = 0;
+  mhpdbgc.brktab[i1].is_valid = 0;
 }
 
 int mhp_clearbp(unsigned int seekval)
@@ -2306,6 +2350,8 @@ static void mhp_bp(int argc, char *argv[])
   unsigned int seg;
   unsigned int off;
   unsigned int limit;
+  char origin[sizeof(mhpdbgc.brktab[0].origin)];
+  int is_sel = 0;
 
   if (!check_for_stopped())
     return;
@@ -2315,12 +2361,15 @@ static void mhp_bp(int argc, char *argv[])
     return;
   }
 
-  if (!mhp_getadr(argv[1], &seekval, &seg, &off, &limit, dbg_in_dpmi())) {
+  /* mhp_getadr() cuts the string at the colon */
+  snprintf(origin, sizeof(origin), "%s", argv[1]);
+  if (!getadr(argv[1], &seekval, &seg, &off, &limit, dbg_in_dpmi(),
+      &is_sel)) {
     mhp_printf("Invalid ADDR\n");
     return;
   }
 
-  mhp_setbp(seekval);
+  setbp(seekval, origin, is_sel, seg, off);
 }
 
 static void mhp_bl(int argc, char *argv[])
@@ -2329,8 +2378,16 @@ static void mhp_bl(int argc, char *argv[])
 
   mhp_printf("Breakpoints:\n");
   for (i1 = 0; i1 < MAXBP; i1++) {
+    /* only while stopped: running, its INT3 is still in the code */
+    if (mhpdbgc.brktab[i1].is_valid && mhpdbgc.bpcleared &&
+        bp_sel_moved(i1))
+      clear_moved_bp(i1);
     if (mhpdbgc.brktab[i1].is_valid) {
-      mhp_printf("%d: %08x\n", i1, mhpdbgc.brktab[i1].brkaddr);
+      if (mhpdbgc.brktab[i1].origin[0])
+        mhp_printf("%d: %08x, %s\n", i1, mhpdbgc.brktab[i1].brkaddr,
+                   mhpdbgc.brktab[i1].origin);
+      else
+        mhp_printf("%d: %08x\n", i1, mhpdbgc.brktab[i1].brkaddr);
     }
   }
   mhp_printf("Interrupts: ");
@@ -2714,6 +2771,10 @@ void mhp_bpset(void)
         mhpdbgc.brktab[i1].brkaddr = 0;
         mhpdbgc.brktab[i1].is_valid = 0;
         mhp_printf("Warning: cleared breakpoint %d because not in DPMI\n", i1);
+        continue;
+      }
+      if (bp_sel_moved(i1)) {
+        clear_moved_bp(i1);
         continue;
       }
       mhpdbgc.brktab[i1].opcode = READ_BYTE(mhpdbgc.brktab[i1].brkaddr);
