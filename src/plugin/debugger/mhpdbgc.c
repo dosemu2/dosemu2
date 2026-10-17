@@ -1035,19 +1035,19 @@ static void mhp_dump(int argc, char *argv[])
     if ((i & 0x0f) == 0x00) {
       if (segmented) {
         if (data32)
-          mhp_printf("%s%04x:%08x ", in_dpmi ? "#" : "", seg, off + i);
+          mhp_printf("%s%04x:%08x", in_dpmi ? "#" : "", seg, off + i);
         else
-          mhp_printf("%s%04x:%04x ", in_dpmi ? "#" : "", seg, off + i);
+          mhp_printf("%s%04x:%04x", in_dpmi ? "#" : "", seg, off + i);
       } else if (unixaddr)
-        mhp_printf("%#08x ", seekval + i);
+        mhp_printf(" %#08x", seekval + i);
       else
-        mhp_printf("%08X ", seekval + i);
+        mhp_printf(" %08X", seekval + i);
     }
     if (unixaddr)
       c = UNIX_READ_BYTE((uintptr_t)buf + i);
     else
       c = READ_BYTE(buf + i);
-    mhp_printf("%02X ", c);
+    mhp_printf(" %02X", c);
     if ((i & 0x0f) == 0x0f) {
       mhp_printf(" ");
       for (i2 = i - 15; i2 <= i; i2++) {
@@ -2390,14 +2390,15 @@ static void mhp_bl(int argc, char *argv[])
         mhp_printf("%d: %08x\n", i1, mhpdbgc.brktab[i1].brkaddr);
     }
   }
-  mhp_printf("Interrupts: ");
+  mhp_printf("Interrupts:");
   for (i1 = 0; i1 < 256; i1++) {
     if (test_bit(i1, mhpdbg.intxxtab)) {
-      mhp_printf("%02x ", i1);
+      mhp_printf(" %02x", i1);
     }
   }
+  mhp_printf("\n");
 #if WITH_DPMI
-  mhp_printf("\nDPMI Interrupts:");
+  mhp_printf("DPMI Interrupts:");
   for (i1 = 0; i1 < 256; i1++) {
     if (dpmi_mhp_intxxtab[i1]) {
       mhp_printf(" %02x", i1);
@@ -2416,8 +2417,8 @@ static void mhp_bl(int argc, char *argv[])
       }
     }
   }
-#endif
   mhp_printf("\n");
+#endif
   if (mhpdbgc.bpload)
     mhp_printf("bpload active\n");
   print_log_breakpoints();
