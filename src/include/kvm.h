@@ -19,6 +19,15 @@
 
 #include "emu.h"
 
+/* A data watchpoint as the CPU's debug registers can hold one: four of
+ * them at most, of 1, 2 or 4 bytes each, aligned on that size.  addr is a
+ * guest linear address, which below the HMA is the dosaddr_t itself. */
+#define KVM_MAX_WATCHPOINTS 4
+struct kvm_watchpoint {
+  unsigned int addr;
+  unsigned int len;		/* 0 for an unused slot */
+};
+
 #ifdef USE_KVM
 /* kvm functions */
 int init_kvm_cpu(void);
@@ -41,6 +50,8 @@ void kvm_enter(int pm);
 void kvm_leave(int pm);
 void kvm_update_fpu(void);
 void kvm_get_fpu(void);
+int kvm_set_watchpoints(const struct kvm_watchpoint *wp, int n);
+int kvm_get_watchpoint_hits(void);
 
 void kvm_done(void);
 
@@ -65,6 +76,11 @@ static inline void kvm_enter(int pm) {}
 static inline void kvm_leave(int pm) {}
 static inline void kvm_update_fpu(void) {}
 static inline void kvm_get_fpu(void) {}
+static inline int kvm_set_watchpoints(const struct kvm_watchpoint *wp, int n)
+{
+  return -1;
+}
+static inline int kvm_get_watchpoint_hits(void) { return 0; }
 static inline void kvm_done(void) {}
 #endif
 
