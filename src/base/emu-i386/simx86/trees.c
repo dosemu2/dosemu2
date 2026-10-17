@@ -668,8 +668,7 @@ static unsigned char *BreakNodeHook(TNode *G, unsigned char *eip)
     return NULL;
 }
 
-static unsigned char *DoInvalidateNodeRange(int al, int len, unsigned char *eip,
-    unsigned char * (*hook)(TNode *, unsigned char *))
+static unsigned char *DoInvalidateNodeRange(int al, int len, unsigned char *eip)
 {
   TNode *G;
   int ah;
@@ -699,8 +698,8 @@ static unsigned char *DoInvalidateNodeRange(int al, int len, unsigned char *eip,
 	    unsigned char *p = NULL;
 	    if (debug_level('e')>1)
 		dbug_printf("Invalidated node %p at %08x\n",G,G->key);
-	    if (eip && hook) {
-		p = hook(G, eip);
+	    if (eip) {
+		p = BreakNodeHook(G, eip);
 		if (p)
 		    rc = p;
 	    }
@@ -724,12 +723,12 @@ quit:
 
 void InvalidateNodeRange(int al, int len)
 {
-  DoInvalidateNodeRange(al, len, NULL, NULL);
+  DoInvalidateNodeRange(al, len, NULL);
 }
 
 void InvalidateNodeRangeFromFault(int al, int len, unsigned char *eip)
 {
-  BrokenCodePtr = DoInvalidateNodeRange(al, len, eip, BreakNodeHook);
+  BrokenCodePtr = DoInvalidateNodeRange(al, len, eip);
 }
 
 /////////////////////////////////////////////////////////////////////////////
