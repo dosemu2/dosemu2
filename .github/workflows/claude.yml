@@ -25,6 +25,7 @@ jobs:
     timeout-minutes: 5
     permissions:
       issues: write
+      pull-requests: write
     env:
       GH_TOKEN: ${{ github.token }}
       ROUTINE_ID: trig_01W12PMjrKPCMpSULVm94Sux
