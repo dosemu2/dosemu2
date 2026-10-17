@@ -294,5 +294,6 @@ struct serial_drv serm_drv = {
   serm_close,
   serm_uart_fill,
   serm_get_msr,
+  NULL,
   "serial_mouse_tty"
 };
