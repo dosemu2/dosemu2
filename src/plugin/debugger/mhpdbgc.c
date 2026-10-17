@@ -2721,6 +2721,71 @@ static void mhp_regs32(int argc, char *argv[])
   reg32 ^= 1;
 }
 
+/* A log line that names an address puts it right after " at ", as the
+ * cs:ip the call it reports came from.
+ */
+static int addr_from_log_line(const char *line, far_t *caller)
+{
+  const char *s = strstr(line, " at ");
+  unsigned int seg, off;
+  int n = 0;
+
+  if (!s)
+    return 0;
+  if (sscanf(s + 4, "%4x:%4x%n", &seg, &off, &n) != 2 || n != 9)
+    return 0;
+  *caller = MK_FARt(seg, off);
+  return 1;
+}
+
+/* A log line is printed while dosemu runs code of its own for the client,
+ * so the stop it asks for is there, in a hlt block the client never wrote,
+ * with the client's own address not even on top of the stack: dosemu's
+ * frames are above it.  Where the line says what address the call came
+ * from, the stop report shows the client there instead, which a
+ * breakpoint could not do - the client is past that address by the time
+ * anything could be set on it, and may never come back to it at all.
+ */
+static far_t log_caller;
+
+static void note_where_the_line_says(const char *line)
+{
+  far_t caller;
+  dosaddr_t addr;
+
+  log_caller = FAR_NULL;
+  /* the address in a log line is a real mode one */
+  if (in_dpmi_pm() || !addr_from_log_line(line, &caller))
+    return;
+  addr = SEGOFF2LINEAR(caller.segment, caller.offset);
+  /* a hlt is what dosemu gets back to its own code through, so a line
+   * naming one names nothing of the client */
+  if (READ_BYTE(addr) == 0xf4)
+    return;
+  /* what the line names is the address the call returns to, so the call
+   * itself is the two bytes behind it, where those are an int at all */
+  if (caller.offset >= 2 && READ_BYTE(addr - 2) == 0xcd)
+    caller.offset -= 2;
+  log_caller = caller;
+}
+
+/* Shows the client where the log line put it, with cs:eip wound back to
+ * the call, and leaves the registers as they were: the code dosemu is in
+ * has to carry on from where it was once the user lets it.
+ */
+static void show_log_caller(int argc, char *argv[])
+{
+  far_t here = MK_FARt(SREG(cs), LWORD(eip));
+
+  mhp_printf("showing the client at %04x:%04x, where the logged call was "
+             "made\n", log_caller.segment, log_caller.offset);
+  SREG(cs) = log_caller.segment;
+  LWORD(eip) = log_caller.offset;
+  mhp_regs(argc, argv);
+  SREG(cs) = here.segment;
+  LWORD(eip) = here.offset;
+}
+
 static void mhp_r0(int argc, char *argv[])
 {
   if (trapped_bp == -2)
@@ -2728,10 +2793,16 @@ static void mhp_r0(int argc, char *argv[])
   else
     trapped_bp = -1;
   mhp_bpclr();
-  if (mhpdbgc.stopped)
-    mhp_regs(argc, argv);
-  else
+  if (!mhpdbgc.stopped) {
     mhp_print_system_state();
+    return;
+  }
+  if (log_caller.segment) {     /* a log line said where the client is */
+    show_log_caller(argc, argv);
+    log_caller = FAR_NULL;
+    return;
+  }
+  mhp_regs(argc, argv);
 }
 
 static void mhp_kill(int argc, char *argv[])
@@ -3358,9 +3429,9 @@ static int mhp_check_regex(char *line)
       if (hit) {
         mhp_printf("log break point %d hit: >%s<\n", rx, line);
         mhp_send();
-      }
-      if (hit)
+        note_where_the_line_says(line);
         return 1;
+      }
     }
   }
   return 0;
