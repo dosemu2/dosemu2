@@ -970,11 +970,14 @@ class OurTestCase(BaseTestCase):
         self.mkcom_with_nasm("writer", WRITER_ASM)
 
         def body(args):
-            out = self.dbgCmd("bpw 0000:0500")
-            out += self.dbgCmd("bpw")
+            out = ["set=" + self.dbgCmd("bpw 0000:0500")]
+            out.append("list=" + self.dbgCmd("bpw"))
             # the program runs, writes, and the watchpoint stops it
-            out += self.dbgCmd("g", settle=2, limit=30)
-            return out
+            out.append("stop=" + self.dbgCmd("g", settle=2, limit=30))
+            seg, off, regs = self.dbgRegs(pm=False)
+            out.append("at=%04x:%04x " % (seg, off) + regs)
+            out.append("bl=" + self.dbgCmd("bl"))
+            return " | ".join(out)
 
         results = self.runWithDosdebug("testit.bat", body, config=SIM_CONF,
                                        timeout=60)
@@ -985,6 +988,20 @@ class OurTestCase(BaseTestCase):
         self.assertRegex(results, r"watchpoint 0: 00000500 written from "
                                   r"eip 104, 00000500 now holds 5a, "
                                   r"held [0-9a-f]{2}")
+        # the registers printed with the report are the writing
+        # instruction's, so cs:ip is on it and it disassembles there
+        wrote = results.split("registers of the instruction that wrote:")
+        self.assertEqual(len(wrote), 2, results)
+        self.assertRegex(wrote[1], r"CS:IP=[0-9a-f]{4}:0104\b", results)
+        self.assertRegex(wrote[1], r"mov\s+byte \[0500\],5A", results)
+        # the stop is on the client, on the instruction after the write at
+        # 0109, rather than wherever dosemu was at the next poll
+        at = results.split("at=")[-1].split(" | ")[0]
+        self.assertRegex(at, r"^[0-9a-f]{4}:0109 ",
+                         "the stop is not where the client was: " + results)
+        # and the breakpoint that held it there is gone again
+        bl = results.split("bl=")[-1].split(" | ")[0]
+        self.assertNotRegex(bl, r"(?m)^\s*\d+: [0-9a-f]+", bl)
         # and the client is still alive after being let go
         screen = self.logfiles['xpt'][0].read_bytes().decode('ASCII', 'replace')
         self.assertIn("WRITER OK", screen)
