@@ -1035,19 +1035,19 @@ static void mhp_dump(int argc, char *argv[])
     if ((i & 0x0f) == 0x00) {
       if (segmented) {
         if (data32)
-          mhp_printf("%s%04x:%08x ", in_dpmi ? "#" : "", seg, off + i);
+          mhp_printf("%s%04x:%08x", in_dpmi ? "#" : "", seg, off + i);
         else
-          mhp_printf("%s%04x:%04x ", in_dpmi ? "#" : "", seg, off + i);
+          mhp_printf("%s%04x:%04x", in_dpmi ? "#" : "", seg, off + i);
       } else if (unixaddr)
-        mhp_printf("%#08x ", seekval + i);
+        mhp_printf(" %#08x", seekval + i);
       else
-        mhp_printf("%08X ", seekval + i);
+        mhp_printf(" %08X", seekval + i);
     }
     if (unixaddr)
       c = UNIX_READ_BYTE((uintptr_t)buf + i);
     else
       c = READ_BYTE(buf + i);
-    mhp_printf("%02X ", c);
+    mhp_printf(" %02X", c);
     if ((i & 0x0f) == 0x0f) {
       mhp_printf(" ");
       for (i2 = i - 15; i2 <= i; i2++) {
