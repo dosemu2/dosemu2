@@ -28,6 +28,7 @@ Currently missing DPMI-0.9 functions:
 #include <fcntl.h>
 #include <unistd.h>
 #include <string.h>
+#include <alloca.h>
 #include <assert.h>
 #ifdef __linux__
 #include <linux/version.h>
@@ -111,6 +112,94 @@ static void add_cli_to_blacklist(unsigned char *addr);
 #ifdef USE_MHPDBG
 static int dpmi_mhp_intxx_check(cpuctx_t *scp, int intno);
 #endif
+
+/* Work out the offset a modrm byte with a memory destination addresses,
+ * for the handful of instructions emulated below. reg[] is the eight
+ * general registers in encoding order. Returns the offset and puts the
+ * length of the modrm byte together with its sib and displacement into
+ * *len, or leaves *len at zero for a form not decoded here. *ss_rel is
+ * set when the default segment for the form is SS rather than DS. */
+static unsigned int decode_ea(const unsigned char *modrm, uint32_t *reg[8],
+    int a32, int *len, int *ss_rel)
+{
+  unsigned char m = modrm[0];
+  int mod = m >> 6, rm = m & 7;
+  unsigned int ofs = 0;
+  int n = 1;			/* the modrm byte itself */
+
+  *len = 0;
+  *ss_rel = 0;
+  if (mod == 3)			/* register destination, not ours */
+    return 0;
+
+  if (a32) {
+    if (rm == 4) {		/* sib follows */
+      unsigned char sib = modrm[1];
+      int base = sib & 7, index = (sib >> 3) & 7;
+
+      n++;
+      if (index != 4)		/* 4 encodes no index */
+	ofs += *reg[index] << (sib >> 6);
+      if (base == 5 && mod == 0) {
+	ofs += *(const uint32_t *)(modrm + n);
+	n += 4;
+      } else {
+	ofs += *reg[base];
+	if (base == 4 || base == 5)
+	  *ss_rel = 1;		/* esp or ebp based */
+      }
+    } else if (rm == 5 && mod == 0) {
+      ofs = *(const uint32_t *)(modrm + n);
+      n += 4;
+    } else {
+      ofs = *reg[rm];
+      if (rm == 5)
+	*ss_rel = 1;		/* ebp based */
+    }
+
+    if (mod == 1) {
+      ofs += (int8_t)modrm[n];
+      n += 1;
+    } else if (mod == 2) {
+      ofs += *(const int32_t *)(modrm + n);
+      n += 4;
+    }
+  } else {
+    unsigned short bx = *reg[3], bp = *reg[5], si = *reg[6], di = *reg[7];
+
+    switch (rm) {
+      case 0: ofs = bx + si; break;
+      case 1: ofs = bx + di; break;
+      case 2: ofs = bp + si; *ss_rel = 1; break;
+      case 3: ofs = bp + di; *ss_rel = 1; break;
+      case 4: ofs = si; break;
+      case 5: ofs = di; break;
+      case 6:
+	if (mod == 0) {
+	  ofs = *(const uint16_t *)(modrm + n);
+	  n += 2;
+	} else {
+	  ofs = bp;
+	  *ss_rel = 1;
+	}
+	break;
+      case 7: ofs = bx; break;
+    }
+
+    if (mod == 1) {
+      ofs += (int8_t)modrm[n];
+      n += 1;
+    } else if (mod == 2) {
+      ofs += *(const int16_t *)(modrm + n);
+      n += 2;
+    }
+    ofs &= 0xffff;
+  }
+
+  *len = n;
+  return ofs;
+}
+
 static int dpmi_fault1(cpuctx_t *scp);
 static void do_dpmi_retf(cpuctx_t *scp, void * const sp);
 static int prn_tid;
@@ -399,6 +488,8 @@ int get_ldt(void *buffer, int len)
   return ret;
 }
 
+static void dtr_ldt_sync(unsigned entry);
+
 static int put_ldt(struct user_desc *ldt_info)
 {
   int __retval;
@@ -412,6 +503,8 @@ static int put_ldt(struct user_desc *ldt_info)
   }
   /* this also updates our ldt_buffer */
   __retval = emu_write_ldt(ldt_info, sizeof(*ldt_info));
+  if (!__retval)
+    dtr_ldt_sync(ldt_info->entry_number);
   return __retval;
 }
 
@@ -2589,6 +2682,110 @@ int dpmi_install_rsp(struct RSPcall_s *callback)
     return 0;
 }
 
+/*
+ * What a client finds where the descriptor tables should be.
+ *
+ * A 286 extender looks for its descriptors the way the hardware does:
+ * sgdt for the GDT, sldt for the index of the LDT inside it, the base
+ * and limit out of that entry, and then it indexes that table by
+ * selector. The LDT is the only table it has any business touching,
+ * so what it needs is a GDT holding one entry that describes the LDT,
+ * and an IDT, because the same client reads that one too.
+ *
+ * Two mappings of one shm object hold all three, the way msdos_ldt
+ * does it: ours stays writable, so put_ldt() keeps the LDT in step
+ * entry by entry without ever opening the client's view of it. In the
+ * client's mapping the GDT and the LDT are read-only, which is all a
+ * client that can grow neither of them may have, while the IDT is the
+ * last page and is left as allocated, writable, because a client that
+ * sets a gate of its own there (#1767) has to go on working; the host
+ * reads nothing back from that page, so such a write is discarded in
+ * the only way that costs nothing.
+ *
+ * The GDT's one entry is at index 0, because that is what sldt
+ * reports, and it describes the LDT on the pages after the GDT.
+ */
+#define DTR_LDT_SIZE (LDT_ENTRIES * LDT_ENTRY_SIZE)
+static dosaddr_t gdt_base, ldt_base, idt_base;	/* in the client's view */
+static unsigned char *dtr_backbuf;	/* our writable view of it all */
+static unsigned dtr_ldt_offs;		/* where the LDT starts in the block */
+
+static int dtr_alias_setup(void)
+{
+    char nm[] = "dtr_alias_%PXXXXXX";
+    /* one entry short of the whole table: the extender works out how
+     * many descriptors fit with a 16bit (limit + 1) / 8, and a limit of
+     * 0xffff wraps that to zero, which it reports as a fatal error */
+    unsigned lim = DTR_LDT_SIZE - LDT_ENTRY_SIZE - 1;
+    /* a page each for the GDT and the IDT, because the protection they
+     * get differs, and the attributes go per host page */
+    unsigned ldt_len = HOST_PAGE_ALIGN(DTR_LDT_SIZE);
+    unsigned len = 2 * HOST_PAGE_SIZE + ldt_len;
+    dpmi_pm_block *bbuf, *alias;
+    unsigned char *d;
+    uint16_t *attrs;
+    int i, npages;
+
+    assert(HOST_PAGE_SIZE >= EMU_GDT_LIMIT + 1 &&
+	    HOST_PAGE_SIZE >= EMU_IDT_LIMIT + 1);
+    tempname(nm, 6);
+    bbuf = DPMI_mallocShared(&host_pm_block_root, nm, len,
+	    SHM_NOEXEC | SHM_EXCL);
+    if (!bbuf) {
+	error("DPMI: can't allocate memory for descriptor tables\n");
+	return -1;
+    }
+    /* the very same memory once more, and this one the client sees */
+    alias = DPMI_mallocShared(&host_pm_block_root, nm, len, SHM_NOEXEC);
+    if (!alias || alias->handle == bbuf->handle) {
+	error("DPMI: can't alias memory for descriptor tables\n");
+	return -1;
+    }
+    /* the GDT and the LDT go read-only; the IDT page at the end keeps
+     * the protection it was allocated with */
+    npages = (HOST_PAGE_SIZE + ldt_len) / HOST_PAGE_SIZE;
+    attrs = alloca(sizeof(*attrs) * npages);
+    for (i = 0; i < npages; i++)
+	attrs[i] = 0x83;		/* NX, read-only */
+    if (!DPMI_SetPageAttributes(&host_pm_block_root, alias->handle, 0,
+	    attrs, npages)) {
+	error("DPMI: can't protect descriptor tables\n");
+	return -1;
+    }
+    dtr_backbuf = LINEAR2UNIX(bbuf->base);
+    dtr_ldt_offs = HOST_PAGE_SIZE;
+    ldt_base = alias->base + dtr_ldt_offs;
+    memset(dtr_backbuf, 0, len);
+    memcpy(dtr_backbuf + dtr_ldt_offs, ldt_buffer, DTR_LDT_SIZE);
+    d = dtr_backbuf;
+    d[0] = lim & 0xff;
+    d[1] = (lim >> 8) & 0xff;
+    d[2] = ldt_base & 0xff;
+    d[3] = (ldt_base >> 8) & 0xff;
+    d[4] = (ldt_base >> 16) & 0xff;
+    d[5] = 0x82;		/* present, system, LDT */
+    d[6] = (lim >> 16) & 0x0f;
+    d[7] = (ldt_base >> 24) & 0xff;
+    gdt_base = alias->base;
+    idt_base = alias->base + HOST_PAGE_SIZE + ldt_len;
+    D_printf("DPMI: gdt at %#x, idt at %#x, ldt at %#x/%#x\n",
+	    gdt_base, idt_base, ldt_base, lim);
+    return 0;
+}
+
+static void dtr_ldt_sync(unsigned entry)
+{
+    if (!dtr_backbuf || entry >= LDT_ENTRIES)
+	return;
+    memcpy(dtr_backbuf + dtr_ldt_offs + entry * LDT_ENTRY_SIZE,
+	    &ldt_buffer[entry * LDT_ENTRY_SIZE], LDT_ENTRY_SIZE);
+}
+
+dosaddr_t dpmi_get_dtr_base(int idt)
+{
+    return idt ? idt_base : gdt_base;
+}
+
 dosaddr_t DPMIMapHWRam(unsigned addr, unsigned size)
 {
     dpmi_pm_block *blk = DPMI_mapHWRam(&DPMI_CLIENT.pm_block_root, addr, size);
@@ -4322,12 +4519,15 @@ void dpmi_setup(void)
       break;
     }
 
-    get_ldt(ldt_buffer, LDT_ENTRIES * LDT_ENTRY_SIZE);
-
     if (dpmi_alloc_pool()) {
 	leavedos(2);
 	return;
     }
+    get_ldt(ldt_buffer, LDT_ENTRIES * LDT_ENTRY_SIZE);
+    /* the tables a client goes looking for, made once and for all */
+    if (dtr_alias_setup())
+	goto err2;
+
     if (!(_dpmi_sel16 = allocate_descriptors(1))) goto err;
     if (!(_dpmi_sel32 = allocate_descriptors(1))) goto err;
 
@@ -6142,14 +6342,68 @@ static int dpmi_fault1(cpuctx_t *scp)
               }
               LWORD32(eip, += 3);
               break;
-            default:
-              /* A memory operand needs the effective address worked out,
-               * which we cannot do here yet, so the store instructions
-               * lose their result. Say which one it was. */
-              error_once("DPMI: unsupported %s with a memory operand, "
-                  "modrm %#x\n%s", nm, csp[1], DPMI_show_state(scp));
-              LWORD32(eip, = org_eip + instr_len(lina, Segments(_cs>>3).is_32));
-              break;
+            default: { // memory operand
+              /* Storing to memory is as ordinary for these as storing to
+               * a register, and skipping the instruction leaves the
+               * client reading back whatever its buffer held before -
+               * silence where it asked a question. Work the effective
+               * address out and lay the answer down: six bytes for sgdt
+               * and sidt, two for sldt, str and smsw.
+               *
+               * Only for the five that store. The seven that read from
+               * this operand - lgdt, lidt, lldt, ltr, lmsw - or only set
+               * ZF reach us too, since they are privileged and fault out
+               * of a client at cpl 3, and writing to their operand would
+               * corrupt the very bytes they came to read. */
+              int len = 0, ss_rel = 0;
+              unsigned int ofs;
+              unsigned short sel;
+              unsigned char *p;
+
+              if (!stores) {
+                error_once("DPMI: unsupported %s with a memory operand, "
+                    "modrm %#x\n%s", nm, csp[1], DPMI_show_state(scp));
+                LWORD32(eip, = org_eip + instr_len(lina,
+                    Segments(_cs>>3).is_32));
+                break;
+              }
+
+              ofs = decode_ea(&csp[1], reg32, ASIZE_IS_32, &len, &ss_rel);
+              if (!len) {
+                error_once("DPMI: unsupported %s memory operand, "
+                    "modrm %#x\n%s", nm, csp[1], DPMI_show_state(scp));
+                LWORD32(eip, = org_eip + instr_len(lina,
+                    Segments(_cs>>3).is_32));
+                break;
+              }
+              sel = pref_seg != -1 ? pref_seg : (ss_rel ? _ss : _ds);
+              p = (unsigned char *)SEL_ADR(sel, ofs);
+              if (csp[0] && reg <= 1) {
+                /* sgdt and sidt always lay down the full six bytes,
+                 * whatever the operand size, and the base is little
+                 * endian like everything else the client reads. */
+                /* the tables are there, so a client that follows
+                 * what it reads here finds its own LDT */
+                unsigned int base = dpmi_get_dtr_base(reg);
+                unsigned int limit = reg ? EMU_IDT_LIMIT : EMU_GDT_LIMIT;
+                p[0] = limit;
+                p[1] = limit >> 8;
+                p[2] = base;
+                p[3] = base >> 8;
+                p[4] = base >> 16;
+                p[5] = base >> 24;
+              } else {
+                /* the memory form of smsw stores the low word of cr0 and
+                 * nothing else, so PG never reaches it; sldt and str name
+                 * descriptors the client has no business following and
+                 * stay zero, as in the register case above. */
+                unsigned int val = (csp[0] && reg == 4) ? CR0_PE : 0;
+
+                p[0] = val;
+                p[1] = val >> 8;
+              }
+              LWORD32(eip, += 2 + len);
+              break; }
           }
           break;
         }
