@@ -203,6 +203,10 @@ See mhpdbgc.c for code and cmd table.
 </para>
 
 <para>
+A command can be shortened to any prefix that fits only it, e.g. 'g' for 'go'.
+</para>
+
+<para>
 (all numeric args in hex)
 <variablelist>
 
@@ -326,7 +330,7 @@ prefixing  a `0'.
 </para>
 </listitem></varlistentry>
 <varlistentry>
-<term>g</term>
+<term>go</term>
 <listitem>
 <para>
 		  go (if stopped)
