@@ -1541,6 +1541,24 @@ Return: nothing
 }
 
 /* ========================================================================= */
+/* The frame an interrupt pushed sits just below the stack its caller had,
+ * and stk_offs is where that stack is, the offset dosemu is given to read
+ * a caller's arguments from, so that frame says where the interrupt will
+ * return to, and the int that made it is the two bytes behind that. Those
+ * two bytes are what to name, where they are an int at all: a handler
+ * entered by a far call has no int of its own to point at.
+ */
+static far_t int_caller(int stk_offs)
+{
+    dosaddr_t stk = SEGOFF2LINEAR(SREG(ss), LWORD(esp) + stk_offs);
+    far_t caller = MK_FARt(READ_WORD(stk - 4), READ_WORD(stk - 6));
+
+    if (caller.offset >= 2 &&
+	READ_BYTE(SEGOFF2LINEAR(caller.segment, caller.offset - 2)) == 0xcd)
+	caller.offset -= 2;
+    return caller;
+}
+
 /*
  * DANG_BEGIN_FUNCTION ms_dos
  *
@@ -1558,11 +1576,17 @@ Return: nothing
  *
  * DANG_END_FUNCTION
  */
-static int msdos(void)
+static int msdos(int stk_offs)
 {
+    far_t caller = int_caller(stk_offs);
+
+    /* The address a log line names is the one the call came from, which is
+     * what dosdebug reads out of the line to put a client stopped on it
+     * back into its own code.
+     */
     ds_printf
 	("INT21 at %04x:%04x: AX=%04x, BX=%04x, CX=%04x, DX=%04x, DS=%04x, ES=%04x\n",
-	SREG(cs), LWORD(eip), LWORD(eax), LWORD(ebx),
+	caller.segment, caller.offset, LWORD(eax), LWORD(ebx),
 	 LWORD(ecx), LWORD(edx), SREG(ds), SREG(es));
 
 #if 1
@@ -1967,7 +1991,7 @@ static int msdos_chainrevect(int stk_offs, int revect)
     case 0x60:
 	return I_SECOND_REVECT;
     }
-    return msdos();
+    return msdos(stk_offs);
 }
 
 static void msdos_xtra(uint16_t old_ax, uint16_t old_flags)
@@ -3204,10 +3228,14 @@ static int int2f(int stk_offs, int revect)
 
     reset_idle(0);
 #if 1
-    ds_printf
-	("INT2F at %04x:%04x: AX=%04x, BX=%04x, CX=%04x, DX=%04x, DS=%04x, ES=%04x\n",
-	 SREG(cs), LWORD(eip), LWORD(eax), LWORD(ebx), LWORD(ecx),
-	 LWORD(edx), SREG(ds), SREG(es));
+    {
+	far_t caller = int_caller(stk_offs);
+
+	ds_printf
+	    ("INT2F at %04x:%04x: AX=%04x, BX=%04x, CX=%04x, DX=%04x, DS=%04x, ES=%04x\n",
+	     caller.segment, caller.offset, LWORD(eax), LWORD(ebx),
+	     LWORD(ecx), LWORD(edx), SREG(ds), SREG(es));
+    }
 #endif
 
     switch (LWORD(eax)) {
