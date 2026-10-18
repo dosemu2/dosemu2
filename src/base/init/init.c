@@ -469,7 +469,23 @@ void map_memory_space(void)
   ext_va = ptr2;
   /* Note: can't map directly to lowmem_base here because XMS uses the
    * same window with different source. */
-  register_hardware_ram_virtual('X', LOWMEM_SIZE + HMASIZE, phys_rsv, ext_va);
+  if (config.dpmi && config.cpu_vm_dpmi != CPUVM_KVM) {
+    /* Start the window at 1M rather than above HMA. A phar lap client asks
+     * for everything from 1M up in one call, and a range that spans two of
+     * our regions cannot be served at all - do_get_hardware_ram() has one
+     * vbase to give. The alignment hole below ext_va is room enough, and
+     * the 'L' region still answers first for anything that fits in it.
+     *
+     * Not under KVM: there a region also owns its guest-physical range, and
+     * 0x100000 belongs to 'L' already. Claiming it here tears the HMA out of
+     * L's memory slot and puts the alias window's pages in its place, so the
+     * guest loses the HMA it was using. Expressing this needs a page table
+     * entry without a slot of its own, which mmap_kvm() cannot do yet. */
+    register_hardware_ram_virtual('X', LOWMEM_SIZE, phys_rsv + HMASIZE,
+        ext_va - HMASIZE);
+  } else {
+    register_hardware_ram_virtual('X', LOWMEM_SIZE + HMASIZE, phys_rsv, ext_va);
+  }
   if (config.dpmi && config.cpu_vm_dpmi == CPUVM_KVM)
     mmap_kvm(MAPPING_LOWMEM, ptr2, phys_rsv,
         MEM_BASE32(LOWMEM_SIZE + HMASIZE), LOWMEM_SIZE + HMASIZE,
