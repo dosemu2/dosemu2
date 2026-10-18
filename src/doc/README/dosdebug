@@ -406,18 +406,64 @@ the mode that was when you defined the breakpoint.
 <listitem>
 <para>
      Stop after the client writes the n bytes (1 by default) at ADDR, or
-list the watchpoints if given nothing.  Only the CPU emulator's interpreter
-($_cpuemu = (1)) reports the writes a watchpoint is made of, so bpw refuses
-to set one while something else runs the client.
+list the watchpoints if given nothing.  There is room for four of them.
+</para>
+
+<para>
+A watch is armed one of two ways, according to what runs the client, and the
+two cannot be mixed: whichever the first watch picked stands until
+<emphasis>bcw</emphasis> clears them all.  Natively there is neither, so a
+watchpoint is refused there.
+</para>
+
+<para>
+<emphasis>Under the CPU emulator's interpreter</emphasis> ($_cpuemu = (1))
+the watch is a check in the handlers that every write the interpreter makes
+for the client goes through.  It needs nothing else and can sit anywhere in
+the client's memory.  What the jit writes from compiled code goes a way
+these handlers do not, which is why it is the interpreter rather than the
+emulator at large that is asked for.
+</para>
+
+<para>
+<emphasis>Under KVM</emphasis> there is no such place, the client being run
+by the CPU itself, so the watch goes into the CPU's own debug registers.
+That is also the only kind of watch that follows a client which goes to ring
+0 and runs with page and descriptor tables of its own, as a VCPI client
+does.  The hardware sets the terms: one, two or four bytes per watch,
+starting on a multiple of that size.  There is one set of these registers
+and the client can use them too, a debugger running inside DOS being the
+case that does; whatever it had is put back when the last watch is cleared,
+but anything it sets while a watch is armed is lost at the next arming.
+</para>
+
+<para>
+What a debug register compares is the linear address, which is what the
+address means under the page tables in force at the time.  Those are
+dosemu's own for an ordinary client, and there it is the same number the
+rest of the debugger uses.  A client that has installed page tables of its
+own decides for itself what a linear address stands for, and the watch
+follows the number rather than the memory: a VCPI client maps the first
+megabyte to itself, which is why this works there at all.
+</para>
+
+<para>
+A client can also cross from one way to the other while a watch is set,
+which is what it does when KVM runs its real mode and the emulator its DPMI,
+or the other way about.  The watch then reports nothing from the far side,
+and a client that writes nothing looks the same, so the debugger says once
+that this has happened rather than leave the silence to be read as an
+answer.
 </para>
 
 <para>
 A write dosemu itself makes into the client's memory, which is how most of
-what DOS does for the client reaches it, goes nowhere near the emulator and
-is not seen.  An instruction cannot be stopped halfway either, so the write
-has already happened by the time the report arrives, and the registers
-printed with it are not the writing instruction's; the report names its eip
-instead.
+what DOS does for the client reaches it, is seen by neither way.  An
+instruction cannot be stopped halfway either, so the write has already
+happened by the time the report arrives, and the registers printed with it
+are not the writing instruction's: the report names its eip under the
+interpreter, and under KVM the instruction the stop landed on, just past the
+write.
 </para>
 </listitem></varlistentry>
 <varlistentry>

@@ -172,6 +172,13 @@ $_cpu_vm_dpmi = "emulated"
 $_cpuemu = (1)
 """
 
+# The other way of arming the same watchpoint is the CPU's own debug
+# registers, and those need the CPU, so that variant asks for KVM.
+KVM_CONF = DOSEMU_CONF_DEFAULT + """\
+$_cpu_vm = "kvm"
+$_cpu_vm_dpmi = "kvm"
+"""
+
 # writes one byte at 0000:0500, in the scratch area nobody else is using
 # while this runs
 SELMOVE_ASM = r"""
@@ -985,6 +992,38 @@ class OurTestCase(BaseTestCase):
         self.assertRegex(results, r"watchpoint 0: 00000500 written from "
                                   r"eip 104, 00000500 now holds 5a, "
                                   r"held [0-9a-f]{2}")
+        # and the client is still alive after being let go
+        screen = self.logfiles['xpt'][0].read_bytes().decode('ASCII', 'replace')
+        self.assertIn("WRITER OK", screen)
+
+    def test_dosdebug_bpw_kvm(self):
+        """Dosdebug watchpoint in a debug register"""
+
+        if not self.have_kvm:
+            self.skipTest("requires KVM")
+
+        self.mkbat_testit("writer")
+        self.mkcom_with_nasm("writer", WRITER_ASM)
+
+        def body(args):
+            out = self.dbgCmd("bpw 0000:0500")
+            out += self.dbgCmd("bpw")
+            # the program runs, writes, and the watchpoint stops it
+            out += self.dbgCmd("g", settle=2, limit=30)
+            return out
+
+        results = self.runWithDosdebug("testit.bat", body, config=KVM_CONF,
+                                       timeout=60)
+
+        # the same command as the interpreter's, armed the other way
+        self.assertIn("Watchpoint 0 set at 00000500, 1 byte, in a debug"
+                      " register", results)
+        self.assertRegex(results, r"(?m)^0: 00000500 1$")
+        # a data watchpoint is a trap, so the client stops on the instruction
+        # after the write and the byte already holds what was written
+        self.assertRegex(results, r"watchpoint 0: 00000500 written,\s+"
+                                  r"stopped just past [0-9a-f]{8},\s+"
+                                  r"00000500 now holds 5a, held [0-9a-f]{2}")
         # and the client is still alive after being let go
         screen = self.logfiles['xpt'][0].read_bytes().decode('ASCII', 'replace')
         self.assertIn("WRITER OK", screen)
