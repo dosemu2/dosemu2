@@ -976,13 +976,11 @@ class OurTestCase(BaseTestCase):
             # frame on top of the stack is dosemu's.  An interrupt
             # breakpoint takes us into the client's code without knowing any
             # address, on the next call it makes there.
-            seg = int(re.search(r"DS=([0-9a-f]{4})", regs).group(1), 16)
             out.append("set2=" + self.dbgCmd("bpint 21"))
             out.append("clr=" + self.dbgCmd("bclog 0"))
             self.dbgchild.sendline("g")
             seg2, off2, stop = self.dbgWaitStop(pm=False, limit=30)
-            out.append("back=%04x:%04x client=%04x " % (seg2, off2, seg)
-                       + stop)
+            out.append("back=%04x:%04x " % (seg2, off2) + stop)
             out.append("insn=" + self.dbgInsnAt(seg2, off2, pm=False))
             out.append("done=" + self.dbgCmd("bcint 21"))
             return " | ".join(out)
@@ -1003,13 +1001,18 @@ class OurTestCase(BaseTestCase):
         self.assertRegex(at, r"system state: .*stopped",
                          "the log breakpoint did not stop anything: "
                          + results)
+        # the segment the client is in is the one its ds points to, which
+        # the stop report has
+        ds = re.search(r"DS=([0-9a-f]{4})", at)
+        self.assertIsNotNone(ds, "the stop report says no ds to tell what "
+                                 "segment the client is in: " + results)
         # and the client's own code is where the interrupt breakpoint takes
         # us, on a call of its own
         back = results.split("back=")[-1].split(" | ")[0]
-        m = re.match(r"([0-9a-f]{4}):[0-9a-f]{4} client=([0-9a-f]{4}) ", back)
+        m = re.match(r"([0-9a-f]{4}):[0-9a-f]{4} ", back)
         self.assertIsNotNone(m, "no stop of the interrupt breakpoint: "
                                 + results)
-        self.assertEqual(m.group(1), m.group(2),
+        self.assertEqual(m.group(1), ds.group(1),
                          "stopped outside the client: " + results)
         self.assertIn("INT 0x21", back, results)
         insn = results.split("insn=")[-1].split(" | ")[0]
