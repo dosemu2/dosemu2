@@ -1559,6 +1559,26 @@ static far_t int_caller(int stk_offs)
     return caller;
 }
 
+/* A log break point stops the client where dosemu serves the call that was
+ * logged, in a hlt block the client never wrote and with dosemu's own
+ * frames above its stack, so the line carries the way back to the client
+ * as dosdebug commands: show the int it made, and let it run to just after
+ * that int, where the registers printed are its own.  A handler entered by
+ * a far call has no int to show, a program that is leaving has nothing to
+ * come back to, and in protected mode the address is not the client's.
+ */
+static const char *int_dbg_cmds(far_t caller, int leaving)
+{
+    static char cmds[64];
+
+    if (leaving || in_dpmi_pm() ||
+	READ_BYTE(SEGOFF2LINEAR(caller.segment, caller.offset)) != 0xcd)
+	return "";
+    sprintf(cmds, " [u %04x:%04x; bp %04x:%04x; g]", caller.segment,
+	    caller.offset, caller.segment, (caller.offset + 2) & 0xffff);
+    return cmds;
+}
+
 /*
  * DANG_BEGIN_FUNCTION ms_dos
  *
@@ -1580,14 +1600,15 @@ static int msdos(int stk_offs)
 {
     far_t caller = int_caller(stk_offs);
 
-    /* The address a log line names is the one the call came from, which is
-     * what dosdebug reads out of the line to put a client stopped on it
-     * back into its own code.
+    /* The address a log line names is the one the call came from, and the
+     * commands it ends with are how dosdebug gets back to the client that
+     * made the call.
      */
     ds_printf
-	("INT21 at %04x:%04x: AX=%04x, BX=%04x, CX=%04x, DX=%04x, DS=%04x, ES=%04x\n",
+	("INT21 at %04x:%04x: AX=%04x, BX=%04x, CX=%04x, DX=%04x, DS=%04x, ES=%04x%s\n",
 	caller.segment, caller.offset, LWORD(eax), LWORD(ebx),
-	 LWORD(ecx), LWORD(edx), SREG(ds), SREG(es));
+	 LWORD(ecx), LWORD(edx), SREG(ds), SREG(es),
+	 int_dbg_cmds(caller, HI(ax) == 0x4c));
 
 #if 1
     if (HI(ax) == 0x3d) {
@@ -3232,9 +3253,10 @@ static int int2f(int stk_offs, int revect)
 	far_t caller = int_caller(stk_offs);
 
 	ds_printf
-	    ("INT2F at %04x:%04x: AX=%04x, BX=%04x, CX=%04x, DX=%04x, DS=%04x, ES=%04x\n",
+	    ("INT2F at %04x:%04x: AX=%04x, BX=%04x, CX=%04x, DX=%04x, DS=%04x, ES=%04x%s\n",
 	     caller.segment, caller.offset, LWORD(eax), LWORD(ebx),
-	     LWORD(ecx), LWORD(edx), SREG(ds), SREG(es));
+	     LWORD(ecx), LWORD(edx), SREG(ds), SREG(es),
+	     int_dbg_cmds(caller, 0));
     }
 #endif
 

@@ -3348,6 +3348,53 @@ static void mhp_dosbreak(int argc, char *argv[])
   }
 }
 
+/* A log line can end with commands for the debugger, in brackets, as the
+ * way back to the client: the line is written while dosemu runs code of
+ * its own for the client, so the stop a log break point asks for is there,
+ * in a hlt block the client never wrote, with the client's own address not
+ * even on top of the stack.  Only a log break point runs them, so a line
+ * nothing is watching for carries them harmlessly.
+ */
+static char log_cmds[128];
+
+static void note_commands_in_the_line(const char *line)
+{
+  const char *s = strrchr(line, '[');
+  const char *e;
+  size_t len;
+
+  log_cmds[0] = '\0';
+  if (!s || !(e = strchr(s, ']')))
+    return;
+  len = e - s - 1;
+  if (len == 0 || len >= sizeof(log_cmds))
+    return;
+  memcpy(log_cmds, s + 1, len);
+  log_cmds[len] = '\0';
+}
+
+/* Runs them where the stop is reported, one per mhp_cmd() as a command
+ * line holds one command, and says whether the line had any: a line
+ * without them is reported the way every other stop is.
+ */
+int mhp_run_log_commands(void)
+{
+  char cmds[sizeof(log_cmds)];
+  char *p = cmds, *cmd;
+
+  if (!log_cmds[0])
+    return 0;
+  strcpy(cmds, log_cmds);
+  log_cmds[0] = '\0';
+  while ((cmd = strsep(&p, ";")) != NULL) {
+    while (*cmd == ' ')
+      cmd++;
+    if (*cmd)
+      mhp_cmd(cmd);
+  }
+  return 1;
+}
+
 static int mhp_check_regex(char *line)
 {
   int rx, hit;
@@ -3358,6 +3405,7 @@ static int mhp_check_regex(char *line)
       if (hit) {
         mhp_printf("log break point %d hit: >%s<\n", rx, line);
         mhp_send();
+        note_commands_in_the_line(line);
       }
       if (hit)
         return 1;

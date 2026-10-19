@@ -413,7 +413,10 @@ static void mhp_poll(void)
       mhpdbg.flags &= ~DBGF_LOG_TEMPORARY;
       mhp_cmd("log off");
     }
-    mhp_cmd("r0");
+    /* a log break point's line can carry the commands for its own stop,
+     * the client being out of reach of an ordinary report */
+    if (!mhp_run_log_commands())
+      mhp_cmd("r0");
     mhp_send();
   }
   mhp_poll_loop();

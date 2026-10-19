@@ -120,6 +120,7 @@ int bpchk(unsigned int);
 int mhp_setbp(unsigned int seekval);
 int mhp_clearbp(unsigned int seekval);
 void mhp_regex(const char *fmt, va_list args);
+int mhp_run_log_commands(void);
 
 void mhpdbg_trace_init(void);
 
