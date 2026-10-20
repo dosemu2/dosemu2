@@ -943,12 +943,23 @@ int SDL_set_videomode(struct vid_mode_params vmp)
   return 1;
 }
 
+static void move_mouse_from_window(float m_x, float m_y)
+{
+  /* SDL3 reports mouse coords relative to the window, but m_x_res
+   * and m_y_res are in renderer coords, which differ when the
+   * picture is letterboxed or the window is resized. */
+  pthread_mutex_lock(&rend_mtx);
+  SDL_RenderCoordinatesFromWindow(renderer, m_x, m_y, &m_x, &m_y);
+  pthread_mutex_unlock(&rend_mtx);
+  mouse_move_absolute(m_x, m_y, m_x_res, m_y_res, m_cursor_visible, MOUSE_SDL);
+}
+
 static void sync_mouse_coords(void)
 {
   float m_x, m_y;
 
   SDL_GetMouseState(&m_x, &m_y);
-  mouse_move_absolute(m_x, m_y, m_x_res, m_y_res, m_cursor_visible, MOUSE_SDL);
+  move_mouse_from_window(m_x, m_y);
 }
 
 static void update_mouse_coords(void)
@@ -1610,8 +1621,7 @@ static void SDL_handle_events(void)
 	mouse_move_relative(event.motion.xrel, event.motion.yrel,
 			    m_x_res, m_y_res, MOUSE_SDL);
       else
-	mouse_move_absolute(event.motion.x, event.motion.y, m_x_res,
-			    m_y_res, m_cursor_visible, MOUSE_SDL);
+	move_mouse_from_window(event.motion.x, event.motion.y);
       break;
     case SDL_EVENT_MOUSE_WHEEL:
       mouse_move_wheel(-event.wheel.y, MOUSE_SDL);
