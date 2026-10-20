@@ -326,13 +326,13 @@ static int do_mfs_creat(int mfs_idx, struct file_fd *f, const char *fname,
     exlock = apply_exlock(fname);
     if (!exlock)
         return -1;
-    vfs_fs_t *fs = vfs_get_fs(mfs_idx);
-    vfs_file_t *vfd = vfs_creat(fs, fname, O_RDWR | O_CLOEXEC | O_CREAT | O_TRUNC, mode);
-    if (!vfd)
-        goto err;
     /* set compat mode */
     err = open_compat(fname, O_RDWR, f->shemu_locks);
     if (err)
+        goto err;
+    vfs_fs_t *fs = vfs_get_fs(mfs_idx);
+    vfs_file_t *vfd = vfs_creat(fs, fname, O_RDWR | O_CLOEXEC | O_CREAT | O_TRUNC, mode);
+    if (!vfd)
         goto err2;
     shlock = apply_shlock(fname);
     if (!shlock)
@@ -348,13 +348,13 @@ static int do_mfs_creat(int mfs_idx, struct file_fd *f, const char *fname,
     return 0;
 
 err3:
+    vfs_unlink(fs, fname);
+    vfs_close(vfd);
+err2:
     for (i = 0; i < lk_MAX; i++) {
         if (f->shemu_locks[i])
             shlock_close(f->shemu_locks[i]);
     }
-err2:
-    vfs_unlink(fs, fname);
-    vfs_close(vfd);
 err:
     shlock_close(exlock);
     return -1;
