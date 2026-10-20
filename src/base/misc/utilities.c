@@ -39,6 +39,9 @@
 #ifdef X86_EMULATOR
 #include "cpu-emu.h"
 #endif
+#ifdef USE_MHPDBG
+#include "mhpdbg.h"
+#endif
 
 struct dir_fd {
     const char *dir;
@@ -102,6 +105,14 @@ int log_printf(const char *fmt, ...)
 	va_list args;
 	int ret;
 
+#ifdef USE_MHPDBG
+	/* dosdebug's bplog is a regex over this output.  Asked before the
+	 * lock below is taken: a hit writes to the debugger, and the failure
+	 * path of that write logs. */
+	va_start(args, fmt);
+	vmhp_log_intercept(fmt, args);
+	va_end(args);
+#endif
 	va_start(args, fmt);
 	pthread_mutex_lock(&log_mtx);
 	ret = vlog_printf(fmt, args);
@@ -112,6 +123,13 @@ int log_printf(const char *fmt, ...)
 
 void vprint(const char *fmt, va_list args)
 {
+#ifdef USE_MHPDBG
+  va_list dbg_args;
+
+  va_copy(dbg_args, args);
+  vmhp_log_intercept(fmt, dbg_args);
+  va_end(dbg_args);
+#endif
   pthread_mutex_lock(&log_mtx);
   if (!config.quiet) {
     va_list copy_args;
