@@ -723,6 +723,7 @@ quit:
 
 void InvalidateNodeRange(int al, int len)
 {
+  assert(!e_in_compiled_code());
   DoInvalidateNodeRange(al, len, NULL);
 }
 
@@ -739,7 +740,10 @@ static void do_invalidate(unsigned data, int cnt)
 	InvalidateNodeRange(data, cnt);
 }
 
-void e_invalidate_unlocked(unsigned data, int cnt)
+/* As e_invalidate_unlocked(), for a caller that knows where the emulator
+ * stands in the code it is throwing away: the node is broken there, so the
+ * sequence in flight ends instead of running on from ops it already has. */
+void e_invalidate_unlocked_at(unsigned data, int cnt, unsigned char *eip)
 {
 	/* nothing to invalidate if there are no page protections */
 	if (!e_querymprotrange(data, cnt))
@@ -748,13 +752,29 @@ void e_invalidate_unlocked(unsigned data, int cnt)
 		return;
 	// no need to invalidate the whole page here,
 	// as the page does not need to be unprotected
-	InvalidateNodeRange(data, cnt);
+	if (eip)
+		InvalidateNodeRangeFromFault(data, cnt, eip);
+	else
+		InvalidateNodeRange(data, cnt);
+}
+
+void e_invalidate_unlocked(unsigned data, int cnt)
+{
+	e_invalidate_unlocked_at(data, cnt, NULL);
 }
 
 void e_invalidate(unsigned data, int cnt)
 {
 	prejit_lock();
 	e_invalidate_unlocked(data, cnt);
+	prejit_unlock();
+}
+
+/* As e_invalidate(), with the eip of e_invalidate_unlocked_at(). */
+void e_invalidate_at(unsigned data, int cnt, unsigned char *eip)
+{
+	prejit_lock();
+	e_invalidate_unlocked_at(data, cnt, eip);
 	prejit_unlock();
 }
 
