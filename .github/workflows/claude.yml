@@ -39,9 +39,9 @@ jobs:
       - name: React
         run: |
           if [ -n "$COMMENT_ID" ]; then
-            gh api -X POST "repos/$GITHUB_REPOSITORY/issues/comments/$COMMENT_ID/reactions" -f content=eyes
+            gh api -X POST "repos/$GITHUB_REPOSITORY/issues/comments/$COMMENT_ID/reactions" -f content=rocket
           else
-            gh api -X POST "repos/$GITHUB_REPOSITORY/issues/$ISSUE/reactions" -f content=eyes
+            gh api -X POST "repos/$GITHUB_REPOSITORY/issues/$ISSUE/reactions" -f content=rocket
           fi
 
       - name: Wake the project
