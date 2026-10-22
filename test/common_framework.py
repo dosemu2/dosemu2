@@ -1246,6 +1246,12 @@ class MyTestResult(unittest.TextTestResult):
                 self.stream.writeln("FAIL (one or more subtests)")
             self.stream.writeln("    %-76s ... FAIL" % subtest._subDescription())
 
+    def addError(self, test, err):
+        super().addError(test, err)
+        for _, l in test.logfiles.items():
+            if not l[0].is_file():
+                l[0].write_text("Errored before any output was received\n")
+
 
 class MyTestRunner(unittest.TextTestRunner):
     resultclass = MyTestResult
