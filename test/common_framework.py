@@ -71,6 +71,7 @@ TEST_BINARIES = (
 
 # Freedos 1.4 packages
 TEST_FREEDOS_HOST = "https://www.ibiblio.org/pub/micro/pc-stuff/freedos/files/repositories/1.4"
+TEST_FREEDOS_HOST = "http://www.spheresystems.co.uk/test-binaries/freedos/1.4"
 TEST_FREEDOS_PKGS = (
     'base/mem.zip',
     'devel/dj_make.zip',
