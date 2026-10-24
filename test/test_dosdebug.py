@@ -1151,9 +1151,10 @@ class OurTestCase(BaseTestCase):
         self.mkbat_testit("logger")
         self.mkcom_with_nasm("logger", LOGGER_ASM)
 
-        # +D logs every int 21h the client makes, as 'INT21 at 00b5:0106:
-        # AX=0900, BX=... [u 00b5:0106; bp 00b5:0108; g]', naming the int
-        # itself and the commands that get back to the client
+        # +D logs every int 21h the client makes, as 'INT21 at ff10:01e8:
+        # AX=0900, BX=...', the address being the hlt block dosemu serves
+        # the call in: what the client made the call at is what the stop of
+        # a log break point works out for itself
         config = DOSEMU_CONF_DEFAULT + '$_debug = "-D+D"\n'
 
         def body(args):
@@ -1163,15 +1164,21 @@ class OurTestCase(BaseTestCase):
             out.append("list=" + self.dbgCmd("bl"))
             self.dbgchild.sendline("g")
             # the first of the client's two prints is what it matches, and
-            # the commands in the line run instead of the usual report:
-            # they show the int and leave the client just after it
+            # the stop shows the int the client made and leaves it just
+            # after that int, instead of the usual report
             hit = self.dbgRead(settle=3.0, limit=40)
             out.append("hit=" + hit)
             out.append("left=" + self.dbgCmd("bl"))
             out.append("clr=" + self.dbgCmd("bclog 0"))
-            # the breakpoint the line set is an ordinary one, so it is the
+            # the breakpoint the stop set is an ordinary one, so it is the
             # user who clears it
             out.append("clr2=" + self.dbgCmd("bc 0"))
+            # the call that leaves has nothing to come back to, so its stop
+            # is reported where dosemu stands, as any other
+            out.append("set2=" + self.dbgCmd("bplog INT21.*AX=4c00"))
+            self.dbgchild.sendline("g")
+            out.append("term=" + self.dbgRead(settle=3.0, limit=40))
+            out.append("clr3=" + self.dbgCmd("bclog 0"))
             self.dbgchild.sendline("g")
             return " | ".join(out)
 
@@ -1182,41 +1189,35 @@ class OurTestCase(BaseTestCase):
         listed = results.split("list=")[-1].split(" | ")[0]
         self.assertIn("log intercept on", listed, results)
         self.assertIn("log breakpoint 0: INT21.*AX=0900", listed, results)
-        # the report quotes the line that matched, commands and all
+        # the report quotes the line that matched, which is the line as it
+        # always was
         hit = results.split("hit=")[-1].split(" | ")[0]
         self.assertRegex(hit,
                          r"log break point 0 hit: >INT21 .*AX=0900[^<]*<",
                          results)
-        m = re.search(r"log break point 0 hit: >INT21 at "
-                      r"([0-9a-f]{4}):([0-9a-f]{4}):[^<]*"
-                      r"\[u \1:\2; bp \1:([0-9a-f]{4}); g\]<", hit)
-        self.assertIsNotNone(m, "the line carries no commands for the "
-                                "debugger: " + results)
-        seg, call, ret = m.group(1), m.group(2), m.group(3)
-        # the bp is set after the int the u dumps from, which is two bytes
-        self.assertEqual(int(ret, 16), int(call, 16) + 2, results)
-        # the u shows the int 21h that was logged, not the hlt that served it
-        self.assertRegex(hit, r"(?m)^%s:0*%s CD21" % (seg, call),
-                         "the commands did not show the client's own "
-                         "int 21h: " + results)
-        # and the client is left stopped just after it, in its own code,
-        # which is the segment its ds points to
         self.assertRegex(hit, r"system state: .*stopped",
                          "the log breakpoint did not stop anything: "
                          + results)
-        self.assertIn("CS:IP=%s:%s" % (seg, ret), hit,
-                      "the client was not left after the int it logged: "
-                      + results)
+        # the client is left stopped in its own code, which is the segment
+        # its ds points to
+        m = re.search(r"CS:IP=([0-9a-f]{4}):([0-9a-f]{4})", hit)
+        self.assertIsNotNone(m, "the stop report says no cs:ip: " + results)
+        seg, ret = m.group(1), m.group(2)
         ds = re.search(r"DS=([0-9a-f]{4})", hit)
         self.assertIsNotNone(ds, "the stop report says no ds to tell what "
                                  "segment the client is in: " + results)
         self.assertEqual(ds.group(1), seg,
                          "the stop is outside the client: " + results)
-        # the hlt the stop was reported in before is nowhere in the report
+        # and it is left just after the int it logged, which the stop shows
+        # it standing at, not the hlt that served the call
+        call = "%04x" % (int(ret, 16) - 2)
+        self.assertRegex(hit, r"(?m)^%s:0*%s CD21" % (seg, call),
+                         "the stop did not show the client's own "
+                         "int 21h: " + results)
         self.assertNotRegex(hit, r"(?m)^[0-9a-f]{4}:[0-9a-f]{4} F4\s+hlt",
                             "the report is still dosemu's own hlt: "
                             + results)
-        # the breakpoint the line asked for is listed as any other
+        # the breakpoint the stop asked for is listed as any other
         left = results.split("left=")[-1].split(" | ")[0]
         self.assertRegex(left, r"(?m)^\s*0: [0-9a-f]+",
                          "the breakpoint the line set is not listed: "
@@ -1227,14 +1228,20 @@ class OurTestCase(BaseTestCase):
         screen = self.logfiles['xpt'][0].read_bytes().decode('ASCII', 'replace')
         self.assertIn("LOGGER ONE", screen)
         self.assertIn("LOGGER TWO", screen)
-        # the call that leaves has nothing to come back to, so its line
-        # carries no commands
+        # the call that leaves has nothing to come back to, so its stop is
+        # the one every other stop gets, in dosemu's own hlt
+        term = results.split("term=")[-1].split(" | ")[0]
+        self.assertRegex(term,
+                         r"log break point 0 hit: >INT21 .*AX=4c00[^<]*<",
+                         results)
+        self.assertRegex(term, r"(?m)^[0-9a-f]{4}:[0-9a-f]{4} F4\s+hlt",
+                         "the terminate call was followed into the client: "
+                         + results)
+        # and the log itself says what it always said
         log = self.boot_log()
-        term = [l for l in log.split('\n') if "INT21 at" in l and "AX=4c00" in l]
-        self.assertNotEqual(term, [], log[-4000:])
-        for l in term:
-            self.assertNotIn("[u ", l,
-                             "the terminate call was given commands: " + l)
+        self.assertNotEqual([l for l in log.split('\n') if "INT21 at" in l],
+                            [], log[-4000:])
+        self.assertNotIn("[u ", log, "the log was given debugger commands")
 
     def test_dosdebug_bplog_helper(self):
         """Dosdebug breakpoint on a log message that is not an interrupt"""
@@ -1266,7 +1273,7 @@ class OurTestCase(BaseTestCase):
         self.assertRegex(hit, r"log break point 0 hit: >HELPER NOTE ONE",
                          results)
         self.assertNotIn("[u ", hit,
-                         "a line the client wrote carried commands: "
+                         "the line the client wrote was added to: "
                          + results)
         # so the report is the hlt the helper is served in
         self.assertRegex(hit, r"(?m)^[0-9a-f]{4}:[0-9a-f]{4} F4\s+hlt",
