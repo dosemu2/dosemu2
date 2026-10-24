@@ -3348,6 +3348,91 @@ static void mhp_dosbreak(int argc, char *argv[])
   }
 }
 
+/* A log break point stops the client where dosemu serves the call that was
+ * logged: in a hlt block the client never wrote, with the client's own
+ * address not even on top of the stack, dosemu's own frames being above
+ * it.  Little of that report is about the client, so what the stop shows
+ * instead is the int the client made and the code just after it, where the
+ * registers are the client's own.
+ *
+ * The line of an int names it in its first word, which is what tells the
+ * client's frame from the frames dosemu pushed to get here: the frame
+ * wanted is the one whose return address has that very int two bytes
+ * behind it.  The int number the last line that hit named, or -1 for a
+ * line that is no int of the client's.
+ */
+static int log_int = -1;
+
+static void note_the_int_the_line_names(const char *line)
+{
+  char *end;
+  long num;
+
+  log_int = -1;
+  if (strncmp(line, "INT", 3) != 0)
+    return;
+  num = strtol(line + 3, &end, 16);
+  if (end != line + 5 || strncmp(end, " at ", 4) != 0)
+    return;
+  log_int = num;
+}
+
+/* The stack the client had is the one the interrupt pushed its frame on,
+ * and the stop is early enough in the service of the call that the frame
+ * is still there, a few words above where dosemu now stands.
+ */
+#define LOG_STK_WINDOW 128
+
+static int find_the_int_the_line_names(int inum, far_t *caller)
+{
+  unsigned sp = LWORD(esp);
+  unsigned off;
+
+  for (off = sp; off + 6 <= 0x10000 && off - sp < LOG_STK_WINDOW; off += 2) {
+    dosaddr_t frame = SEGOFF2LINEAR(SREG(ss), off);
+    far_t ret = MK_FARt(READ_WORD(frame + 2), READ_WORD(frame));
+    dosaddr_t insn;
+
+    if (ret.offset < 2)
+      continue;
+    insn = SEGOFF2LINEAR(ret.segment, ret.offset - 2);
+    if (READ_BYTE(insn) != 0xcd || READ_BYTE(insn + 1) != inum)
+      continue;
+    *caller = MK_FARt(ret.segment, ret.offset - 2);
+    return 1;
+  }
+  return 0;
+}
+
+/* Shows the int and leaves the client just after it, and says whether it
+ * did: a stop that has no client's code to show is reported the way every
+ * other stop is.  A program that is leaving has nothing to come back to,
+ * in protected mode the address is not the client's, and a line that is
+ * not an int of the client's says nothing about where it stands.
+ */
+int mhp_log_back_to_client(void)
+{
+  int inum = log_int;
+  far_t caller;
+  char cmd[32];
+
+  /* the line belongs to the stop it asked for, and to no stop after it */
+  log_int = -1;
+  if (inum < 0)
+    return 0;
+  if (in_dpmi_pm() || (inum == 0x21 && HI(ax) == 0x4c))
+    return 0;
+  if (!find_the_int_the_line_names(inum, &caller))
+    return 0;
+  sprintf(cmd, "u %04x:%04x", caller.segment, caller.offset);
+  mhp_cmd(cmd);
+  sprintf(cmd, "bp %04x:%04x", caller.segment,
+          (caller.offset + 2) & 0xffff);
+  mhp_cmd(cmd);
+  mhp_cmd("g");
+  return 1;
+}
+
 static int mhp_check_regex(char *line)
 {
   int rx, hit;
@@ -3358,6 +3443,7 @@ static int mhp_check_regex(char *line)
       if (hit) {
         mhp_printf("log break point %d hit: >%s<\n", rx, line);
         mhp_send();
+        note_the_int_the_line_names(line);
       }
       if (hit)
         return 1;

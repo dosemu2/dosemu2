@@ -413,7 +413,10 @@ static void mhp_poll(void)
       mhpdbg.flags &= ~DBGF_LOG_TEMPORARY;
       mhp_cmd("log off");
     }
-    mhp_cmd("r0");
+    /* a log break point stops where dosemu serves the call that was
+     * logged, the client being out of reach of an ordinary report */
+    if (!mhp_log_back_to_client())
+      mhp_cmd("r0");
     mhp_send();
   }
   mhp_poll_loop();
