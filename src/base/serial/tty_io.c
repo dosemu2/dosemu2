@@ -859,5 +859,6 @@ struct serial_drv tty_drv = {
   tty_close,
   tty_uart_fill,
   tty_get_msr,
+  NULL,
   "tty_io"
 };

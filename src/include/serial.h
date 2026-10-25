@@ -69,4 +69,7 @@ extern int do_serial_out(int, ioport_t, int);
 extern void serial_helper(void);
 void serial_mem_setup(void);
 
+struct serial_drv;
+void serial_register_drv(struct serial_drv *drv);
+
 #endif /* SERIAL_H */
