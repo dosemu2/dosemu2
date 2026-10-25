@@ -1,0 +1,27 @@
+name: Complexity
+
+on:
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
+
+jobs:
+  complexity:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Install lizard
+        run: sudo pip install --break-system-packages lizard==1.24.3
+
+      - name: CCN delta of the patch
+        run: |
+          BASE=$(git merge-base ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }})
+          scripts/complexity-delta.py --max-ccn 30 $BASE ${{ github.event.pull_request.head.sha }} > ccn.txt || rc=$?
+          cat ccn.txt
+          { echo '```'; cat ccn.txt; echo '```'; } >> $GITHUB_STEP_SUMMARY
+          exit ${rc:-0}
