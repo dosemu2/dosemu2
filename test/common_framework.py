@@ -71,6 +71,7 @@ TEST_BINARIES = (
 
 # Freedos 1.4 packages
 TEST_FREEDOS_HOST = "https://www.ibiblio.org/pub/micro/pc-stuff/freedos/files/repositories/1.4"
+TEST_FREEDOS_HOST = "http://www.spheresystems.co.uk/test-binaries/freedos/1.4"
 TEST_FREEDOS_PKGS = (
     'base/mem.zip',
     'devel/dj_make.zip',
@@ -1245,6 +1246,12 @@ class MyTestResult(unittest.TextTestResult):
                 test.firstsub = False
                 self.stream.writeln("FAIL (one or more subtests)")
             self.stream.writeln("    %-76s ... FAIL" % subtest._subDescription())
+
+    def addError(self, test, err):
+        super().addError(test, err)
+        for _, l in test.logfiles.items():
+            if not l[0].is_file():
+                l[0].write_text("Errored before any output was received\n")
 
 
 class MyTestRunner(unittest.TextTestRunner):
