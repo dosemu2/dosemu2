@@ -693,6 +693,13 @@ static void Scp2CpuD(cpuctx_t *scp)
 
   /* make clear we are in PM now */
   TheCPU.cr[0] |= 1;
+  /* what sgdt and sidt will report: the dpmi side makes the tables at
+   * init and they stand for the whole run, so take them here with the
+   * rest of the state */
+  TheCPU.GDTR.Base = dpmi_get_dtr_base(0);
+  TheCPU.GDTR.Limit = EMU_GDT_LIMIT;
+  TheCPU.IDTR.Base = dpmi_get_dtr_base(1);
+  TheCPU.IDTR.Limit = EMU_IDT_LIMIT;
   InvalidateSegs(); // makes sure real mode segs aren't confused with PM sels
   TheCPU.mode = 0;
   SetSegProt(Ofs_CS,_cs);

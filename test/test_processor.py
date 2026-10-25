@@ -8,6 +8,7 @@ from func_build_freecom import build_freecom
 from func_build_freedos import build_freedos
 from func_build_pcmos import build_pcmos
 from func_cpu_endbr import cpu_endbr
+from func_cpu_sgdt_mem import cpu_sgdt_mem
 from func_cpu_smsw_mem import cpu_smsw_mem
 from func_cpu_trap_flag import cpu_trap_flag
 from func_cpu_methods import cpu_create_items
@@ -36,6 +37,11 @@ class OurTestCase(BaseTestCase):
     def test_cpu_endbr(self):
         """CPU ENDBR32/ENDBR64 as NOP"""
         cpu_endbr(self)
+
+    @mark('cputest')
+    def test_cpu_sgdt_mem(self):
+        """CPU SGDT and SIDT with memory operand"""
+        cpu_sgdt_mem(self)
 
     @mark('cputest')
     def test_cpu_smsw_mem(self):
