@@ -11,6 +11,7 @@ from func_cpu_endbr import cpu_endbr
 from func_cpu_smsw_mem import cpu_smsw_mem
 from func_cpu_trap_flag import cpu_trap_flag
 from func_cpu_methods import cpu_create_items
+from func_vga_unmapped_window import vga_unmapped_window
 from func_fpu_bart_exceptions import fpu_bart_exceptions_fpex, fpu_bart_exceptions_fpexes
 from fpu.qemu import fpu_create_items
 
@@ -68,6 +69,16 @@ class EMUTestCase(ppdosgit(OurTestCase, {
     def test_cpu_trap_flag(self):
         """CPU Trap Flag"""
         cpu_trap_flag(self)
+
+    @mark('cputest')
+    def test_vga_unmapped_window_jit(self):
+        """VGA window outside the current mapping (jit)"""
+        vga_unmapped_window(self, 0)
+
+    @mark('cputest')
+    def test_vga_unmapped_window_sim(self):
+        """VGA window outside the current mapping (sim)"""
+        vga_unmapped_window(self, 1)
 
 
 class KVMTestCase(ppdosgit(OurTestCase, {
