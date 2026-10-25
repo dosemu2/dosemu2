@@ -1278,6 +1278,45 @@ class OurTestCase(BaseTestCase):
         self.assertEqual(m.group(2).strip(), '',
                          "the prompt is on the dump line: " + results)
 
+    def test_dosdebug_past_end(self):
+        """Dosdebug an address dosemu has no memory for"""
+
+        self.mkbat_testit("simple")
+        self.mkcom_with_nasm("simple", SIMPLE_ASM)
+
+        def body(args):
+            # a linear address of its own, 1G up, which no default setup
+            # has memory anywhere near
+            out = ["mode=" + self.dbgCmd("mode 1")]
+            out.append("d=" + self.dbgCmd("d 40000000 16"))
+            out.append("u=" + self.dbgCmd("u 40000000 4"))
+            out.append("m=" + self.dbgCmd("m 40000000 1"))
+            out.append("bp=" + self.dbgCmd("bp 40000000"))
+            out.append("bl=" + self.dbgCmd("bl"))
+            # the memory it does have still answers, which is also the
+            # session saying it is alive
+            out.append("alive=" + self.dbgCmd("d 500 16"))
+            return " | ".join(out)
+
+        results = self.runWithDosdebug("testit.bat", body)
+
+        self.assertNotIn('Timeout', results, results)
+        self.assertNotIn('Dosemu process ended', results,
+                         "the debugger took dosemu down with it: " + results)
+        for step in ('d', 'u', 'm', 'bp'):
+            got = results.split(step + "=")[-1].split(" | ")[0]
+            self.assertIn("40000000 is not memory dosemu has", got,
+                          "'%s' did not refuse the address: %s"
+                          % (step, results))
+        # a refused breakpoint is not a breakpoint
+        listed = results.split("bl=")[-1].split(" | ")[0]
+        self.assertNotRegex(listed, r"(?m)^\s*\d+: [0-9a-f]+",
+                            "the refused breakpoint was set anyway: "
+                            + results)
+        alive = results.split("alive=")[-1]
+        self.assertRegex(alive, r"(?m)^\s*[0-9a-f]{8}( [0-9A-F]{2}){16}",
+                         "no dump of the memory dosemu has: " + results)
+
 # The DOS variants we want get included here
 FRDOS130TestCase = frdos130(OurTestCase, {})
 
