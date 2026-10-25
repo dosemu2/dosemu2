@@ -352,6 +352,9 @@ void handle_fault(int sig, const siginfo_t *si, sigcontext_t *scp)
        * memory rather than checking it, so look there before giving up */
       if (IS_EMU_JIT() && e_emu_nullseg_fault(scp, (void *)si->si_addr))
         return;
+      /* and the same for a descriptor based outside our memory */
+      if (IS_EMU_JIT() && e_emu_badaddr_fault(scp, (void *)si->si_addr))
+        return;
 #endif
       error("Bad fault address %p\n", si->si_addr);
       unhand++;
