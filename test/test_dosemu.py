@@ -29,6 +29,7 @@ from func_ds3_lock_readonly import ds3_lock_readonly
 from func_ds3_lock_twice import ds3_lock_twice
 from func_ds3_lock_writable import ds3_lock_writable
 from func_ds3_share_create_trunc import ds3_share_create_trunc
+from func_ds3_share_extended_error import ds3_share_open_ext_error
 from func_ds3_share_open_access import ds3_share_open_access
 from func_ds3_share_open_twice import ds3_share_open_twice
 from func_fat_img_d_writable import fat_img_d_writable
@@ -1456,6 +1457,16 @@ class OurTestCase(BaseTestCase):
         ds3_lock_writable(self, "FAT")
 
     @mark(['mfstest', 'sharetest'])
+    def test_mfs_ds3_share_open_ext_error(self):
+        """MFS DOSv3 share open extended error"""
+        ds3_share_open_ext_error(self, "MFS")
+
+    @mark(['fattest', 'sharetest'])
+    def test_fat_ds3_share_open_ext_error(self):
+        """FAT DOSv3 share open extended error"""
+        ds3_share_open_ext_error(self, "FAT")
+
+    @mark(['mfstest', 'sharetest'])
     def test_mfs_ds3_share_open_twice(self):
         """MFS DOSv3 share open twice"""
         ds3_share_open_twice(self, "MFS")
@@ -1738,6 +1749,7 @@ FRDOS120TestCase = frdos120(OurTestCase, {
     "test_mfs_findfile_vfat_linux_mounted_sfn": KNOWNFAIL,
     "test_fat_ds3_share_open_twice": KNOWNFAIL,
     r"test_fat_ds3_share_create_trunc_(one|two)_process": KNOWNFAIL,
+    r"test_(fat|mfs)_ds3_share_open_ext_error": KNOWNFAIL,
     r"test_fat_ds3_share_open_(delete|rename)_.*": KNOWNFAIL,
     r"test_mfs_ds3_share_open_rename_(one|two)_process_fcb": KNOWNFAIL,
     r"test_fat_ds3_share_open_setfattrs_(one|two)_process": KNOWNFAIL,
@@ -1785,6 +1797,7 @@ FRDOS130TestCase = frdos130(OurTestCase, {
     r"test_fat_ds3_share_open_setfattrs_(one|two)_process": KNOWNFAIL,
     "test_fat_ds3_share_open_twice": KNOWNFAIL,
     r"test_fat_ds3_share_create_trunc_(one|two)_process": KNOWNFAIL,
+    r"test_(fat|mfs)_ds3_share_open_ext_error": KNOWNFAIL,
     "test_fat_fcb_find_wild_1": KNOWNFAIL,
     "test_fat_fcb_find_wild_2": KNOWNFAIL,
     "test_fat_fcb_find_wild_3": KNOWNFAIL,
