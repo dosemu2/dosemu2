@@ -478,7 +478,7 @@ static void modify_mode(void)
 
 static void update_graphics_loop(unsigned display_start,
 	unsigned display_end, int src_offset,
-	int update_offset, vga_emu_update_type *veut)
+	int update_offset, int pan, vga_emu_update_type *veut)
 {
   int i = -1;
 
@@ -487,7 +487,7 @@ static void update_graphics_loop(unsigned display_start,
     remap_remap_mem(Render.gfx_remap, BMP(vga.mem.base + display_start,
                              vga.width, vga.height, vga.scan_len),
                              remap_mode(),
-                             src_offset, update_offset +
+                             src_offset, pan, update_offset +
                              veut->update_start - display_start,
                              veut->update_len);
   }
@@ -497,11 +497,14 @@ static void update_graphics_screen(void)
 {
   vga_emu_update_type veut;
   unsigned display_start, display_end, wrap;
+  int pan;
 
   refresh_graphics_palette();
 
   /* load display_start from CPU thread */
   display_start = __atomic_load_n(&vga.display_start, __ATOMIC_RELAXED);
+  /* and the fine part of it, the horizontal pel panning */
+  pan = __atomic_load_n(&vga.pel_pan, __ATOMIC_RELAXED);
   display_end = display_start + vga.scan_len * vga.height;
   if (vga.line_compare < vga.height) {
     unsigned wrap2 = display_start + vga.scan_len * vga.line_compare;
@@ -510,7 +513,7 @@ static void update_graphics_screen(void)
     wrap = _min(__atomic_load_n(&vga.mem.wrap, __ATOMIC_RELAXED), display_end);
   }
 
-  update_graphics_loop(display_start, wrap, 0, 0, &veut);
+  update_graphics_loop(display_start, wrap, 0, 0, pan, &veut);
 
   if (display_end > wrap) {
     unsigned bs = vga.mem.bank_pages * PAGE_SIZE;
@@ -533,7 +536,8 @@ static void update_graphics_screen(void)
      */
     if (rem)
       align = vga.scan_len - rem;
-    update_graphics_loop(start2, start2 + display_end - wrap, -len, len + align, &veut);
+    update_graphics_loop(start2, start2 + display_end - wrap, -len, len + align,
+                         pan, &veut);
   }
 }
 
@@ -942,9 +946,9 @@ REMAP_CALL6_WR(remap_rect_dst, const struct bitmap_desc, src_img,
 	int, src_mode,
 	int, x0, int, y0, int, width, int, height
 )
-REMAP_CALL5_WR(remap_mem, const struct bitmap_desc, src_img,
+REMAP_CALL6_WR(remap_mem, const struct bitmap_desc, src_img,
 	int, src_mode,
-	int, src_start,
+	int, src_start, int, pan,
 	int, offset, int, len
 )
 REMAP_CALL0(int, get_cap)
