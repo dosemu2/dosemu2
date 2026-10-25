@@ -25,6 +25,7 @@ jobs:
     timeout-minutes: 5
     permissions:
       issues: write
+      pull-requests: write
     env:
       GH_TOKEN: ${{ github.token }}
       ROUTINE_ID: trig_01W12PMjrKPCMpSULVm94Sux
@@ -38,9 +39,9 @@ jobs:
       - name: React
         run: |
           if [ -n "$COMMENT_ID" ]; then
-            gh api -X POST "repos/$GITHUB_REPOSITORY/issues/comments/$COMMENT_ID/reactions" -f content=eyes
+            gh api -X POST "repos/$GITHUB_REPOSITORY/issues/comments/$COMMENT_ID/reactions" -f content=rocket
           else
-            gh api -X POST "repos/$GITHUB_REPOSITORY/issues/$ISSUE/reactions" -f content=eyes
+            gh api -X POST "repos/$GITHUB_REPOSITORY/issues/$ISSUE/reactions" -f content=rocket
           fi
 
       - name: Wake the project
