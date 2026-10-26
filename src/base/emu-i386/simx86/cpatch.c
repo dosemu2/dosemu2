@@ -114,6 +114,45 @@ struct rep_stack {
 
 // the rep stub gets passed an argument on the stack:
 // the original op | 0x10 for operand override, | 0x40 for REPNE
+/* The generated code runs rep movs/stos natively, so a descriptor a client
+ * writes with a string op never reaches the LDT monitor: the bytes land in
+ * the alias and the emulator goes on using the stale descriptor. A
+ * 286|DOS-Extender client installs its call gates exactly that way, eight
+ * bytes at a time with rep movsw, and then faults on the far call through
+ * one. Feed such a write to the monitor element by element, as the single
+ * stores in wri_8/16/32 already do.
+ * This catches the string op whose first element lands in the alias, which
+ * is how a client writes a descriptor. It does not catch one that starts
+ * outside the alias and runs into it, since msdos_ldt_access() is asked
+ * about an address and not a range, the same way vga_write_access() is;
+ * nor a movs whose source is the VGA window, which the check above claims
+ * first. Neither shape writes a descriptor a client means to use. */
+static void ldt_rep_write(dosaddr_t addr, dosaddr_t src, unsigned int cnt,
+	unsigned int size, unsigned int val, int is_movs)
+{
+	int df = (EFLAGS & EFLAGS_DF) ? -(int)size : (int)size;
+
+	while (cnt--) {
+		if (is_movs) {
+			const unsigned char *s = LINEAR2UNIX(src);
+			switch (size) {
+			case 1:
+				val = *s;
+				break;
+			case 2:
+				val = *(const uint16_t *)s;
+				break;
+			default:
+				val = *(const uint32_t *)s;
+				break;
+			}
+			src += df;
+		}
+		emu_ldt_write(addr, val, size);
+		addr += df;
+	}
+}
+
 void rep_movs_stos(struct rep_stack *stack)
 {
 	unsigned char *paddr = stack->edi;
@@ -150,6 +189,10 @@ void rep_movs_stos(struct rep_stack *stack)
 			e_VgaMovs(addr, source, ecx, df, v);
 			ecx = 0;
 		}
+		else if (__builtin_expect(msdos_ldt_access(addr), 0)) {
+			ldt_rep_write(addr, source, ecx, size, 0, 1);
+			ecx = 0;
+		}
 		else if (ecx == len) {
 			if (EFLAGS & EFLAGS_DF) repmovs(std,b,cld);
 			else repmovs(,b,);
@@ -168,7 +211,11 @@ void rep_movs_stos(struct rep_stack *stack)
 	}
 	else if ((op & 0xfe) == 0xaa) { /* stos */
 		unsigned int eax = stack->eax;
-		if (ecx == len) {
+		if (__builtin_expect(msdos_ldt_access(addr), 0)) {
+			ldt_rep_write(addr, 0, ecx, size, eax, 0);
+			ecx = 0;
+		}
+		else if (ecx == len) {
 			if (vga_write_access(addr)) {
 				if (EFLAGS & EFLAGS_DF)
 					vga_memset(addr - len + 1, eax, ecx);
