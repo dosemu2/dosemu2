@@ -35,7 +35,9 @@ sudo apt install -y \
   genisoimage \
   bridge-utils \
   libvirt-daemon \
-  libvirt-daemon-system
+  libvirt-daemon-system \
+  xvfb \
+  xdotool
 
 sudo apt install -y \
   dj64-dbgsym \
