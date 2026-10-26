@@ -129,12 +129,13 @@ def _relay(ports, seen, done):
 
 
 def ipx_relay(self):
+    edir = self.scrdir / "ipx"
+
     if not getattr(self.__class__, 'ipxmade', False):
-        check_call(["make", "--quiet", "-C", "test/ipx", "clean", "all"])
+        check_call(["make", "--quiet", "-C", edir, "clean", "all"])
         self.__class__.ipxmade = True
 
-    copy(self.topdir / "test" / "ipx" / "ipxtest.com",
-         self.workdir / "ipxtest.com")
+    copy(edir / "ipxtest.com", self.workdir / "ipxtest.com")
 
     ctx = mp.get_context("spawn")
     ports, reports, done = ctx.Queue(), ctx.Queue(), ctx.Event()

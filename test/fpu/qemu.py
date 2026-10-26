@@ -47,7 +47,7 @@ VM86_TESTS = (
 def _dotest(self, test, cpu, dpmi):
 
     if not getattr(self.__class__, 'fpumade', False):
-        check_call(["make", "--quiet", "-C", "test/fpu", "clean", "all"])
+        check_call(["make", "--quiet", "-C", self.scrdir / "fpu", "clean", "all"])
         self.__class__.fpumade = True
 
     if (('jit' in cpu and 'sim' in dpmi) or
