@@ -11,11 +11,12 @@ def ndis_mac_driver(self, path):
     sends an ARP request and waits for slirp to answer it, which makes
     the reply come back as an indication.
     """
+    edir = self.scrdir / "ndis"
+
     if not getattr(self.__class__, 'ndismade', False):
-        check_call(["make", "--quiet", "-C", "test/ndis", "clean", "all"])
+        check_call(["make", "--quiet", "-C", edir, "clean", "all"])
         self.__class__.ndismade = True
 
-    edir = self.topdir / "test" / "ndis"
     copy(edir / "tprotman.sys", self.workdir / "tprotman.sys")
     copy(edir / "tndisapp.com", self.workdir / "tndisapp.com")
 

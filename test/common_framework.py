@@ -274,6 +274,9 @@ class BaseTestCase(object):
     def setUpClass(cls):
         cls.topdir = Path('.').resolve()
 
+        # Get the directory of the current script
+        cls.scrdir = Path(__file__).resolve().parent
+
         idir = cls.topdir / IMAGEDIR
         if idir.is_symlink():
             target = idir.resolve()

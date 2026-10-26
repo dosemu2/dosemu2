@@ -3,15 +3,12 @@ from subprocess import call
 
 def do_test_memory(self, name):
     ename = "%s.com" % name
-    edir = self.topdir / "test" / "ecm" / "dpmitest"
+    edir = self.scrdir / "ecm" / "dpmitest"
 
-    call(["make", "--quiet", "-C", str(edir), ename])
+    call(["make", "--quiet", "-C", edir, ename])
     copy(edir / ename, self.workdir)
 
-    self.mkfile("testit.bat", """\
-c:\\%s
-rem end
-""" % name, newline="\r\n")
+    self.mkbat_testit(name)
 
     return self.runDosemu("testit.bat")
 
