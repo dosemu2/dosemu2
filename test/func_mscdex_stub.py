@@ -1,4 +1,3 @@
-import re
 
 
 def mscdex_stub(self):
@@ -13,16 +12,7 @@ def mscdex_stub(self):
     # Only the install check is answered, so that is all this checks; the
     # other two calls are printed to show what an unanswered one looks like.
 
-    config = """\
-$_hdimage = "dXXXXs/c:hdtype1 +1"
-$_floppy_a = ""
-"""
-
-    self.mkfile("testit.bat", """\
-c:\\cdstub
-rem end
-""", newline="\r\n")
-
+    self.mkbat_testit("cdstub")
     self.mkcom_with_nasm("cdstub", r"""
 
 bits 16
@@ -125,18 +115,17 @@ outv:
     db ")",13,10,'$'
 """)
 
-    results = self.runDosemu("testit.bat", config=config)
+    results = self.runDosemu("testit.bat")
 
-    r = re.compile(r'NDRV\(([0-9A-F]{4})\) FDRV\(([0-9A-F]{4})\) '
-                   r'CHK\(([0-9A-F]{4})\) MAGIC\(([0-9A-F]{4})\) '
-                   r'VERS\(([0-9A-F]{4})\)')
-    self.assertRegex(results, r)
-    t = r.search(results)
-    ndrv = int(t.group(1), 16)
-    fdrv = int(t.group(2), 16)
-    chk = int(t.group(3), 16)
-    magic = int(t.group(4), 16)
-    vers = int(t.group(5), 16)
+    with self.assertRegexSearch(
+            r"NDRV\(([0-9A-F]{4})\) FDRV\(([0-9A-F]{4})\) "
+            r"CHK\(([0-9A-F]{4})\) MAGIC\(([0-9A-F]{4})\) "
+            r"VERS\(([0-9A-F]{4})\)", results) as m:
+        ndrv = int(m.group(1), 16)
+        fdrv = int(m.group(2), 16)
+        chk = int(m.group(3), 16)
+        magic = int(m.group(4), 16)
+        vers = int(m.group(5), 16)
 
     # no drive is configured here, so the stub is what has to answer
     self.assertGreaterEqual(ndrv, 1, results)

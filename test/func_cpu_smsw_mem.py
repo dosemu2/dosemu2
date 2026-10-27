@@ -1,4 +1,3 @@
-import re
 
 
 def cpu_smsw_mem(self):
@@ -21,10 +20,7 @@ $_floppy_a = ""
 $_cpu_vm = "%s"
 """ % cpu_vm
 
-    self.mkfile("testit.bat", """\
-c:\\smswmem
-rem end
-""", newline="\r\n")
+    self.mkbat_testit("smswmem")
 
     # 'smsw word [disp16]' is what the DOS/4GW startup code uses, so it is
     # tested together with the register and the [bx] forms.
@@ -100,12 +96,10 @@ out2:
 
     results = self.runDosemu("testit.bat", config=config)
 
-    r = re.compile(r'REG\(([0-9A-F]{4})\) MEM\(([0-9A-F]{4})\) BX\(([0-9A-F]{4})\)')
-    self.assertRegex(results, r)
-    t = r.search(results)
-    reg = int(t.group(1), 16)
-    mem = int(t.group(2), 16)
-    bxm = int(t.group(3), 16)
+    with self.assertRegexSearch(r"REG\(([0-9A-F]{4})\) MEM\(([0-9A-F]{4})\) BX\(([0-9A-F]{4})\)", results) as m:
+        reg = int(m.group(1), 16)
+        mem = int(m.group(2), 16)
+        bxm = int(m.group(3), 16)
 
     # PE is set whenever DOS runs under dosemu2
     self.assertEqual(reg & 1, 1, results)

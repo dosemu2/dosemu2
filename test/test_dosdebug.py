@@ -8,8 +8,7 @@ from os import environ
 from ptyprocess import PtyProcessError
 from time import time
 
-from common_framework import (BaseTestCase, main, main_setup, IPROMPT,
-                              DOSEMU_CONF_DEFAULT, UNSUPPORTED)
+from common_framework import BaseTestCase, main, main_setup, IPROMPT, DOSEMU_CONF_DEFAULT
 from common_os import frdos130, ppdosgit
 
 # How long the trace loop is given to end by itself.
@@ -730,12 +729,12 @@ class OurTestCase(BaseTestCase):
 
         results = self.runWithDosdebug("testit.bat", body)
 
-        want = re.search(r"want=(\S+)", results).group(1)
+        with self.assertRegexSearch(r"want=(\S+)", results) as m:
+            want = m.group(1)
         # "<n>: <linear address>, <address as typed>"; bpload has one
         # of its own, which was not typed and is listed without it
         self.assertRegex(results,
-                         r"(?m)^\s*\d+: [0-9a-f]{8}, " + re.escape(want) + "$",
-                         results)
+                         r"(?m)^\s*\d+: [0-9a-f]{8}, " + re.escape(want) + "$", results)
 
     def test_dosdebug_bp_sel_moved(self):
         """Dosdebug drops a breakpoint whose selector moved"""
@@ -748,17 +747,22 @@ class OurTestCase(BaseTestCase):
             self.dbgCmd("bpint 3")
             self.dbgchild.sendline("g")
             self.dbgWaitStop(pm=True, limit=40)
+
             _, _, regs = self.dbgRegs(pm=True)
-            sel = int(re.search(r"EBX: ([0-9a-f]{8})", regs).group(1), 16)
+            with self.assertRegexSearch(r"EBX: ([0-9a-f]{8})", regs) as m:
+                sel = int(m.group(1), 16)
             # 'never' is the label after the jmp to rmexit, 2 bytes on
             # from the int3 we stopped behind: find it in the listing
             lst = self.dbgCmd("u * 40")
-            m = re.search(r"(?m)^\s*#?[0-9a-f]{4}:0*([0-9a-f]+) 90\s", lst)
-            never = int(m.group(1), 16)
+            with self.assertRegexSearch(r"(?m)^\s*#?[0-9a-f]{4}:0*([0-9a-f]+) 90\s", lst) as m:
+                never = int(m.group(1), 16)
             steps.append(self.dbgCmd("bp #%04x:%x" % (sel, never)))
+
             bl = self.dbgCmd("bl")
-            lin = int(re.search(r"(?m)^\s*\d+: ([0-9a-f]{8}), #", bl).group(1), 16)
+            with self.assertRegexSearch(r"(?m)^\s*\d+: ([0-9a-f]{8}), #", bl) as m:
+                lin = int(m.group(1), 16)
             steps.append(self.dbgCmd("bp %x" % (lin + 1)))
+
             steps.append(self.dbgCmd("bl"))
             self.dbgchild.sendline("g")
             self.dbgWaitStop(pm=True, limit=30)
@@ -769,9 +773,9 @@ class OurTestCase(BaseTestCase):
 
         results = self.runWithDosdebug("testit.bat", body)
 
-        m = re.search(r"sel=([0-9a-f]{4}) lin=([0-9a-f]{8})", results)
-        self.assertIsNotNone(m, results)
-        sel, lin = m.group(1), int(m.group(2), 16)
+        with self.assertRegexSearch(r"sel=([0-9a-f]{4}) lin=([0-9a-f]{8})", results) as m:
+            sel, lin = m.group(1), int(m.group(2), 16)
+
         before, after = results.split("|")[3:5]
         self.assertRegex(before, r"(?m)^\s*\d+: %08x, #%s:" % (lin, sel), before)
         self.assertRegex(before, r"(?m)^\s*\d+: %08x, " % (lin + 1), before)
@@ -862,13 +866,13 @@ class OurTestCase(BaseTestCase):
         # not finishing is a failure in its own right
         self.assertNotIn('Timeout', results,
                          "the client did not run on after the step: " + results)
-        m = re.search(r"insn=(\S.*?) at=([0-9a-f]{4}):([0-9a-f]{8}) "
-                      r"next=([0-9a-f]{4}):([0-9a-f]{8})", results)
-        self.assertIsNotNone(m, results)
-        self.assertRegex(m.group(1), r"CD31", results)
-        self.assertEqual(m.group(2), m.group(4), "'t' left the segment: " + results)
-        self.assertEqual(int(m.group(5), 16), int(m.group(3), 16) + 2,
-                         "'t' did not land after the int: " + results)
+
+        with self.assertRegexSearch(
+                r"insn=(\S.*?) at=([0-9a-f]{4}):([0-9a-f]{8}) next=([0-9a-f]{4}):([0-9a-f]{8})", results) as m:
+            self.assertRegex(m.group(1), r"CD31", results)
+            self.assertEqual(m.group(2), m.group(4), "'t' left the segment: " + results)
+            self.assertEqual(int(m.group(5), 16), int(m.group(3), 16) + 2, "'t' did not land after the int: " + results)
+
         # the breakpoint 't' uses to step over the int is not the user's and
         # has to be gone again
         # 'bl' lists each one as "<n>: <linear address>"
@@ -922,20 +926,13 @@ class OurTestCase(BaseTestCase):
                                        timeout=TRACELOOP_LIMIT + 30)
 
         self.assertNotIn('Timeout', results, results)
-        m = re.search(r"\[system state: ([^\]]*)\] insn=\[(.*)\] "
-                      r"traced=(\d+) at=([0-9a-f]{4}):([0-9a-f]{8})", results)
-        self.assertIsNotNone(m, "the debugger answered nothing of what the "
-                                "case asks for: " + results)
-        self.assertIn("stopped", m.group(1),
-                      "'tc' was still tracing: " + results)
-        self.assertGreater(int(m.group(3)), 0,
-                           "'tc' stopped without tracing anything: " + results)
-        self.assertNotEqual(m.group(4, 5), ("0000", "00000000"),
-                            "the debugger did not say where it stopped: "
-                            + results)
-        self.assertRegex(m.group(2), r"CD31",
-                         "'tc' stopped somewhere other than the int: "
-                         + results)
+
+        with self.assertRegexSearch(
+                r"\[system state: ([^\]]*)\] insn=\[(.*)\] traced=(\d+) at=([0-9a-f]{4}):([0-9a-f]{8})", results) as m:
+            self.assertIn("stopped", m.group(1), "'tc' was still tracing: " + results)
+            self.assertGreater(int(m.group(3)), 0, "'tc' stopped without tracing anything: " + results)
+            self.assertNotEqual(m.group(4, 5), ("0000", "00000000"), "the debugger did not say where it stopped: " + results)
+            self.assertRegex(m.group(2), r"CD31", "'tc' stopped somewhere other than the int: " + results)
 
 
     def test_dosdebug_bp_pm(self):
@@ -996,11 +993,9 @@ class OurTestCase(BaseTestCase):
         # 'bl' lists each breakpoint as "<n>: <linear address>"
         self.assertRegex(steps[4], r"(?m)^\s*0: [0-9a-f]+", steps[4])
 
-        m = re.search(r"hit=([0-9a-f]{4}):([0-9a-f]{8}) "
-                      r"want=([0-9a-f]{4}):([0-9a-f]{8})", steps[6])
-        self.assertIsNotNone(m, results)
-        self.assertEqual(m.group(1, 2), m.group(3, 4),
-                         "the breakpoint stopped somewhere else: " + steps[5])
+        with self.assertRegexSearch(r"hit=([0-9a-f]{4}):([0-9a-f]{8}) want=([0-9a-f]{4}):([0-9a-f]{8})", steps[6]) as m:
+            self.assertEqual(m.group(1, 2), m.group(3, 4), "the breakpoint stopped somewhere else: " + steps[5])
+
         # and the client is itself again once the breakpoint is gone
         self.assertIn("PMINT OK", screen)
 
@@ -1173,17 +1168,15 @@ class OurTestCase(BaseTestCase):
                          + results)
         # the segment the client is in is the one its ds points to, which
         # the stop report has
-        ds = re.search(r"DS=([0-9a-f]{4})", at)
-        self.assertIsNotNone(ds, "the stop report says no ds to tell what "
-                                 "segment the client is in: " + results)
-        # and the client's own code is where the interrupt breakpoint takes
-        # us, on a call of its own
-        back = results.split("back=")[-1].split(" | ")[0]
-        m = re.match(r"([0-9a-f]{4}):[0-9a-f]{4} ", back)
-        self.assertIsNotNone(m, "no stop of the interrupt breakpoint: "
-                                + results)
-        self.assertEqual(m.group(1), ds.group(1),
-                         "stopped outside the client: " + results)
+        with self.assertRegexSearch(r"DS=([0-9a-f]{4})", at,
+                "the stop report says no ds to tell what segment the client is in") as ds:
+            # and the client's own code is where the interrupt breakpoint takes
+            # us, on a call of its own
+            back = results.split("back=")[-1].split(" | ")[0]
+            with self.assertRegexSearch(
+                    r"([0-9a-f]{4}):[0-9a-f]{4} ", back, "no stop of the interrupt breakpoint: " + results) as m:
+                self.assertEqual(m.group(1), ds.group(1), "stopped outside the client: " + results)
+
         self.assertIn("INT 0x21", back, results)
         insn = results.split("insn=")[-1].split(" | ")[0]
         self.assertRegex(insn, r"CD21", "not on the client's own int 21h: "
@@ -1273,10 +1266,8 @@ class OurTestCase(BaseTestCase):
 
         results = self.runWithDosdebug("testit.bat", body)
 
-        m = re.search(r"(?m)^0000:0000( [0-9A-F]{2}){10}(.*)$", results)
-        self.assertIsNotNone(m, results)
-        self.assertEqual(m.group(2).strip(), '',
-                         "the prompt is on the dump line: " + results)
+        with self.assertRegexSearch(r"(?m)^0000:0000( [0-9A-F]{2}){10}(.*)$", results) as m:
+            self.assertEqual(m.group(2).strip(), '', "the prompt is on the dump line: " + results)
 
 # The DOS variants we want get included here
 FRDOS130TestCase = frdos130(OurTestCase, {})

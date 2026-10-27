@@ -1,5 +1,3 @@
-import re
-
 from os import statvfs
 from subprocess import call, DEVNULL
 
@@ -124,12 +122,10 @@ int main(int argc, char *argv[]) {
         lfs_total = fsinfo.f_blocks * fsinfo.f_bsize
         lfs_avail = fsinfo.f_bavail * fsinfo.f_bsize
 
-        t = re.search(r'total_bytes\((\d+)\)', results)
-        self.assertIsNotNone(t, "Unable to parse 'total_bytes'")
-        dfs_total = int(t.group(1))
-        a = re.search(r'avail_bytes\((\d+)\)', results)
-        self.assertIsNotNone(a, "Unable to parse 'avail_bytes'")
-        dfs_avail = int(a.group(1))
+        with self.assertRegexSearch(r"total_bytes\((\d+)\)", results) as m:
+            dfs_total = int(m.group(1))
+        with self.assertRegexSearch(r"avail_bytes\((\d+)\)", results) as m:
+            dfs_avail = int(m.group(1))
 
         # see if we are within 5% of the values expected
         msg = "total dos %d, expected %d" % (dfs_total, lfs_total)
@@ -145,15 +141,11 @@ int main(int argc, char *argv[]) {
         # change by external users / processes, we can check exact
         # values.
 
-        t = re.search(r'avail_clusters\s+(0x[0-9a-fA-F]+)', results)
-        self.assertIsNotNone(t, "Unable to parse 'avail_clusters'")
-        clu_avail = int(t.group(1), 0)
-
-        t = re.search(r'total_clusters\s+(0x[0-9a-fA-F]+)', results)
-        self.assertIsNotNone(t, "Unable to parse 'total_clusters'")
-        clu_total = int(t.group(1), 0)
+        with self.assertRegexSearch(r"avail_clusters\s+(0x[0-9a-fA-F]+)", results) as m:
+            clu_avail = int(m.group(1), 0)
+        with self.assertRegexSearch(r"total_clusters\s+(0x[0-9a-fA-F]+)", results) as m:
+            clu_total = int(m.group(1), 0)
 
         # dosfsck shows 25601/261627 clusters used/total
         self.assertEqual(clu_total - clu_avail, 25601)
         self.assertEqual(clu_total, 261627)
-

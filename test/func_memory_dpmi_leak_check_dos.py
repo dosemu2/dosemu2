@@ -1,4 +1,3 @@
-import re
 
 
 def memory_dpmi_leak_check_dos(self, tipo):
@@ -68,18 +67,17 @@ int main(int argc, char *argv[])
 
     # INFO: (TEST0) DPMI allocation (DOS) info: SEGMENT=04c5, SELECTOR=01bf
 
-    m = re.search(r'\(TEST0\).*info: SEGMENT=([\da-f]+), SELECTOR=([\da-f]+)', results)
-    self.assertIsNotNone(m, results)
-
     FMT = r'(?m)^INFO: \(%s\).*info: SEGMENT=%s, SELECTOR=%s[\r\n]+'
 
-    self.assertRegex(results, FMT % ('TEST1', m.group(1), m.group(2)))
-    self.assertRegex(results, FMT % ('TEST2', m.group(1), m.group(2)))
-    self.assertRegex(results, FMT % ('TEST3', m.group(1), m.group(2)))
-    self.assertRegex(results, FMT % ('TEST4', m.group(1), m.group(2)))
-    self.assertRegex(results, FMT % ('TEST5', m.group(1), m.group(2)))
-    self.assertRegex(results, FMT % ('TEST6', m.group(1), m.group(2)))
-    self.assertRegex(results, FMT % ('TEST7', m.group(1), m.group(2)))
-    self.assertRegex(results, FMT % ('TEST8', m.group(1), m.group(2)))
-    self.assertRegex(results, FMT % ('TEST9', m.group(1), m.group(2)))
+    with self.assertRegexSearch(r"\(TEST0\).*info: SEGMENT=([\da-f]+), SELECTOR=([\da-f]+)", results) as m:
+        self.assertRegex(results, FMT % ('TEST1', m.group(1), m.group(2)))
+        self.assertRegex(results, FMT % ('TEST2', m.group(1), m.group(2)))
+        self.assertRegex(results, FMT % ('TEST3', m.group(1), m.group(2)))
+        self.assertRegex(results, FMT % ('TEST4', m.group(1), m.group(2)))
+        self.assertRegex(results, FMT % ('TEST5', m.group(1), m.group(2)))
+        self.assertRegex(results, FMT % ('TEST6', m.group(1), m.group(2)))
+        self.assertRegex(results, FMT % ('TEST7', m.group(1), m.group(2)))
+        self.assertRegex(results, FMT % ('TEST8', m.group(1), m.group(2)))
+        self.assertRegex(results, FMT % ('TEST9', m.group(1), m.group(2)))
+
     self.assertNotIn("FAIL:", results)

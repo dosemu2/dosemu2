@@ -1,4 +1,3 @@
-import re
 
 
 def get_country(self):
@@ -120,8 +119,7 @@ int main(int argc, char *argv[])
     # MSDOS doesn't upcase chars < 0x80, so the actual check is not great, but the
     # main thing is that we called the upcase routine and didn't crash which can
     # give us confidence that the pointer is good.
-    m = re.search(r"INFO: upcased_char = '(.)'", results)
-    self.assertIsNotNone(m, results)
-    self.assertIn(m.group(1), 'Bb', results)
+    with self.assertRegexSearch(r"INFO: upcased_char = '(.)'", results) as m:
+        self.assertIn(m.group(1), 'Bb', results)
 
     self.assertIn("INFO: sep_datalist = ','", results)

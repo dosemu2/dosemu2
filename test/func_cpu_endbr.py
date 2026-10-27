@@ -1,4 +1,3 @@
-import re
 
 
 def cpu_endbr(self):
@@ -21,10 +20,7 @@ $_floppy_a = ""
 $_cpu_vm = "%s"
 """ % cpu_vm
 
-    self.mkfile("testit.bat", """\
-c:\\endbr
-rem end
-""", newline="\r\n")
+    self.mkbat_testit("endbr")
 
     # gcc with -fcf-protection puts endbr32 at the start of functions, and
     # comcom32 has such functions. Without CET they must execute as NOPs.
@@ -131,8 +127,6 @@ outa:
 
     results = self.runDosemu("testit.bat", config=config)
 
-    r = re.compile(r'UD\(([0-9])\) CX\(([0-9A-F]{4})\)')
-    self.assertRegex(results, r)
-    t = r.search(results)
-    self.assertEqual(t.group(1), '0', "endbr raised #UD\n" + results)
-    self.assertEqual(t.group(2), '12DC', results)   # 0x1237 + 0xa5
+    with self.assertRegexSearch(r"UD\(([0-9])\) CX\(([0-9A-F]{4})\)", results) as m:
+        self.assertEqual(m.group(1), '0', "endbr raised #UD\n" + results)
+        self.assertEqual(m.group(2), '12DC', results)   # 0x1237 + 0xa5

@@ -1,5 +1,3 @@
-import re
-
 from cpuinfo import get_cpu_info
 
 
@@ -23,10 +21,7 @@ $_floppy_a = ""
 $_cpu_vm = "%s"
 """ % cpu_vm
 
-    self.mkfile("testit.bat", """\
-c:\\cputrapf
-rem end
-""", newline="\r\n")
+    self.mkbat_testit("cputrapf")
 
     # compile sources
     self.mkcom_with_nasm("cputrapf", r"""
@@ -84,10 +79,8 @@ result:
     results = self.runDosemu("testit.bat", config=config)
 
     # Extract the result value
-    r1 = re.compile(r'Result is \((\d+)\)')
-    self.assertRegex(results, r1)
-    t = r1.search(results)
-    rval = int(t.group(1), 10)
+    with self.assertRegexSearch(r"Result is \((\d+)\)", results) as m:
+        rval = int(m.group(1), 10)
 
     # Some unknown error in the test
     self.assertNotEqual(rval, 0, results)

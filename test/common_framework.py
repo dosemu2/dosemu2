@@ -975,6 +975,37 @@ class BaseTestCase(object):
         self.assertNotIn('Timeout:', ret)
         return ret
 
+##### Some additional asserts that can be useful
+
+    class _RegexSearchContext(object):
+        def __init__(self, test_case, pattern, string, msg=None):
+            self.test_case = test_case
+            self.pattern = pattern
+            self.string = string
+            self.msg = msg
+
+        def __enter__(self):
+            match = re.search(self.pattern, self.string)
+            if match is None:
+                err_msg = "Regex search failed to find a match.\nPattern: %s\nString:  %s" % (self.pattern, self.string)
+                if self.msg:
+                    err_msg = "%s\n%s" % (self.msg, err_msg)
+                raise self.test_case.failureException(err_msg)
+            return match
+
+        def __exit__(self, exc_type, exc_val, exc_tb):
+            return False
+
+    def assertRegexSearch(self, pattern, string, msg=None):
+        """
+        Use as:
+
+        with self.assertRegexSearch(pattern, results) as m:
+            self.assertEqual(m.group(1), "1234")
+        """
+        return self._RegexSearchContext(self, pattern, string, msg)
+
+
     def assertFilesEqual(self, reffile, dosfile):
         """Compare DOS output to reference file"""
 

@@ -1,4 +1,3 @@
-import re
 
 
 def memory_dpmi_leak_check(self, tipo):
@@ -68,19 +67,17 @@ int main(int argc, char *argv[])
     results = self.runDosemu("testit.bat")
 
     # INFO: (TEST0) DPMI allocation info: HNDL=00000012, SIZE=00020000, ADDR=21199000
-
-    m = re.search(r'\(TEST0\).*HNDL=([\da-f]+), SIZE=([\da-f]+), ADDR=([\da-f]+)', results)
-    self.assertIsNotNone(m, results)
-
     FMT = r'(?m)^INFO: \(%s\).*, SIZE=%s, ADDR=%s[\r\n]+'
 
-    self.assertRegex(results, FMT % ('TEST1', m.group(2), m.group(3)))
-    self.assertRegex(results, FMT % ('TEST2', m.group(2), m.group(3)))
-    self.assertRegex(results, FMT % ('TEST3', m.group(2), m.group(3)))
-    self.assertRegex(results, FMT % ('TEST4', m.group(2), m.group(3)))
-    self.assertRegex(results, FMT % ('TEST5', m.group(2), m.group(3)))
-    self.assertRegex(results, FMT % ('TEST6', m.group(2), m.group(3)))
-    self.assertRegex(results, FMT % ('TEST7', m.group(2), m.group(3)))
-    self.assertRegex(results, FMT % ('TEST8', m.group(2), m.group(3)))
-    self.assertRegex(results, FMT % ('TEST9', m.group(2), m.group(3)))
+    with self.assertRegexSearch(r"\(TEST0\).*HNDL=([\da-f]+), SIZE=([\da-f]+), ADDR=([\da-f]+)", results) as m:
+        self.assertRegex(results, FMT % ('TEST1', m.group(2), m.group(3)))
+        self.assertRegex(results, FMT % ('TEST2', m.group(2), m.group(3)))
+        self.assertRegex(results, FMT % ('TEST3', m.group(2), m.group(3)))
+        self.assertRegex(results, FMT % ('TEST4', m.group(2), m.group(3)))
+        self.assertRegex(results, FMT % ('TEST5', m.group(2), m.group(3)))
+        self.assertRegex(results, FMT % ('TEST6', m.group(2), m.group(3)))
+        self.assertRegex(results, FMT % ('TEST7', m.group(2), m.group(3)))
+        self.assertRegex(results, FMT % ('TEST8', m.group(2), m.group(3)))
+        self.assertRegex(results, FMT % ('TEST9', m.group(2), m.group(3)))
+
     self.assertNotIn("FAIL:", results)

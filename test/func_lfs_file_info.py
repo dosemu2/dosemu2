@@ -1,5 +1,3 @@
-import re
-
 from pathlib import Path
 
 
@@ -131,20 +129,14 @@ $_lredir_paths = "%s"
     # Check the obvious fields
     self.assertNotIn("Error: ", results)
 
-    r1 = re.compile(r'fsize_hi.*0x([0-9a-f]+)')
-    self.assertRegex(results, r1)
-    t = r1.search(results)
-    fsize_hi = int(t.group(1), 16)
+    with self.assertRegexSearch(r"fsize_hi.*0x([0-9a-f]+)", results) as m:
+        fsize_hi = int(m.group(1), 16)
 
-    r2 = re.compile(r'fsize_lo.*0x([0-9a-f]+)')
-    self.assertRegex(results, r2)
-    t = r2.search(results)
-    fsize_lo = int(t.group(1), 16)
+    with self.assertRegexSearch(r"fsize_lo.*0x([0-9a-f]+)", results) as m:
+        fsize_lo = int(m.group(1), 16)
 
-    r3 = re.compile(r'numlinks.*0x([0-9a-f]+)')
-    self.assertRegex(results, r3)
-    t = r3.search(results)
-    numlinks = int(t.group(1), 16)
+    with self.assertRegexSearch(r"numlinks.*0x([0-9a-f]+)", results) as m:
+        numlinks = int(m.group(1), 16)
 
     self.assertEqual(fsize_hi, fsize >> 32)
     self.assertEqual(fsize_lo, fsize & 0xffffffff)

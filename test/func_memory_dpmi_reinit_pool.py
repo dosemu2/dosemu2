@@ -1,4 +1,3 @@
-import re
 
 
 def memory_dpmi_reinit_pool(self):
@@ -182,12 +181,10 @@ int main(void)
 
     results = self.runDosemu("testit.bat")
 
-    m = re.search(r'INFO: pool seg=([\da-f]+) para=([\da-f]+)', results)
-    self.assertIsNotNone(m, results)
-    n = re.search(r'INFO: new pool seg=([\da-f]+)', results)
-    self.assertIsNotNone(n, results)
-    self.assertNotEqual(m.group(1), n.group(1), results)
-    self.assertRegex(results,
-                     r'INFO: pool now seg=%s para=%s' % (n.group(1), m.group(2)))
+    with (self.assertRegexSearch(r"INFO: pool seg=([\da-f]+) para=([\da-f]+)", results) as m,
+            self.assertRegexSearch(r"INFO: new pool seg=([\da-f]+)", results) as n):
+        self.assertNotEqual(m.group(1), n.group(1), results)
+        self.assertRegex(results, r'INFO: pool now seg=%s para=%s' % (n.group(1), m.group(2)))
+
     self.assertNotIn("FAIL:", results)
     self.assertIn("DONE:", results)
