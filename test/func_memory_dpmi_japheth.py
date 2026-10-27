@@ -1,5 +1,3 @@
-import re
-
 TTAR = "TEST_JAPHETH.tar"
 TFILES = {
     218: ("dpmihxrt218.exe", "65fda018f4422c39dbf36860aac2c537cfee466b"),
@@ -70,10 +68,8 @@ def _c(self):
 
 def _d(self):
     results = doit(self, 219, "-d")
-    t = re.search(r"(\d+) descriptors allocated", results)
-    self.assertIsNotNone(t, "Unable to parse number of allocated descriptors")
-    num = int(t.group(1))
-    self.assertGreater(num, 8000, results)
+    with self.assertRegexSearch(r"(\d+) descriptors allocated", results) as m:
+        self.assertGreater(int(m.group(1)), 8000, results)
 
 
 def _e(self):
@@ -91,10 +87,9 @@ def _i(self):
 
 def _m(self):
     results = doit(self, 218, "-m")
-    t = re.search(r"alloc largest mem block \(size=(\d+) kB\) returned handle [0-9a-fA-F]+, base \d+", results)
-    self.assertIsNotNone(t, "Unable to parse memory block size")
-    size = int(t.group(1))
-    self.assertGreater(size, 128000, results)
+    with self.assertRegexSearch(
+            r"alloc largest mem block \(size=(\d+) kB\) returned handle [0-9a-fA-F]+, base \d+", results) as m:
+        self.assertGreater(int(m.group(1)), 128000, results)
 
 
 def _r(self):
@@ -126,24 +121,22 @@ def _t(self):
 #  back in rm proc, ss:sp=7A8:1FC; exiting
 #back in protected-mode, rm ss:sp=7A8:200, rm cx=2
 
-    self.assertRegex(results, re.compile(r"^allocated rm callback", re.MULTILINE))
-    self.assertRegex(results, re.compile(r"^  inside rm proc", re.MULTILINE))
-    self.assertRegex(results, re.compile(r"^    inside rm callback", re.MULTILINE))
-    self.assertRegex(results, re.compile(r"^      inside rm proc", re.MULTILINE))
-    self.assertRegex(results, re.compile(r"^        inside rm callback", re.MULTILINE))
-    self.assertRegex(results, re.compile(r"^      back in rm proc", re.MULTILINE))
-    self.assertRegex(results, re.compile(r"^    back in rm callback", re.MULTILINE))
-    self.assertRegex(results, re.compile(r"^  back in rm proc", re.MULTILINE))
-    self.assertRegex(results, re.compile(r"^back in protected-mode", re.MULTILINE))
+    self.assertRegex(results, r"(?m)^allocated rm callback")
+    self.assertRegex(results, r"(?m)^  inside rm proc")
+    self.assertRegex(results, r"(?m)^    inside rm callback")
+    self.assertRegex(results, r"(?m)^      inside rm proc")
+    self.assertRegex(results, r"(?m)^        inside rm callback")
+    self.assertRegex(results, r"(?m)^      back in rm proc")
+    self.assertRegex(results, r"(?m)^    back in rm callback")
+    self.assertRegex(results, r"(?m)^  back in rm proc")
+    self.assertRegex(results, r"(?m)^back in protected-mode")
 
 
 def _z(self):
     results = doit(self, 220, "-z")
 
-    t = re.search(r"DPMI: launch succeeded, int 21h calls: (\d+)", results)
-    self.assertIsNotNone(t, "Unable to parse number of int 21h calls")
-    num = int(t.group(1))
-    self.assertGreater(num, 800, results)
+    with self.assertRegexSearch(r"DPMI: launch succeeded, int 21h calls: (\d+)", results) as m:
+        self.assertGreater(int(m.group(1)), 800, results)
 
 
 def memory_dpmi_japheth(self, switch):
