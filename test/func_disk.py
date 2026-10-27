@@ -1,5 +1,3 @@
-import re
-
 from os import statvfs
 
 
@@ -106,15 +104,11 @@ int main(int argc, char *argv[]) {
     lfs_total = fsinfo.f_blocks * fsinfo.f_bsize
     lfs_avail = fsinfo.f_bavail * fsinfo.f_bsize
 
-    r1 = re.compile(r'total_bytes\((\d+)\)')
-    self.assertRegex(results, r1)
-    t = r1.search(results)
-    dfs_total = int(t.group(1))
+    with self.assertRegexSearch(r"total_bytes\((\d+)\)", results) as m:
+        dfs_total = int(m.group(1))
 
-    r2 = re.compile(r'avail_bytes\((\d+)\)')
-    self.assertRegex(results, r2)
-    a = r2.search(results)
-    dfs_avail = int(a.group(1))
+    with self.assertRegexSearch(r"avail_bytes\((\d+)\)", results) as m:
+        dfs_avail = int(m.group(1))
 
 # see if we are within 5% of the values obtained from Linux
     if lfs_total > 2147450880:
