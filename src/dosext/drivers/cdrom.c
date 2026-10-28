@@ -39,6 +39,7 @@
 
 #include "dos2linux.h"
 #include "utilities.h"
+#include "priv.h"
 
 #undef CDROM_DEBUG
 
@@ -219,6 +220,17 @@ static void cdrom_reset(void)
 #define MSCD_AUDCHAN_VOLUME1       4
 #define MSCD_AUDCHAN_VOLUME2       6
 #define MSCD_AUDCHAN_VOLUME3       8
+
+/*
+ * dosemu2 sandboxes itself with landlock before it opens anything, so the
+ * device or ISO file named here has to be permitted while the
+ * configuration is still being read.
+ */
+void cdrom_config(const char *path)
+{
+    if (access(path, R_OK) == 0)
+	permit_file_ro(path);	/* the list keeps the string */
+}
 
 void cdrom_helper(unsigned char *req_buf, unsigned char *transfer_buf,
 		  unsigned int dos_transfer_buf)
@@ -836,6 +848,10 @@ void cdrom_done(void)
 #else
 
 const char *Path_cdrom[4];
+
+void cdrom_config(const char *path)
+{
+}
 
 void cdrom_helper(unsigned char *req_buf, unsigned char *transfer_buf,
                   unsigned int dos_transfer_buf)
