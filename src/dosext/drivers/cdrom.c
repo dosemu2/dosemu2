@@ -348,7 +348,7 @@ void cdrom_helper(unsigned char *req_buf, unsigned char *transfer_buf,
 		cdrom_msf.cdmsf_min0 * 60 * 75 +
 		cdrom_msf.cdmsf_sec0 * 75 + cdrom_msf.cdmsf_frame0 - 150;
 	} else {
-	    Sector = *CALC_PTR(req_buf, MSCD_READ_STARTSECTOR, u_long);
+	    Sector = *CALC_PTR(req_buf, MSCD_READ_STARTSECTOR, u_int);
 	}
 
 	C_printf("CDROM: reading sector %#x (fmt %d)\n", Sector,
@@ -414,8 +414,8 @@ void cdrom_helper(unsigned char *req_buf, unsigned char *transfer_buf,
 	req_buf = SEG_ADR((unsigned char *), es, di);
 	if ((off_t) - 1 ==
 	    lseek(cdrom_fd,
-		  *CALC_PTR(req_buf, MSCD_SEEK_STARTSECTOR,
-			    u_long) * CD_FRAMESIZE, SEEK_SET)) {
+		  (off_t) *CALC_PTR(req_buf, MSCD_SEEK_STARTSECTOR,
+				    u_int) * CD_FRAMESIZE, SEEK_SET)) {
 	    C_printf("CDROM: lseek failed: %s\n", strerror(errno));
 	    LO(ax) = 1;
 	}
@@ -435,14 +435,14 @@ void cdrom_helper(unsigned char *req_buf, unsigned char *transfer_buf,
 	    audio_status.last_StartSector = Sector_plus_150;
 	} else {
 	    Sector_plus_150 =
-		*CALC_PTR(req_buf, MSCD_PLAY_STARTSECTOR, u_long) + 150;
+		*CALC_PTR(req_buf, MSCD_PLAY_STARTSECTOR, u_int) + 150;
 	    cdrom_msf.cdmsf_min0 = (Sector_plus_150 / (60 * 75));
 	    cdrom_msf.cdmsf_sec0 = (Sector_plus_150 % (60 * 75)) / 75;
 	    cdrom_msf.cdmsf_frame0 = (Sector_plus_150 % (60 * 75)) % 75;
 	    audio_status.last_StartSector = Sector_plus_150;
 	}
 	Sector_plus_150 +=
-	    *CALC_PTR(req_buf, MSCD_PLAY_NUMSECTORS, u_long);
+	    *CALC_PTR(req_buf, MSCD_PLAY_NUMSECTORS, u_int);
 	cdrom_msf.cdmsf_min1 = (Sector_plus_150 / (60 * 75));
 	cdrom_msf.cdmsf_sec1 = (Sector_plus_150 % (60 * 75)) / 75;
 	cdrom_msf.cdmsf_frame1 = (Sector_plus_150 % (60 * 75)) % 75;
@@ -506,7 +506,7 @@ void cdrom_helper(unsigned char *req_buf, unsigned char *transfer_buf,
 
 	req_buf = SEG_ADR((unsigned char *), ds, si);
 	if (*CALC_PTR(req_buf, MSCD_LOCH_ADRESSING, u_char) == 0) {
-	    *CALC_PTR(req_buf, MSCD_LOCH_LOCATION, u_long)
+	    *CALC_PTR(req_buf, MSCD_LOCH_LOCATION, u_int)
 		= cdrom_subchnl.cdsc_absaddr.msf.minute * 60 * 75
 		+ cdrom_subchnl.cdsc_absaddr.msf.second * 75
 		+ cdrom_subchnl.cdsc_absaddr.msf.frame - 150;
@@ -767,9 +767,9 @@ void cdrom_helper(unsigned char *req_buf, unsigned char *transfer_buf,
 	req_buf = SEG_ADR((unsigned char *), ds, si);
 	*CALC_PTR(req_buf, MSCD_AUDSTAT_PAUSED, u_short) =
 	    audio_status.paused_bit;
-	*CALC_PTR(req_buf, MSCD_AUDSTAT_START, u_long) =
+	*CALC_PTR(req_buf, MSCD_AUDSTAT_START, u_int) =
 	    audio_status.last_StartSector;
-	*CALC_PTR(req_buf, MSCD_AUDSTAT_END, u_long) =
+	*CALC_PTR(req_buf, MSCD_AUDSTAT_END, u_int) =
 	    audio_status.last_EndSector;
 	break;
     case 0x15:			/* get audio channel information */
