@@ -32,6 +32,8 @@ typedef struct m_ucontext m_ucontext_t;
 #		include "aarch64-ucontext.h"
 #	elif defined (__power__)
 #		include "power-ucontext.h"
+#	elif defined(__riscv)
+#		include "rv64g-ucontext.h"
 #	else
 #		error Unsupported arch
 #	endif
