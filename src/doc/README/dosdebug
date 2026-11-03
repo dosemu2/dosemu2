@@ -193,6 +193,40 @@ for dosdebug to connect. Once connected you are in `stopped' state
 and can set breakpoints or singlestep through the bootstrap code.
 </para>
 
+<para>
+To run a session that was written down beforehand rather than typed,
+pass the file with -c:
+
+<screen>
+  dosdebug -c session.dbg
+</screen>
+
+Each line is one command.  Blank lines and lines starting with '#' are
+skipped, and a command is not sent until the previous one has been
+answered, so no delays are needed between them.  The file may be given
+as '-' to read the commands from standard input.  When the file ends,
+dosdebug detaches the way 'q' does, leaving dosemu running.
+</para>
+
+<para>
+A command that leaves dosemu running, such as 'g', is answered at once,
+long before whatever it was waiting for happens.  To wait for the stop
+itself, put '@wait' on a line of its own; it returns when dosemu has
+reported stopping and the report has finished arriving, or after thirty
+seconds, whichever comes first.  A different limit can be given as
+'@wait 5'.  So a script that runs to a DPMI call and looks around reads:
+
+<screen>
+  # run to the first int 31h and see where we are
+  stop
+  bpintd 31
+  g
+  @wait
+  bcintd 31
+  r
+</screen>
+</para>
+
 </sect2>
 
 <sect2>
