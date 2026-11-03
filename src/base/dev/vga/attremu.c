@@ -226,6 +226,8 @@ void Attr_init(void)
   vga.attr.index = 0;
   vga.attr.cpu_video = 0x20;
   vga.attr.flipflop = ATTR_INDEX_FLIPFLOP;
+  __atomic_store_n(&vga.pel_pan, vga.attr.data[ATTR_HOR_PAN] & 7,
+                   __ATOMIC_RELAXED);
 
   attr_msg("Attr_init done\n");
 }
@@ -351,6 +353,12 @@ void Attr_write_value(unsigned char data)
       }
       if(i == ATTR_MODE_CTL || i == ATTR_COL_SELECT) {
         for(j = 0; j < 16; j++) vga.attr.dirty[j] = True;
+      }
+      if(i == ATTR_HOR_PAN) {
+        /* the fine part of the display start; only the planar modes
+         * honour it, and there it counts single pixels */
+        __atomic_store_n(&vga.pel_pan, data & 7, __ATOMIC_RELAXED);
+        dirty_all_video_pages();
       }
       /* bits: 0x04 - line graphics copy 8th->9th column...    */
       /*       0x02 - mono mode  /  0x01 - graphics mode       */

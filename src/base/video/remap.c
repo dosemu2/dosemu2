@@ -669,7 +669,9 @@ static void src_resize_update(RemapObject *ro, int width, int height, int scan_l
   ro->src_width = width;
   ro->src_height = height;
   ro->src_scan_len = scan_len;
-  ro->src_tmp_line = realloc(ro->src_tmp_line, width);
+  /* one byte of pixels more than the screen is wide, for the pixels
+   * horizontal pel panning shifts in on the right */
+  ro->src_tmp_line = realloc(ro->src_tmp_line, width + 8);
   // check return value?
   resize_update(ro);
 }
@@ -2384,6 +2386,40 @@ void gen_c2to32_all(RemapObject *ro)
 }
 
 /*
+ * Decode one line of a 16 colour planar mode into ro->src_tmp_line, one
+ * byte per pixel.
+ *
+ * With horizontal pel panning in effect the line is one byte longer than
+ * the screen is wide, because the pixels that pan shifts in on the right
+ * come from the next byte the CRTC fetches.  That byte is only taken when
+ * the row is wider than the screen, which is how a program that pans lays
+ * its screen out in the first place; when it is not, the line is decoded
+ * as it always was and the pan is ignored rather than read out of the row.
+ */
+static int decode_4bpp_line(RemapObject *ro, const unsigned char *src)
+{
+  unsigned *dst1 = (unsigned *) ro->src_tmp_line;
+  unsigned *lut = ro->bit_lut;
+  int s_x_len = ro->src_width >> 3;
+  int s_x, d_x;
+
+  if(ro->src_pan_x && (int) ro->src_scan_len > s_x_len) s_x_len++;
+
+  for(s_x = d_x = 0; s_x < s_x_len; s_x++, d_x += 2) {
+    dst1[d_x    ]  = lut[2 * src[s_x          ]            ] |
+                     lut[2 * src[s_x + 0x10000]     + 0x200] |
+                     lut[2 * src[s_x + 0x20000]     + 0x400] |
+                     lut[2 * src[s_x + 0x30000]     + 0x600];
+    dst1[d_x + 1]  = lut[2 * src[s_x          ] + 1        ] |
+                     lut[2 * src[s_x + 0x10000] + 1 + 0x200] |
+                     lut[2 * src[s_x + 0x20000] + 1 + 0x400] |
+                     lut[2 * src[s_x + 0x30000] + 1 + 0x600];
+  }
+
+  return (s_x_len << 3) > (int) ro->src_width ? ro->src_pan_x : 0;
+}
+
+/*
  * 4 bit pseudo color --> 8 bit true color (shared color map)
  * supports arbitrary scaling
  *
@@ -2391,23 +2427,19 @@ void gen_c2to32_all(RemapObject *ro)
 void gen_4to8_all(RemapObject *ro)
 {
   int k;
-  int d_x_len, s_x_len;
-  int s_x, d_x, d_y;
+  int d_x_len;
+  int s_x, d_x, d_y, pan = 0;
   int d_scan_len = ro->dst_scan_len;
   int *bre_x;
   int *bre_y = ro->bre_y;
 
   const unsigned char *src, *src0, *src_last;
   unsigned char *clut = (unsigned char*) ro->true_color_lut, *dst, *src1;
-  unsigned *dst1, *lut;
 
   src0 = ro->src_image + ro->src_start;
   dst = ro->dst_image + ro->dst_start + ro->dst_offset;
   d_x_len = ro->dst_width;
-  s_x_len = ro->src_width >> 3;
   src1 = ro->src_tmp_line;
-  dst1 = (unsigned *) src1;
-  lut = ro->bit_lut;
   src_last = NULL;
 
   for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
@@ -2415,18 +2447,9 @@ void gen_4to8_all(RemapObject *ro)
     k = (d_y & 1) << 1;
     if(src != src_last) {
       src_last = src;
-      for(s_x = d_x = 0; s_x < s_x_len; s_x++, d_x += 2) {
-        dst1[d_x    ]  = lut[2 * src[s_x          ]            ] |
-                         lut[2 * src[s_x + 0x10000]     + 0x200] |
-                         lut[2 * src[s_x + 0x20000]     + 0x400] |
-                         lut[2 * src[s_x + 0x30000]     + 0x600];
-        dst1[d_x + 1]  = lut[2 * src[s_x          ] + 1        ] |
-                         lut[2 * src[s_x + 0x10000] + 1 + 0x200] |
-                         lut[2 * src[s_x + 0x20000] + 1 + 0x400] |
-                         lut[2 * src[s_x + 0x30000] + 1 + 0x600];
-      }
+      pan = decode_4bpp_line(ro, src);
     }
-    for(s_x = d_x = 0, bre_x = ro->bre_x; d_x < d_x_len; ) {
+    for(s_x = pan, d_x = 0, bre_x = ro->bre_x; d_x < d_x_len; ) {
       dst[d_x++] = clut[4 * src1[s_x] + (k ^= 1)];
       s_x += *(bre_x++);
     }
@@ -2440,41 +2463,28 @@ void gen_4to8_all(RemapObject *ro)
  */
 void gen_4to8p_all(RemapObject *ro)
 {
-  int d_x_len, s_x_len;
-  int s_x, d_x, d_y;
+  int d_x_len;
+  int s_x, d_x, d_y, pan = 0;
   int d_scan_len = ro->dst_scan_len;
   int *bre_x;
   int *bre_y = ro->bre_y;
 
   const unsigned char *src, *src0, *src_last;
   unsigned char *dst, *src1;
-  unsigned *dst1, *lut;
 
   src0 = ro->src_image + ro->src_start;
   dst = ro->dst_image + ro->dst_start + ro->dst_offset;
   d_x_len = ro->dst_width;
-  s_x_len = ro->src_width >> 3;
   src1 = ro->src_tmp_line;
-  dst1 = (unsigned *) src1;
-  lut = ro->bit_lut;
   src_last = NULL;
 
   for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
     src = src0 + bre_y[d_y++];
     if(src != src_last) {
       src_last = src;
-      for(s_x = d_x = 0; s_x < s_x_len; s_x++, d_x += 2) {
-        dst1[d_x    ]  = lut[2 * src[s_x          ]            ] |
-                         lut[2 * src[s_x + 0x10000]     + 0x200] |
-                         lut[2 * src[s_x + 0x20000]     + 0x400] |
-                         lut[2 * src[s_x + 0x30000]     + 0x600];
-        dst1[d_x + 1]  = lut[2 * src[s_x          ] + 1        ] |
-                         lut[2 * src[s_x + 0x10000] + 1 + 0x200] |
-                         lut[2 * src[s_x + 0x20000] + 1 + 0x400] |
-                         lut[2 * src[s_x + 0x30000] + 1 + 0x600];
-      }
+      pan = decode_4bpp_line(ro, src);
     }
-    for(s_x = d_x = 0, bre_x = ro->bre_x; d_x < d_x_len; ) {
+    for(s_x = pan, d_x = 0, bre_x = ro->bre_x; d_x < d_x_len; ) {
       dst[d_x++] = src1[s_x];
       s_x += *(bre_x++);
     }
@@ -2488,8 +2498,8 @@ void gen_4to8p_all(RemapObject *ro)
  */
 void gen_4to16_all(RemapObject *ro)
 {
-  int d_x_len, s_x_len;
-  int s_x, d_x, d_y;
+  int d_x_len;
+  int s_x, d_x, d_y, pan = 0;
   int d_scan_len = ro->dst_scan_len >> 1;
   int *bre_x;
   int *bre_y = ro->bre_y;
@@ -2497,33 +2507,20 @@ void gen_4to16_all(RemapObject *ro)
   const unsigned char *src, *src0, *src_last;
   unsigned char *src1;
   unsigned short *dst;
-  unsigned *dst1, *lut;
 
   src0 = ro->src_image + ro->src_start;
   dst = (unsigned short *) (ro->dst_image + ro->dst_start + ro->dst_offset);
   d_x_len = ro->dst_width;
-  s_x_len = ro->src_width >> 3;
   src1 = ro->src_tmp_line;
-  dst1 = (unsigned *) src1;
-  lut = ro->bit_lut;
   src_last = NULL;
 
   for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
     src = src0 + bre_y[d_y++];
     if(src != src_last) {
       src_last = src;
-      for(s_x = d_x = 0; s_x < s_x_len; s_x++, d_x += 2) {
-        dst1[d_x    ]  = lut[2 * src[s_x          ]            ] |
-                         lut[2 * src[s_x + 0x10000]     + 0x200] |
-                         lut[2 * src[s_x + 0x20000]     + 0x400] |
-                         lut[2 * src[s_x + 0x30000]     + 0x600];
-        dst1[d_x + 1]  = lut[2 * src[s_x          ] + 1        ] |
-                         lut[2 * src[s_x + 0x10000] + 1 + 0x200] |
-                         lut[2 * src[s_x + 0x20000] + 1 + 0x400] |
-                         lut[2 * src[s_x + 0x30000] + 1 + 0x600];
-      }
+      pan = decode_4bpp_line(ro, src);
     }
-    for(s_x = d_x = 0, bre_x = ro->bre_x; d_x < d_x_len; ) {
+    for(s_x = pan, d_x = 0, bre_x = ro->bre_x; d_x < d_x_len; ) {
       dst[d_x++] = ro->true_color_lut[src1[s_x]];
       s_x += *(bre_x++);
     }
@@ -2537,13 +2534,12 @@ void gen_4to16_all(RemapObject *ro)
  */
 void gen_4to24_all(RemapObject *ro)
 {
-  int d_x_len, s_x_len;
-  int s_x, d_x, d_y;
+  int d_x_len;
+  int s_x, d_x, d_y, pan = 0;
   int d_scan_len = ro->dst_scan_len;
   int *bre_x;
   int *bre_y = ro->bre_y;
 
-  unsigned *dst1, *lut;
   const unsigned char *src, *src0, *src_last;
   unsigned char *dst, *src1;
   unsigned color;
@@ -2551,28 +2547,16 @@ void gen_4to24_all(RemapObject *ro)
   src0 = ro->src_image + ro->src_start;
   dst = (ro->dst_image + ro->dst_start + ro->dst_offset);
   d_x_len = ro->dst_width *3;
-  s_x_len = ro->src_width >> 3;
   src1 = ro->src_tmp_line;
-  dst1 = (unsigned *) src1;
-  lut = ro->bit_lut;
   src_last = NULL;
 
   for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
     src = src0 + bre_y[d_y++];
     if(src != src_last) {
       src_last = src;
-      for(s_x = d_x = 0; s_x < s_x_len; s_x++, d_x += 2) {
-        dst1[d_x    ]  = lut[2 * src[s_x          ]            ] |
-                         lut[2 * src[s_x + 0x10000]     + 0x200] |
-                         lut[2 * src[s_x + 0x20000]     + 0x400] |
-                         lut[2 * src[s_x + 0x30000]     + 0x600];
-        dst1[d_x + 1]  = lut[2 * src[s_x          ] + 1        ] |
-                         lut[2 * src[s_x + 0x10000] + 1 + 0x200] |
-                         lut[2 * src[s_x + 0x20000] + 1 + 0x400] |
-                         lut[2 * src[s_x + 0x30000] + 1 + 0x600];
-      }
+      pan = decode_4bpp_line(ro, src);
     }
-    for(s_x = d_x = 0, bre_x = ro->bre_x; d_x < d_x_len; ) {
+    for(s_x = pan, d_x = 0, bre_x = ro->bre_x; d_x < d_x_len; ) {
       color = ro->true_color_lut[src1[s_x]];
       dst[d_x++] = color & 0xFF;
       dst[d_x++] = (color >> 8) & 0xFF;
@@ -2589,13 +2573,12 @@ void gen_4to24_all(RemapObject *ro)
  */
 void gen_4to32_all(RemapObject *ro)
 {
-  int d_x_len, s_x_len;
-  int s_x, d_x, d_y;
+  int d_x_len;
+  int s_x, d_x, d_y, pan = 0;
   int d_scan_len = ro->dst_scan_len >> 2;
   int *bre_x;
   int *bre_y = ro->bre_y;
 
-  unsigned *dst1, *lut;
   const unsigned char *src, *src0, *src_last;
   unsigned char *src1;
   unsigned *dst;
@@ -2603,28 +2586,16 @@ void gen_4to32_all(RemapObject *ro)
   src0 = ro->src_image + ro->src_start;
   dst = (unsigned *) (ro->dst_image + ro->dst_start + ro->dst_offset);
   d_x_len = ro->dst_width;
-  s_x_len = ro->src_width >> 3;
   src1 = ro->src_tmp_line;
-  dst1 = (unsigned *) src1;
-  lut = ro->bit_lut;
   src_last = NULL;
 
   for(d_y = ro->dst_y0; d_y < ro->dst_y1; dst += d_scan_len) {
     src = src0 + bre_y[d_y++];
     if(src != src_last) {
       src_last = src;
-      for(s_x = d_x = 0; s_x < s_x_len; s_x++, d_x += 2) {
-        dst1[d_x    ]  = lut[2 * src[s_x          ]            ] |
-                         lut[2 * src[s_x + 0x10000]     + 0x200] |
-                         lut[2 * src[s_x + 0x20000]     + 0x400] |
-                         lut[2 * src[s_x + 0x30000]     + 0x600];
-        dst1[d_x + 1]  = lut[2 * src[s_x          ] + 1        ] |
-                         lut[2 * src[s_x + 0x10000] + 1 + 0x200] |
-                         lut[2 * src[s_x + 0x20000] + 1 + 0x400] |
-                         lut[2 * src[s_x + 0x30000] + 1 + 0x600];
-      }
+      pan = decode_4bpp_line(ro, src);
     }
-    for(s_x = d_x = 0, bre_x = ro->bre_x; d_x < d_x_len; ) {
+    for(s_x = pan, d_x = 0, bre_x = ro->bre_x; d_x < d_x_len; ) {
       dst[d_x++] = ro->true_color_lut[src1[s_x]];
       s_x += *(bre_x++);
     }
@@ -3454,13 +3425,14 @@ static RectArea _remap_remap_rect_dst(void *ros,
 static RectArea _remap_remap_mem(void *ros,
 	const struct bitmap_desc src_img,
 	int src_mode,
-	int src_start, int offset, int len, struct bitmap_desc dst_img)
+	int src_start, int pan, int offset, int len, struct bitmap_desc dst_img)
 {
   RemapObject *ro = RO(ros);
   if (src_mode != ro->src_mode)
     RO(ros) = ro = re_create_obj(ro, src_mode);
   ro->src_image = src_img.img;
   ro->src_start = src_start;
+  ro->src_pan_x = pan;
   ro->dst_image = dst_img.img;
   ro->src_resize(ro, src_img.width, src_img.height, src_img.scan_len);
   ro->dst_resize(ro, dst_img.width, dst_img.height, dst_img.scan_len);

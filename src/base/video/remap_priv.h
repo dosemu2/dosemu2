@@ -73,6 +73,7 @@ typedef struct RemapObjectStruct {
   int dst_x0, dst_y0, dst_x1, dst_y1;
   int src_offset, dst_offset;
   int src_start, dst_start;
+  int src_pan_x;		/* horizontal pel panning, in source pixels */
   int *bre_x, *bre_y;
   unsigned *true_color_lut;
   int color_lut_size;
