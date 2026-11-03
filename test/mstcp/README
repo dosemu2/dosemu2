@@ -1,0 +1,120 @@
+htget for the Microsoft TCP/IP sockets interface
+================================================
+
+htget.com fetches one URL over the MS TCP/IP stack of MS Network
+Client 3.0 or LAN Manager, which is an NDIS protocol sitting on top of
+an NDIS MAC driver - dosemu's built-in one, for instance.
+
+The point of it is testing: the tests in test/ndis drive the MAC driver
+from a stand-in protocol written against it, so they prove nothing
+about how it behaves under the real Microsoft protocols. htget takes
+the other route - real protman.dos, real tcpdrv.dos, real tcptsr - and
+the only unusual thing in the whole stack is the MAC driver underneath.
+
+    usage: htget <dotted-ip> [<port>] [<path>]
+
+The response, headers and all, goes to stdout, so it can be redirected
+to a file; progress and errors go to stderr. There is no name
+resolution: give it an address. For example, with a web server on the
+slirp gateway:
+
+    htget 10.0.2.2 80 /index.html
+
+Loading the stack
+-----------------
+
+In the boot drive's userhook.sys, in this order:
+
+    DEVICE=C:\NET\PROTMAN.DOS /I:C:\NET
+    DEVICE=D:\DOSEMU\NDIS.SYS
+    DEVICE=C:\NET\TCPDRV.DOS /I:C:\NET
+
+and then, from autoexec.bat or by hand:
+
+    C:\NET\NETBIND.COM
+    C:\NET\TCPTSR.EXE
+    C:\NET\SOCKETS.EXE
+
+PROTOCOL.INI needs a section for the MAC driver and TCPIP bound to it,
+see src/doc/README/ndis. sockets.exe is the piece that provides the
+interface below; socktsr.exe from older LAN Manager releases does too.
+
+The interface
+-------------
+
+The sockets TSR is reached through the TCPDRV$ character device and a
+far entry point that it hands out. No specification of any of this
+seems to have been published, so it was recovered from DOS_SOCK.LIB of
+the Microsoft TCP/IP Sockets Development Kit 1.0 - the library that MS
+C programs linked against. The numbers are in mstcp.h; below is where
+each one comes from, so that the reading can be checked rather than
+taken on trust. Nothing is copied from the SDK: this is a description
+of an interface, and the code here was written from it.
+
+The library module solocate.asm holds the whole locator:
+
+  _locater_open    opens "TCPDRV$" with INT 21h AX=3D00h.
+
+  _locater_bind    puts 2 in the first byte of a 25-byte block, the
+                   caller's word in the third, and passes it to the
+                   device with INT 21h AX=4402h, CX=25. It then takes
+                   the status from the second byte and a far pointer
+                   from bytes 4..7, which is the entry point.
+
+  _locater_unbind  the same with 3 in the first byte.
+
+  _locater_send    loads ES:BX with the caller's request block and
+                   does a far call through the pointer that
+                   _locater_bind stored. So the entry point takes its
+                   argument in ES:BX, not on the stack - sockutil.c
+                   installs _locater_send itself as the "driver entry"
+                   that the socket calls go through.
+
+The word in the block is the process id: sockutil.c fills it from
+_so_get_DOS_pid, which is the PSP of the process, and the TSR keeps
+its state per process. A process that binds should unbind again.
+
+Every socket call is one request block, passed to the entry point:
+
+    offset 0   byte   opcode
+    offset 1   dword  far pointer to the caller's errno word
+    offset 5   dword  far pointer to the caller's result word
+    offset 9   word   the process id, again
+    offset 11         the arguments of this particular call
+
+which is what each of socket.c, connect.c, send.c, recv.c and close.c
+in the library builds on its stack before calling. The opcodes and
+arguments are taken from the same modules:
+
+    socket.c    0x10   word domain, word type, word protocol
+    close.c     0x02   word s
+    connect.c   0x04   word s, far name, word namelen
+    send.c      0x0d   word s, far buf, word len, word flags,
+                       far to, word tolen, byte 0
+    recv.c      0x0b   word s, far buf, word len, word flags,
+                       far from, far fromlen, byte 2
+
+send and recv are sendto and recvfrom underneath; the trailing byte
+picks the flavour, and send.c passes a null destination with a length
+of 16 while recv.c passes null pointers.
+
+The result is not returned in a register: it is written through the
+pointer at offset 5, negative on failure, with the error at offset 1.
+The error numbers are in sock_err.h of the SDK.
+
+What is not replicated here is the rest of what the library's
+so_drvropen does after binding - it installs INT 24h and 2Fh handlers
+so that an abnormally terminating program still unbinds, and it makes
+one "get status" call whose result it only uses to answer its own
+"is this a compatible version" question. htget does neither, and
+unbinds on every path out instead.
+
+Testing
+-------
+
+tsockets.sys is a TCPDRV$ device that speaks the interface above and
+answers from canned data. It is what the test_mstcp_htget cases of the
+test suite run htget against, and all it can show is that htget uses
+the interface the way this file describes it. Whether that description
+matches Microsoft's TSR is not something any test here can answer -
+that takes a machine with MS Network Client on it.
