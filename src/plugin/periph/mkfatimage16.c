@@ -279,8 +279,10 @@ int main(int argc, char *argv[])
         volume_label[11] = '\0';
       break;
     case 't':
-      if (kbytes > 0)
+      if (kbytes > 0) {
         usage();
+        return 1;
+      }
       kbytes = 0;
       tracks = atoi(optarg);
       if (tracks <= 0) {
@@ -293,8 +295,10 @@ int main(int argc, char *argv[])
       }
       break;
     case 'h':
-      if (kbytes > 0)
+      if (kbytes > 0) {
         usage();
+        return 1;
+      }
       kbytes = 0;
       heads = atoi(optarg);
       if (heads <= 0) {
@@ -308,8 +312,10 @@ int main(int argc, char *argv[])
       p_ending_head = heads - 1;
       break;
     case 'k':
-      if (kbytes != -1)
+      if (kbytes != -1) {
         usage();
+        return 1;
+      }
       kbytes = strtol(optarg, 0,0) *2;  /* needed total number of sectors */
       if (kbytes < (SECTORS_PER_TRACK * HEADS *2)) {
         fprintf(stderr, "Error: %d Kbyte specified, must be a reasonable size\n", kbytes);
