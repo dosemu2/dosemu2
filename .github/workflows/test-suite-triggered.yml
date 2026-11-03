@@ -6,6 +6,8 @@ concurrency:
 
 on:
   push:
+    branches:
+      - devel
 
   pull_request:
     types:
