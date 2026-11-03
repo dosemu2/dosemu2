@@ -415,9 +415,11 @@ to set one while something else runs the client.
 A write dosemu itself makes into the client's memory, which is how most of
 what DOS does for the client reaches it, goes nowhere near the emulator and
 is not seen.  An instruction cannot be stopped halfway either, so the write
-has already happened by the time the report arrives, and the registers
-printed with it are not the writing instruction's; the report names its eip
-instead.
+has already happened by the time the report arrives and the client stands
+on the instruction after the one that made it, held there by a breakpoint
+the watchpoint sets and removes itself.  The report names the writing
+instruction's eip and prints its registers too, read with eip sent back
+over it, before the ones the stop itself has.
 </para>
 </listitem></varlistentry>
 <varlistentry>

@@ -59,6 +59,7 @@
 #include "hma.h"
 #include "bios_sym.h"
 #include "misc/dis8086.h"
+#include "instremu.h"
 #include "dos2linux.h"
 #include "coopth.h"
 #include "kvm.h"
@@ -781,7 +782,7 @@ static void mhp_go(int argc, char *argv[])
     }
     dpmi_mhp_setTF(0);
     clear_TF();
-    mhp_bpset();
+    mhp_bpset(NULL);
     restart_cputime(1);
   }
 }
@@ -890,7 +891,7 @@ static void mhp_trace(int argc, char *argv[])
       mhpdbgc.stopped = 0;
       dpmi_mhp_setTF(0);
       clear_TF();
-      mhp_bpset();
+      mhp_bpset(NULL);
       return;
     }
   }
@@ -2084,7 +2085,12 @@ static int bp_exists(unsigned int seekval)
  * refuses to arm unless the interpreter is what runs the client.
  *
  * An instruction cannot be stopped halfway, so the write is let through
- * and reported at the next poll, with the bytes as they were before it.
+ * and the bytes are read before it to be reported with the stop.  The
+ * poll that reports it would come whenever one comes, which is wherever
+ * dosemu happens to be and not the client, so a breakpoint on the
+ * instruction after the write holds the client for it.  The instruction
+ * that wrote is then shown with its own registers, eip sent back over it
+ * for the printout, the way bpload shows the EXEC call it intercepts.
  */
 #define MAXWP 4
 #define WP_SHOW 8		/* bytes of a watch to print */
@@ -2096,6 +2102,7 @@ static struct {
 } wptab[MAXWP];
 
 static int wp_num;		/* valid entries, tested on every write */
+static unsigned int wp_bp;	/* breakpoint holding the client for a stop */
 
 static struct {
   int num;			/* the watch that was hit, -1 for none */
@@ -2141,10 +2148,24 @@ int mhp_watch_write(dosaddr_t addr, unsigned int len)
   return 1;
 }
 
-/* the caller's answer to mhp_watch_write() returning 1 */
-void mhp_watch_pc(unsigned int pc)
+/* The caller's answer to mhp_watch_write() returning 1: pc is the writing
+ * instruction's eip, lina the same instruction in memory, eip where the
+ * emulator stands in its translation of it.  The breakpoint goes on the
+ * instruction after the write, which is what keeps the client from running
+ * on while the stop is only wanted. */
+void mhp_watch_pc(unsigned int pc, dosaddr_t lina, unsigned char *eip)
 {
+  unsigned int next;
+
   wp_hit.pc = pc;
+  next = lina + instr_len(LINEAR2UNIX(lina),
+                          dbg_in_dpmi() && dpmi_mhp_getcsdefault());
+  /* a breakpoint of the user's own there stops us just as well, and is
+   * not ours to remove afterwards */
+  if (bp_exists(next) || !mhp_setbp(next))
+    return;
+  wp_bp = next;
+  mhp_bpset(eip);
 }
 
 /* called from mhp_poll(), with the write already done */
@@ -2152,9 +2173,20 @@ void mhp_watch_poll(void)
 {
   unsigned int i;
   int num = wp_hit.num;
+  unsigned int pc = wp_hit.pc;
+  int delta;
 
   if (num == -1)
     return;
+  if (wp_bp) {
+    /* the report belongs with the stop the breakpoint brings, not with
+     * a poll that happens to come first while the client still runs */
+    if (!mhpdbgc.stopped)
+      return;
+  } else {
+    /* nothing holds the client, so this poll is the stop there is */
+    mhpdbgc.want_to_stop = 1;
+  }
   mhp_printf("\nwatchpoint %d: %08x written", num, wp_hit.addr);
   if (wp_hit.pc)
     mhp_printf(" from eip %x", wp_hit.pc);
@@ -2164,11 +2196,18 @@ void mhp_watch_poll(void)
   mhp_printf(", held");
   for (i = 0; i < wp_hit.olen; i++)
     mhp_printf(" %02x", wp_hit.old[i]);
-  /* said because the registers printed next are not the writing
-   * instruction's: it has finished by the time this is read */
-  mhp_printf("\nstopped after the write, not on it\n");
   wp_hit.num = -1;
-  mhpdbgc.want_to_stop = 1;
+  if (!pc) {
+    mhp_printf("\n");
+    return;
+  }
+  /* the client stands on the instruction after the write, so eip goes
+   * back over the one that wrote for this printout and returns */
+  mhp_printf("\nregisters of the instruction that wrote:\n");
+  delta = pc - mhp_getreg(_EIPr);
+  mhp_modify_eip(delta);
+  mhp_cmd("r");
+  mhp_modify_eip(-delta);
 }
 
 /* the debugger terminal is going away */
@@ -2180,6 +2219,10 @@ void mhp_watch_clr(void)
     wptab[i].is_valid = 0;
   wp_num = 0;
   wp_hit.num = -1;
+  if (wp_bp) {
+    mhp_clearbp(wp_bp);
+    wp_bp = 0;
+  }
 }
 
 static void mhp_bpw(int argc, char *argv[])
@@ -2751,17 +2794,20 @@ static void mhp_kill(int argc, char *argv[])
 }
 
 /* Patching an int3 into the client's code is a write the CPU emulator does
- * not see, so its translation of that code has to be thrown away by hand. */
-static void mhp_poke_code(dosaddr_t addr, uint8_t val)
+ * not see, so its translation of that code has to be thrown away by hand.
+ * eip, where the emulator stands in that code, is known only to a caller
+ * that pokes while the client runs: the sequence in flight has to be ended
+ * as well, or it carries on from ops that have no int3 in them. */
+static void mhp_poke_code(dosaddr_t addr, uint8_t val, unsigned char *eip)
 {
   WRITE_BYTE(addr, val);
 #ifdef X86_EMULATOR
   if (IS_EMU())
-    e_invalidate(addr, 1);
+    e_invalidate_at(addr, 1, eip);
 #endif
 }
 
-void mhp_bpset(void)
+void mhp_bpset(unsigned char *eip)
 {
   int i1;
 
@@ -2780,7 +2826,7 @@ void mhp_bpset(void)
       }
       mhpdbgc.brktab[i1].opcode = READ_BYTE(mhpdbgc.brktab[i1].brkaddr);
       if (i1 != trapped_bp)
-        mhp_poke_code(mhpdbgc.brktab[i1].brkaddr, 0xCC);
+        mhp_poke_code(mhpdbgc.brktab[i1].brkaddr, 0xCC, eip);
     }
   }
   return;
@@ -2815,13 +2861,14 @@ void mhp_bpclr(void)
         } else {
           mhpdbgc.brktab[i1].opcode = opcode;
           if (i1 != trapped_bp) {
-            mhp_poke_code(mhpdbgc.brktab[i1].brkaddr, 0xCC);
+            mhp_poke_code(mhpdbgc.brktab[i1].brkaddr, 0xCC, NULL);
             mhp_printf("Warning: code at breakpoint %d has been overwritten (0x%02x)\n", i1, opcode);
           }
         }
       }
 
-      mhp_poke_code(mhpdbgc.brktab[i1].brkaddr, mhpdbgc.brktab[i1].opcode);
+      mhp_poke_code(mhpdbgc.brktab[i1].brkaddr, mhpdbgc.brktab[i1].opcode,
+                    NULL);
     }
   }
 }
@@ -2850,6 +2897,12 @@ int mhp_bpchk(unsigned int a1)
     /* it only existed to step over an int, and it has done that */
     mhp_clearbp(trace_bp);
     trace_bp = 0;
+    trapped_bp = -1;
+  }
+  if (wp_bp && a1 == wp_bp) {
+    /* it only held the client for a watchpoint's stop, which is here */
+    mhp_clearbp(wp_bp);
+    wp_bp = 0;
     trapped_bp = -1;
   }
   return 1;

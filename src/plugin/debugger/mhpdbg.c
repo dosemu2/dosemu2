@@ -512,7 +512,7 @@ unsigned int mhp_debug(unsigned code, unsigned int parm1, unsigned int parm2)
               mhp_cmd("r");
               mhp_modify_eip(2);
             }
-            mhp_bpset();
+            mhp_bpset(NULL);
             mhpdbgc.bpload++;
             mhpdbgc.bpload_par = MK_FP32(BIOSSEG, DBGload_parblock);
             MEMCPY_2UNIX(mhpdbgc.bpload_par, SEGOFF2LINEAR(SREG(es), LWORD(ebx)), 14);

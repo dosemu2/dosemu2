@@ -239,20 +239,20 @@ void rep_movs_stos(struct rep_stack *stack)
 
 /* ======================================================================= */
 
-void stk_16(dosaddr_t addr, Bit16u value)
+void stk_16(dosaddr_t addr, Bit16u value, unsigned char *eip)
 {
 	prejit_sync();
-	e_invalidate_unlocked(addr, 2);
+	e_invalidate_unlocked_at(addr, 2, eip);
 	WRITE_WORD(addr, value);
 #if PROFILE
 	CpatchStkWrites++;
 #endif
 }
 
-void stk_32(dosaddr_t addr, Bit32u value)
+void stk_32(dosaddr_t addr, Bit32u value, unsigned char *eip)
 {
 	prejit_sync();
-	e_invalidate_unlocked(addr, 4);
+	e_invalidate_unlocked_at(addr, 4, eip);
 	WRITE_DWORD(addr, value);
 #if PROFILE
 	CpatchStkWrites++;
@@ -446,13 +446,14 @@ Bit32u read_32(dosaddr_t addr)
  */
 
 #define STUB_STK(cfunc) \
-"		pushal\n \
-		pushl	%eax\n \
-		pushl	%edx\n \
-		call	"#cfunc"\n \
-		addl	$8,%esp\n \
-		popal\n \
-		ret\n"
+"		pushal\n"		/* save regs */ \
+"		pushl	32(%esp)\n"	/* return addr = patch point+3 */ \
+"		pushl	%eax\n"		/* value to write */ \
+"		pushl	%edx\n"		/* addr where to write */ \
+"		call	"#cfunc"\n" \
+"		addl	$12,%esp\n"	/* remove parameters */ \
+"		popal\n" \
+"		ret\n"
 
 
 #define STUB_WRI(cfunc) \
@@ -528,6 +529,7 @@ asm (
 "		movl	%edx,%edi\n" \
 "		movl	%eax,%esi\n" \
 					/* pass base address in %rdi */ \
+"		movq	40(%rsp),%rdx\n"	/* return addr = patch point+3 */ \
 "		call	"#cfunc"\n" \
 "		popq	%rsi\n"		/* restore regs */ \
 "		popq	%rdi\n" \

@@ -2851,11 +2851,18 @@ uint64_t sim_read_qword(dosaddr_t x)
 }
 
 /* FindPC() walks the tree of translated code, so it is only asked once a
- * watchpoint has something to report. */
+ * watchpoint has something to report.  The debugger gets the writing
+ * instruction three ways: the eip to print, the address to put its
+ * breakpoint after, and where this sequence stands, which is what the
+ * breakpoint's own write into translated code needs to end it. */
 static void sim_watch(dosaddr_t addr, unsigned int len)
 {
-	if (mhp_watch_write(addr, len) && currentIG)
-		mhp_watch_pc(FindPC(currentIG) - LONG_CS);
+	unsigned int pc;
+
+	if (!mhp_watch_write(addr, len) || !currentIG)
+		return;
+	pc = FindPC(currentIG);
+	mhp_watch_pc(pc - LONG_CS, pc, currentIG);
 }
 
 void sim_write_byte(dosaddr_t x, uint8_t y)

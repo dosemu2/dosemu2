@@ -51,13 +51,14 @@ void mhp_watch_clr(void);
  * the interpreter is on is too slow to do for every write. */
 #ifdef USE_MHPDBG
 int mhp_watch_write(dosaddr_t addr, unsigned int len);
-void mhp_watch_pc(unsigned int pc);
+void mhp_watch_pc(unsigned int pc, dosaddr_t lina, unsigned char *eip);
 #else
 static inline int mhp_watch_write(dosaddr_t addr, unsigned int len)
 {
   return 0;
 }
-static inline void mhp_watch_pc(unsigned int pc)
+static inline void mhp_watch_pc(unsigned int pc, dosaddr_t lina,
+                                unsigned char *eip)
 {
 }
 #endif
@@ -113,7 +114,7 @@ extern __TLS struct mhpdbg mhpdbg;
 #define MAXBP 64
 
 void mhp_cmd(const char *);
-void mhp_bpset(void);
+void mhp_bpset(unsigned char *eip);
 void mhp_bpclr(void);
 int mhp_bpchk(unsigned int);
 int bpchk(unsigned int);
