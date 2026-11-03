@@ -851,7 +851,13 @@ static int vga_get_mem_base_offset(dosaddr_t addr)
     if (addr >= base && addr < end)
       return addr - base + (vga.mem.map[i].first_page * HOST_PAGE_SIZE);
   }
-  error("VGA address %x unmapped, please report bug\n", addr);
+  /* Not an error: every caller handles -1 by going to plain DOS memory
+   * instead.  An address inside the graphics window but outside the
+   * current mappings is ordinary - a program that touches a000:0000
+   * after leaving a graphics mode gets here, because vga.mem.map[]
+   * then describes the text buffer at b8000.  It is worth a line in
+   * the log all the same, to tell that apart from a mapping we lost. */
+  vga_deb_map("vga_get_mem_base_offset: %x outside the mappings\n", addr);
   return -1;
 }
 
