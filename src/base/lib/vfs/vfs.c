@@ -21,8 +21,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <fcntl.h>
+#include <sys/file.h>
 #include <errno.h>
+#include <assert.h>
+#include "emu.h"
+#include "dosemu_debug.h"
 #include "fslib/fslib.h"
+#include "utilities.h"
 #include "vfs.h"
 
 /*
@@ -82,12 +87,28 @@ static int posix_file_fsync(vfs_file_t *file)
   return fsync(file->fd);
 }
 
-static int posix_file_get_async_fd(vfs_file_t *file, void *handle)
+static int posix_file_flock(vfs_file_t *file, int op)
 {
-  if (file)
-    return file->fd;
-  return mfs_async_getfd(handle);
+  if (!file)
+    return -1;
+  return flock(file->fd, op);
 }
+
+#if HAVE_DECL_F_OFD_SETLK
+static int posix_file_setlk(vfs_file_t *file, struct flock *fl)
+{
+  if (!file)
+    return -1;
+  return fcntl(file->fd, F_OFD_SETLK, fl);
+}
+
+static int posix_file_getlk(vfs_file_t *file, struct flock *fl)
+{
+  if (!file)
+    return -1;
+  return fcntl(file->fd, F_OFD_GETLK, fl);
+}
+#endif
 
 static const struct vfs_file_ops posix_file_ops = {
   .close = posix_file_close,
@@ -97,10 +118,14 @@ static const struct vfs_file_ops posix_file_ops = {
   .fstat = posix_file_fstat,
   .ftruncate = posix_file_ftruncate,
   .fsync = posix_file_fsync,
-  .get_async_fd = posix_file_get_async_fd,
+  .flock = posix_file_flock,
+#if HAVE_DECL_F_OFD_SETLK
+  .setlk = posix_file_setlk,
+  .getlk = posix_file_getlk,
+#endif
 };
 
-vfs_file_t *vfs_file_wrap_posix(int fd)
+static vfs_file_t *vfs_file_wrap_posix(int fd)
 {
   vfs_file_t *file;
   if (fd == -1)
@@ -149,13 +174,42 @@ static int posix_dir_fstatat(vfs_dir_t *dir, const char *pathname, struct stat *
   return fstatat(dir->fd, pathname, statbuf, flags);
 }
 
-static int posix_dir_dirfd(vfs_dir_t *dir)
+static int posix_dir_scandir(vfs_dir_t *dir, char ***namelist,
+    int (*filter)(const char *name))
 {
-  if (!dir)
+  struct dirent **dlist;
+  char **list;
+  int i, num, cnt = 0;
+
+  if (!dir || dir->fd == -1)
     return -1;
-  if (dir->d)
-    return dirfd(dir->d);
-  return dir->fd;
+  num = fdscandir(dir->fd, &dlist, NULL, alphasort);
+  if (num < 0)
+    return -1;
+  /* one spare, so that an empty directory still gets an array */
+  list = malloc((num + 1) * sizeof(*list));
+  if (list) {
+    for (i = 0; i < num; i++) {
+      if (filter && !filter(dlist[i]->d_name))
+        continue;
+      list[cnt] = strdup(dlist[i]->d_name);
+      if (!list[cnt]) {
+        while (cnt--)
+          free(list[cnt]);
+        free(list);
+        list = NULL;
+        break;
+      }
+      cnt++;
+    }
+  }
+  for (i = 0; i < num; i++)
+    free(dlist[i]);
+  free(dlist);
+  if (!list)
+    return -1;
+  *namelist = list;
+  return cnt;
 }
 
 static const struct vfs_dir_ops posix_dir_ops = {
@@ -163,10 +217,10 @@ static const struct vfs_dir_ops posix_dir_ops = {
   .readdir = posix_dir_readdir,
   .fstatdir = posix_dir_fstatdir,
   .fstatat = posix_dir_fstatat,
-  .dirfd = posix_dir_dirfd,
+  .scandir = posix_dir_scandir,
 };
 
-vfs_dir_t *vfs_dir_wrap_posix(DIR *d, int fd)
+static vfs_dir_t *vfs_dir_wrap_posix(DIR *d, int fd)
 {
   vfs_dir_t *dir;
   if (!d && fd == -1)
@@ -252,13 +306,26 @@ static void *posix_fs_open_async(vfs_fs_t *fs, const char *path, int flags)
   return mfs_open_async(fs->mfs_idx, path, flags);
 }
 
+static vfs_file_t *posix_fs_async_getfile(vfs_fs_t *fs, void *handle)
+{
+  return vfs_file_wrap_posix(mfs_async_getfd(handle));
+}
+
+static void posix_fs_async_cancel(vfs_fs_t *fs, void *handle)
+{
+  int fd = mfs_async_getfd(handle);
+
+  if (fd != -1)
+    close(fd);
+}
+
 static vfs_dir_t *posix_fs_opendir(vfs_fs_t *fs, const char *path)
 {
   int dfd = mfs_open_file(fs->mfs_idx, path, O_RDONLY | O_DIRECTORY | O_CLOEXEC);
   DIR *d;
-  if (dfd == -1) {
+
+  if (dfd == -1)
     return NULL;
-  }
   d = fdopendir(dfd);
   if (!d) {
     close(dfd);
@@ -281,6 +348,8 @@ static const struct vfs_fs_ops posix_fs_ops = {
   .access = posix_fs_access,
   .utime = posix_fs_utime,
   .open_async = posix_fs_open_async,
+  .async_getfile = posix_fs_async_getfile,
+  .async_cancel = posix_fs_async_cancel,
   .opendir = posix_fs_opendir,
 };
 
@@ -386,6 +455,20 @@ void *vfs_open_async(vfs_fs_t *fs, const char *path, int flags)
   return fs->ops->open_async(fs, path, flags);
 }
 
+vfs_file_t *vfs_async_getfile(vfs_fs_t *fs, void *handle)
+{
+  if (!fs || !fs->ops || !fs->ops->async_getfile)
+    return NULL;
+  return fs->ops->async_getfile(fs, handle);
+}
+
+void vfs_async_cancel(vfs_fs_t *fs, void *handle)
+{
+  if (!fs || !fs->ops || !fs->ops->async_cancel)
+    return;
+  fs->ops->async_cancel(fs, handle);
+}
+
 vfs_dir_t *vfs_opendir(vfs_fs_t *fs, const char *path)
 {
   if (!fs || !fs->ops || !fs->ops->opendir)
@@ -442,11 +525,25 @@ int vfs_fsync(vfs_file_t *file)
   return file->ops->fsync(file);
 }
 
-int vfs_get_async_fd(vfs_file_t *file, void *handle)
+int vfs_flock(vfs_file_t *file, int op)
 {
-  if (!file || !file->ops || !file->ops->get_async_fd)
+  if (!file || !file->ops || !file->ops->flock)
     return -1;
-  return file->ops->get_async_fd(file, handle);
+  return file->ops->flock(file, op);
+}
+
+int vfs_setlk(vfs_file_t *file, struct flock *fl)
+{
+  if (!file || !file->ops || !file->ops->setlk)
+    return -1;
+  return file->ops->setlk(file, fl);
+}
+
+int vfs_getlk(vfs_file_t *file, struct flock *fl)
+{
+  if (!file || !file->ops || !file->ops->getlk)
+    return -1;
+  return file->ops->getlk(file, fl);
 }
 
 int vfs_closedir(vfs_dir_t *dir)
@@ -477,9 +574,10 @@ int vfs_fstatat(vfs_dir_t *dir, const char *pathname, struct stat *statbuf, int 
   return dir->ops->fstatat(dir, pathname, statbuf, flags);
 }
 
-int vfs_dirfd(vfs_dir_t *dir)
+int vfs_scandir(vfs_dir_t *dir, char ***namelist,
+    int (*filter)(const char *name))
 {
-  if (!dir || !dir->ops || !dir->ops->dirfd)
+  if (!dir || !dir->ops || !dir->ops->scandir)
     return -1;
-  return dir->ops->dirfd(dir);
+  return dir->ops->scandir(dir, namelist, filter);
 }
