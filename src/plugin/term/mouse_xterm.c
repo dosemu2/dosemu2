@@ -129,7 +129,13 @@ static int has_xterm_mouse_support(void)
 {
 	const char *km;
 
-	if (config.vga || on_console())
+	/* Dumb video mode draws no screen, so there is nothing for a
+	 * mouse position to mean, and the reports would only come back
+	 * to be thrown away.  gpm is kept out of it for the same reason,
+	 * see mouse_client_init().  The term plugin still gets loaded
+	 * there when -kt asks for its keyboard, which is how this client
+	 * used to end up running anyway. */
+	if (config.vga || config.dumb_video || on_console())
 		return 0;
 
 	term_init();
