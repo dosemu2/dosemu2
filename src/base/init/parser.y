@@ -755,6 +755,7 @@ line:		CHARSET '{' charset_flags '}' {}
 		    }
 		    else {
 			Path_cdrom[which] = $3;
+			cdrom_config($3);
 			c_printf("CONF: cdrom MSCD000%d on %s\n", which+1 ,$3);
 			which++;
 		    }
