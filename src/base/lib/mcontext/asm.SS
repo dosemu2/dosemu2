@@ -47,6 +47,13 @@
 #elif defined(__mips__)
 #define SET setmcontext
 #define GET getmcontext
+#elif defined(__riscv) 
+#if(__riscv_xlen == 64)
+#define SET _setmcontext
+#define GET _getmcontext
+#else
+#error "Only 64-bit RISC-V (__riscv_xlen == 64) is supported by this runtime."
+#endif
 #else
 #define SET __setmcontext
 #define GET __getmcontext
@@ -454,6 +461,16 @@ SET:
 	j	$8
 	nop
 #endif
+
+#if defined(__riscv)
+
+#if (__riscv_xlen != 64)
+#error "Only 64-bit RISC-V (__riscv_xlen == 64) is supported by this runtime."
+#endif
+
+#include "rv64g.asm"
+#endif
+
 
 #ifdef __ELF__
 .section .note.GNU-stack,"",%progbits
