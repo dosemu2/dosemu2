@@ -33,6 +33,7 @@
  * Modifications for 64-bit RISC-V context switching
  * integrated under the terms of the GNU General Public License v2 (GPLv2).
  */
+#include <stdint.h>
 struct m_mcontext {
         uint64_t regs[15]; /* callee saves RA, SP and other registers as required */
         uint64_t fpu_regs[12]; /* 12 x 64 bit FPU Registers */

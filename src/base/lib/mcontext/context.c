@@ -28,10 +28,9 @@ void makemcontext(m_ucontext_t *ucp, void (*func)(void*), void *arg)
 	ucp->uc_mcontext.gregs[0] = (uintptr_t)arg;
 #else
 #ifdef __riscv
-        ucp->uc_mcontext.regs[19] = (uintptr_t) ucp->uc_link;
-        ucp->uc_mcontext.sp = (uintptr_t) sp;
-        ucp->uc_mcontext.pc = (uintptr_t) func;
-        ucp->uc_mcontext.regs[0] = (uint64_t)arg;
+        ucp->uc_mcontext.regs[14U] = (uintptr_t) sp;
+        ucp->uc_mcontext.regs[13U] = (uintptr_t) func;
+        ucp->uc_mcontext.regs[0U] = (uint64_t)arg;
 #else
 #ifdef __i386__
 	sp -= 3;	// alignment
